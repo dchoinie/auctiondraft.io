@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "./db";
-import { userProfiles } from "@/app/schema";
+import { userProfiles, leagues } from "@/app/schema";
 import { eq, sql } from "drizzle-orm";
 
 export async function syncUserToDatabase() {
@@ -84,4 +84,29 @@ export async function getUserFromDatabase(userId: string) {
     .limit(1);
 
   return user[0] || null;
+}
+
+export async function isUserAdminOfLeague(
+  userId: string,
+  leagueId: string
+): Promise<boolean> {
+  const league = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  if (league.length === 0) {
+    return false;
+  }
+
+  return league[0].ownerId === userId;
+}
+
+export async function getCurrentUserAdminStatusForLeague(
+  leagueId: string
+): Promise<boolean> {
+  const { userId } = await auth();
+  if (!userId) return false;
+  return await isUserAdminOfLeague(userId, leagueId);
 }

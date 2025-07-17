@@ -1,5 +1,5 @@
 {
-  "id": "0b9bab0f-692c-435b-a5ff-aca809f124be",
+  "id": "3f96de92-ea9a-4b72-a7e9-89c94302a1c0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -204,7 +204,7 @@
         },
         "owner_id": {
           "name": "owner_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -225,10 +225,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "leagues_owner_id_users_id_fk": {
-          "name": "leagues_owner_id_users_id_fk",
+        "leagues_owner_id_user_profiles_id_fk": {
+          "name": "leagues_owner_id_user_profiles_id_fk",
           "tableFrom": "leagues",
-          "tableTo": "users",
+          "tableTo": "user_profiles",
           "columnsFrom": [
             "owner_id"
           ],
@@ -296,7 +296,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -328,10 +328,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "payments_user_id_users_id_fk": {
-          "name": "payments_user_id_users_id_fk",
+        "payments_user_id_user_profiles_id_fk": {
+          "name": "payments_user_id_user_profiles_id_fk",
           "tableFrom": "payments",
-          "tableTo": "users",
+          "tableTo": "user_profiles",
           "columnsFrom": [
             "user_id"
           ],
@@ -504,7 +504,7 @@
         },
         "owner_id": {
           "name": "owner_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -531,10 +531,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "teams_owner_id_users_id_fk": {
-          "name": "teams_owner_id_users_id_fk",
+        "teams_owner_id_user_profiles_id_fk": {
+          "name": "teams_owner_id_user_profiles_id_fk",
           "tableFrom": "teams",
-          "tableTo": "users",
+          "tableTo": "user_profiles",
           "columnsFrom": [
             "owner_id"
           ],
@@ -661,13 +661,13 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.users": {
-      "name": "users",
+    "public.user_profiles": {
+      "name": "user_profiles",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
@@ -721,6 +721,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "is_admin": {
+          "name": "is_admin",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         }
       },
       "indexes": {},

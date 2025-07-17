@@ -19,7 +19,7 @@ CREATE TABLE "draft_state" (
 CREATE TABLE "leagues" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
-	"owner_id" uuid,
+	"owner_id" text,
 	"is_draft_started" integer DEFAULT 0,
 	"created_at" timestamp with time zone DEFAULT now()
 );
@@ -33,7 +33,7 @@ CREATE TABLE "nfl_players" (
 --> statement-breakpoint
 CREATE TABLE "payments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid,
+	"user_id" text,
 	"stripe_payment_id" text,
 	"credits_granted" integer,
 	"amount" integer,
@@ -60,7 +60,7 @@ CREATE TABLE "rosters" (
 CREATE TABLE "teams" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
-	"owner_id" uuid,
+	"owner_id" text,
 	"league_id" uuid,
 	"budget" integer DEFAULT 200,
 	"created_at" timestamp with time zone DEFAULT now()
@@ -76,8 +76,8 @@ CREATE TABLE "transactions" (
 	"created_at" timestamp with time zone DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
-	"id" uuid PRIMARY KEY NOT NULL,
+CREATE TABLE "user_profiles" (
+	"id" text PRIMARY KEY NOT NULL,
 	"email" text NOT NULL,
 	"first_name" text,
 	"last_name" text,
@@ -85,7 +85,8 @@ CREATE TABLE "users" (
 	"stripe_customer_id" text,
 	"stripe_subscription_id" text,
 	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now()
+	"updated_at" timestamp with time zone DEFAULT now(),
+	"is_admin" boolean DEFAULT false
 );
 --> statement-breakpoint
 ALTER TABLE "draft_nominations" ADD CONSTRAINT "draft_nominations_league_id_leagues_id_fk" FOREIGN KEY ("league_id") REFERENCES "public"."leagues"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -94,12 +95,12 @@ ALTER TABLE "draft_nominations" ADD CONSTRAINT "draft_nominations_player_id_nfl_
 ALTER TABLE "draft_nominations" ADD CONSTRAINT "draft_nominations_highest_bidder_team_id_teams_id_fk" FOREIGN KEY ("highest_bidder_team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "draft_state" ADD CONSTRAINT "draft_state_league_id_leagues_id_fk" FOREIGN KEY ("league_id") REFERENCES "public"."leagues"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "draft_state" ADD CONSTRAINT "draft_state_current_nomination_id_draft_nominations_id_fk" FOREIGN KEY ("current_nomination_id") REFERENCES "public"."draft_nominations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "leagues" ADD CONSTRAINT "leagues_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payments" ADD CONSTRAINT "payments_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "leagues" ADD CONSTRAINT "leagues_owner_id_user_profiles_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_user_id_user_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "roster_slots" ADD CONSTRAINT "roster_slots_league_id_leagues_id_fk" FOREIGN KEY ("league_id") REFERENCES "public"."leagues"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rosters" ADD CONSTRAINT "rosters_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rosters" ADD CONSTRAINT "rosters_player_id_nfl_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."nfl_players"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "teams" ADD CONSTRAINT "teams_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teams" ADD CONSTRAINT "teams_owner_id_user_profiles_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user_profiles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teams" ADD CONSTRAINT "teams_league_id_leagues_id_fk" FOREIGN KEY ("league_id") REFERENCES "public"."leagues"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_league_id_leagues_id_fk" FOREIGN KEY ("league_id") REFERENCES "public"."leagues"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
