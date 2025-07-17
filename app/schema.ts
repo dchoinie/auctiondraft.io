@@ -1,18 +1,21 @@
 import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey(), // If you need to reference auth.users(id) cross-schema, handle in migration SQL
-  email: text("email"),
+export const userProfiles = pgTable("user_profiles", {
+  id: text("id").primaryKey(), // This should be the Clerk user ID
+  email: text("email").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   leagueCredits: integer("league_credits").default(0),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const leagues = pgTable("leagues", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  ownerId: uuid("owner_id").references(() => users.id),
+  ownerId: text("owner_id").references(() => userProfiles.id),
   // 0 = false, 1 = true
   isDraftStarted: integer("is_draft_started").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -29,7 +32,7 @@ export const rosterSlots = pgTable("roster_slots", {
 export const teams = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  ownerId: uuid("owner_id").references(() => users.id),
+  ownerId: text("owner_id").references(() => userProfiles.id),
   leagueId: uuid("league_id").references(() => leagues.id),
   budget: integer("budget").default(200),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -87,7 +90,7 @@ export const draftState = pgTable("draft_state", {
 
 export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
+  userId: text("user_id").references(() => userProfiles.id),
   stripePaymentId: text("stripe_payment_id"),
   creditsGranted: integer("credits_granted"),
   amount: integer("amount"),
