@@ -8,6 +8,12 @@ import type Stripe from "stripe";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: NextRequest) {
+  // For development: skip webhook verification if secret is not set
+  if (!STRIPE_WEBHOOK_SECRET && process.env.NODE_ENV === "development") {
+    console.log("⚠️  Skipping webhook verification in development mode");
+    return NextResponse.json({ received: true });
+  }
+
   const sig = req.headers.get("stripe-signature");
   const buf = await req.arrayBuffer();
   let event;
@@ -19,6 +25,7 @@ export async function POST(req: NextRequest) {
       STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
+    console.error("Webhook signature verification failed:", err);
     return NextResponse.json(
       { error: `Webhook Error: ${(err as Error).message}` },
       { status: 400 }

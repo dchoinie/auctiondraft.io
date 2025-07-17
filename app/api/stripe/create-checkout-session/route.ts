@@ -23,9 +23,24 @@ const CREDIT_PACKAGES = {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("Creating checkout session...");
+
+    // Check environment variables
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error("STRIPE_SECRET_KEY is not set");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Stripe configuration error",
+        },
+        { status: 500 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {
+      console.log("User not authenticated");
       return NextResponse.json(
         {
           success: false,
@@ -35,8 +50,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("User authenticated:", userId);
+
     const body = await req.json();
     const { creditPackage } = body;
+
+    console.log("Credit package:", creditPackage);
 
     if (
       !creditPackage ||
@@ -53,6 +72,7 @@ export async function POST(req: NextRequest) {
 
     const user = await getUserFromDatabase(userId);
     if (!user) {
+      console.log("User not found in database");
       return NextResponse.json(
         {
           success: false,
@@ -62,6 +82,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("User found in database:", user.email);
+
     const packageInfo =
       CREDIT_PACKAGES[creditPackage as keyof typeof CREDIT_PACKAGES];
 
@@ -69,6 +91,7 @@ export async function POST(req: NextRequest) {
     let stripeCustomerId = user.stripeCustomerId;
 
     if (!stripeCustomerId) {
+      console.log("Creating new Stripe customer");
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -77,6 +100,7 @@ export async function POST(req: NextRequest) {
       });
 
       stripeCustomerId = customer.id;
+      console.log("Created Stripe customer:", stripeCustomerId);
 
       // Update user with Stripe customer ID
       await db
@@ -85,7 +109,28 @@ export async function POST(req: NextRequest) {
         .where(eq(userProfiles.id, userId));
     }
 
+    // Get the base URL for redirects
+    let baseUrl: string;
+
+    if (process.env.NODE_ENV === "development") {
+      baseUrl = "http://localhost:3000";
+    } else {
+      // For production, use environment variable or construct from request headers
+      const host = req.headers.get("host");
+      const protocol = req.headers.get("x-forwarded-proto") || "https";
+      baseUrl =
+        process.env.APP_URL ||
+        process.env.NEXT_PUBLIC_APP_URL ||
+        `${protocol}://${host}`;
+    }
+
+    console.log("Base URL:", baseUrl);
+    console.log("Environment:", process.env.NODE_ENV);
+    console.log("APP_URL:", process.env.APP_URL);
+    console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
+
     // Create checkout session
+    console.log("Creating Stripe checkout session");
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       payment_method_types: ["card"],
@@ -103,14 +148,16 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
+      success_url: `${baseUrl}/dashboard?payment=success`,
+      cancel_url: `${baseUrl}/dashboard?payment=cancelled`,
       metadata: {
         userId: userId,
         creditPackage: creditPackage,
         creditsGranted: packageInfo.credits.toString(),
       },
     });
+
+    console.log("Checkout session created:", session.id);
 
     return NextResponse.json({
       success: true,
@@ -119,8 +166,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating checkout session:", error);
+
+    // Return more specific error information
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Failed to create checkout session";
+
     return NextResponse.json(
-      { success: false, error: "Failed to create checkout session" },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
