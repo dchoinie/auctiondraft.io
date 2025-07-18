@@ -30,6 +30,7 @@ export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
     { label: "Dashboard", href: "/dashboard" },
     { label: "Leagues", href: "/leagues" },
     { label: "My Teams", href: "/teams" },
+    { label: "Players", href: "/players" },
   ];
 
   // League-specific items (only visible when in a league context)
