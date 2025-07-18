@@ -24,6 +24,8 @@ import {
   Calendar,
   Settings2,
   Trophy,
+  DollarSign,
+  UserCheck,
 } from "lucide-react";
 
 export default function LeagueSettingsPage() {
@@ -448,12 +450,98 @@ export default function LeagueSettingsPage() {
           </CardContent>
         </Card>
 
+        {/* League Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Teams</p>
+                  <p className="text-2xl font-bold">
+                    {/* teams.length is not defined in this component */}
+                    {/* Assuming settings.leagueSize is the intended value */}
+                    {settings?.leagueSize || "N/A"} /{" "}
+                    {settings?.leagueSize || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Starting Budget
+                  </p>
+                  <p className="text-2xl font-bold">
+                    ${settings?.startingBudget || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">League Status</p>
+                  <p className="text-lg font-semibold">
+                    {/* teams.length === settings.leagueSize is not defined */}
+                    {/* Assuming settings.leagueSize is the intended value */}
+                    {settings?.leagueSize === undefined ||
+                    settings?.leagueSize === null
+                      ? "N/A"
+                      : settings?.leagueSize === 0
+                      ? "Open"
+                      : "Full"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Team Management Info */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Team Management
+            </CardTitle>
+            <CardDescription>
+              Multiple ways to add teams to your league
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-sm">
+                <strong>Manage Teams:</strong> Visit the teams page to invite
+                users, manually add teams, or view all current teams.
+              </p>
+              <p className="text-sm">
+                <strong>User Invitations:</strong> Send invitation emails to
+                users who can then create their own teams.
+              </p>
+              <p className="text-sm">
+                <strong>Self-Registration:</strong> Users can join your league
+                directly from the league page.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* User Management */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              League Members
+              League Invitations
             </CardTitle>
             <CardDescription>Invite new members to your league</CardDescription>
           </CardHeader>

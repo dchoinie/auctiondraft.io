@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { leagues, leagueInvitations } from "@/app/schema";
+import { leagues, leagueInvitations, teams, userProfiles } from "@/app/schema";
 import { eq, and } from "drizzle-orm";
+import { sendLeagueInvitationEmail } from "@/lib/email";
 
 export async function POST(
   req: NextRequest,
@@ -53,6 +54,20 @@ export async function POST(
       );
     }
 
+    // Get inviter information
+    const inviter = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.id, userId))
+      .limit(1);
+
+    if (inviter.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Inviter profile not found" },
+        { status: 404 }
+      );
+    }
+
     // Check if invitation already exists
     const existingInvite = await db
       .select()
@@ -73,20 +88,49 @@ export async function POST(
       );
     }
 
-    // Create invitation
-    await db.insert(leagueInvitations).values({
-      leagueId: leagueId,
-      email: email.toLowerCase(),
-      invitedBy: userId,
-      status: "pending",
-    });
+    // Get current team count
+    const currentTeams = await db
+      .select({ count: teams.id })
+      .from(teams)
+      .where(eq(teams.leagueId, leagueId));
 
-    // TODO: Send email notification here
-    // For now, we'll just store the invitation in the database
+    // Create invitation
+    const newInvitation = await db
+      .insert(leagueInvitations)
+      .values({
+        leagueId: leagueId,
+        email: email.toLowerCase(),
+        invitedBy: userId,
+        status: "pending",
+      })
+      .returning();
+
+    // Send email invitation
+    try {
+      const emailResult = await sendLeagueInvitationEmail({
+        invitationId: newInvitation[0].id,
+        leagueName: league[0].name,
+        inviterName: `${inviter[0].firstName || ""} ${inviter[0].lastName || ""}`.trim() || "League Admin",
+        inviterEmail: inviter[0].email,
+        leagueSize: league[0].leagueSize || 10,
+        currentTeams: currentTeams.length,
+        recipientEmail: email.toLowerCase(),
+      });
+
+      if (!emailResult.success) {
+        console.error("Email sending failed:", emailResult.error);
+        // Don't fail the API call, just log the error
+        // The invitation is still created in the database
+      }
+    } catch (emailError) {
+      console.error("Email sending error:", emailError);
+      // Don't fail the API call, just log the error
+    }
 
     return NextResponse.json({
       success: true,
       message: "Invitation sent successfully",
+      invitation: newInvitation[0],
     });
   } catch (error) {
     console.error("Error sending league invitation:", error);

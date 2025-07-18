@@ -64,6 +64,7 @@ export async function GET(
         id: leagueData.id,
         name: leagueData.name,
         ownerId: leagueData.ownerId,
+        isDraftStarted: leagueData.isDraftStarted || 0,
         leagueSize: leagueData.leagueSize || 10,
         draftDate: leagueData.draftDate?.toISOString().split("T")[0] || null,
         draftTime: leagueData.draftTime || null,

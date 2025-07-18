@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { useCallback, useEffect } from "react";
 
 export interface League {
   id: string;
@@ -13,6 +14,7 @@ export interface LeagueSettings {
   id: string;
   name: string;
   ownerId: string;
+  isDraftStarted: number;
   leagueSize: number;
   draftDate: string | null;
   draftTime: string | null;
@@ -338,7 +340,6 @@ export const useLeagueStore = create<LeagueState>()(
 
 // Convenience hooks that integrate with Clerk auth
 import { useAuth } from "@clerk/nextjs";
-import { useEffect, useCallback } from "react";
 
 // Hook for league membership (replaces useLeagueMembership)
 export function useLeagueMembership() {
@@ -381,14 +382,21 @@ export function useLeagueMembership() {
 export function useLeagueAdmin(leagueId?: string) {
   const { userId, isLoaded } = useAuth();
 
-  // Use individual selectors to avoid unnecessary re-renders
-  const adminStatusCache = useLeagueStore((state) => state.adminStatusCache);
-  const adminStatusLoading = useLeagueStore(
-    (state) => state.adminStatusLoading
+  // Use stable selectors to avoid infinite loops
+  const isAdmin = useLeagueStore(
+    useCallback(
+      (state) => (leagueId ? state.adminStatusCache[leagueId] ?? false : false),
+      [leagueId]
+    )
   );
 
-  const isAdmin = leagueId ? adminStatusCache[leagueId] || false : false;
-  const loading = leagueId ? adminStatusLoading[leagueId] || false : false;
+  const loading = useLeagueStore(
+    useCallback(
+      (state) =>
+        leagueId ? state.adminStatusLoading[leagueId] ?? false : false,
+      [leagueId]
+    )
+  );
 
   // Auto-fetch admin status when needed
   useEffect(() => {
@@ -408,14 +416,30 @@ export function useLeagueAdmin(leagueId?: string) {
 export function useLeagueSettings(leagueId?: string) {
   const { userId, isLoaded } = useAuth();
 
-  // Use individual selectors to avoid unnecessary re-renders
-  const settingsCache = useLeagueStore((state) => state.settingsCache);
-  const settingsLoading = useLeagueStore((state) => state.settingsLoading);
-  const settingsError = useLeagueStore((state) => state.settingsError);
+  // Use stable selectors to avoid infinite loops
+  const settings = useLeagueStore(
+    useCallback(
+      (state) =>
+        leagueId && state.settingsCache[leagueId]
+          ? state.settingsCache[leagueId]
+          : null,
+      [leagueId]
+    )
+  );
 
-  const settings = leagueId ? settingsCache[leagueId] || null : null;
-  const loading = leagueId ? settingsLoading[leagueId] || false : false;
-  const error = leagueId ? settingsError[leagueId] || null : null;
+  const loading = useLeagueStore(
+    useCallback(
+      (state) => (leagueId ? state.settingsLoading[leagueId] ?? false : false),
+      [leagueId]
+    )
+  );
+
+  const error = useLeagueStore(
+    useCallback(
+      (state) => (leagueId ? state.settingsError[leagueId] ?? null : null),
+      [leagueId]
+    )
+  );
 
   // Create stable references for actions
   const fetchSettings = useCallback(() => {
@@ -438,10 +462,17 @@ export function useLeagueSettings(leagueId?: string) {
 
   // Auto-fetch settings when needed
   useEffect(() => {
-    if (isLoaded && userId && leagueId && !settings && !loading) {
-      useLeagueStore.getState().fetchLeagueSettings(leagueId);
+    if (isLoaded && userId && leagueId) {
+      const state = useLeagueStore.getState();
+      const hasSettingsForLeague = state.settingsCache[leagueId];
+      const isCurrentlyLoading = state.settingsLoading[leagueId];
+
+      // Only fetch if we haven't fetched settings for this league yet and we're not currently loading
+      if (hasSettingsForLeague === undefined && !isCurrentlyLoading) {
+        useLeagueStore.getState().fetchLeagueSettings(leagueId);
+      }
     }
-  }, [userId, isLoaded, leagueId, settings, loading]);
+  }, [userId, isLoaded, leagueId]);
 
   return {
     settings,
