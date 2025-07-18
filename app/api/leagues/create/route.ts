@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name } = body;
 
+    console.log("Creating league for user:", userId, "with name:", name);
+
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
         {
@@ -44,6 +46,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("User credits:", user.leagueCredits);
+
     if (!user.leagueCredits || user.leagueCredits < 1) {
       return NextResponse.json(
         {
@@ -64,6 +68,8 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    console.log("League created:", newLeague[0]);
+
     // Deduct one credit from user
     await db
       .update(userProfiles)
@@ -72,6 +78,8 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       })
       .where(eq(userProfiles.id, userId));
+
+    console.log("Credits deducted. New credit count:", user.leagueCredits - 1);
 
     return NextResponse.json({
       success: true,

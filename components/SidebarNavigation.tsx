@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLeagueAdmin } from "@/hooks/use-league-admin";
+import { useLeagueAdmin } from "@/stores/leagueStore";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 

@@ -15,6 +15,13 @@
       "when": 1752774951807,
       "tag": "0001_right_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752786426229,
+      "tag": "0002_regular_arclight",
+      "breakpoints": true
     }
   ]
 }

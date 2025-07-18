@@ -1,4 +1,11 @@
-import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 
 export const userProfiles = pgTable("user_profiles", {
   id: text("id").primaryKey(), // This should be the Clerk user ID
@@ -18,6 +25,22 @@ export const leagues = pgTable("leagues", {
   ownerId: text("owner_id").references(() => userProfiles.id),
   // 0 = false, 1 = true
   isDraftStarted: integer("is_draft_started").default(0),
+  // League Settings
+  leagueSize: integer("league_size").default(10),
+  draftDate: timestamp("draft_date", { withTimezone: true }),
+  draftTime: text("draft_time"), // stored as HH:MM format
+  draftLocation: text("draft_location"),
+  rosterSize: integer("roster_size").default(16),
+  startingBudget: integer("starting_budget").default(200),
+  // Roster position settings (default fantasy football lineup)
+  qbSlots: integer("qb_slots").default(1),
+  rbSlots: integer("rb_slots").default(2),
+  wrSlots: integer("wr_slots").default(2),
+  teSlots: integer("te_slots").default(1),
+  flexSlots: integer("flex_slots").default(1),
+  dstSlots: integer("dst_slots").default(1),
+  kSlots: integer("k_slots").default(1),
+  benchSlots: integer("bench_slots").default(7),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -94,5 +117,23 @@ export const payments = pgTable("payments", {
   stripePaymentId: text("stripe_payment_id"),
   creditsGranted: integer("credits_granted"),
   amount: integer("amount"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const keepers = pgTable("keepers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  leagueId: uuid("league_id").references(() => leagues.id),
+  teamId: uuid("team_id").references(() => teams.id),
+  playerId: uuid("player_id").references(() => nflPlayers.id),
+  keeperPrice: integer("keeper_price").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const leagueInvitations = pgTable("league_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  leagueId: uuid("league_id").references(() => leagues.id),
+  email: text("email").notNull(),
+  invitedBy: text("invited_by").references(() => userProfiles.id),
+  status: text("status").default("pending"), // pending, accepted, declined
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });

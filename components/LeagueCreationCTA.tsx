@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { useLeagueMembership } from "@/hooks/use-league-membership";
+import { useUser } from "@/stores/userStore";
+import { useLeagueActions } from "@/stores/leagueStore";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,8 +29,8 @@ export function LeagueCreationCTA() {
     loading: userLoading,
     hasCredits,
     refetch: refetchUser,
-  } = useCurrentUser();
-  const { refetch: refetchLeagues } = useLeagueMembership();
+  } = useUser();
+  const { refetch: refetchLeagues } = useLeagueActions();
 
   const [showLeagueCreation, setShowLeagueCreation] = useState(false);
   const [leagueName, setLeagueName] = useState("");
@@ -92,8 +92,10 @@ export function LeagueCreationCTA() {
       const data = await response.json();
 
       if (data.success) {
+        console.log("League created successfully:", data.league);
         setShowLeagueCreation(false);
         setLeagueName("");
+        console.log("Refetching leagues and user data...");
         refetchLeagues();
         refetchUser(); // Refresh user data to update credits
       } else {

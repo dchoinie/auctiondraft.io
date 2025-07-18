@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useLeagueAdmin } from "@/hooks/use-league-admin";
+import { useLeagueAdmin } from "@/stores/leagueStore";
 import { protectedNavigation, getNavigationHref } from "@/data/navigation";
 
 interface LeagueNavigationProps {

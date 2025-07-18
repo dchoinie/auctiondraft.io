@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { leagues, leagueInvitations } from "@/app/schema";
+import { eq, and } from "drizzle-orm";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { league_id: string } }
+) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
+    const leagueId = params.league_id;
+    const body = await req.json();
+    const { email } = body;
+
+    if (!email || typeof email !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Valid email is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify league exists and user is owner
+    const league = await db
+      .select()
+      .from(leagues)
+      .where(eq(leagues.id, leagueId))
+      .limit(1);
+
+    if (league.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "League not found" },
+        { status: 404 }
+      );
+    }
+
+    if (league[0].ownerId !== userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Not authorized to invite users to this league",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check if invitation already exists
+    const existingInvite = await db
+      .select()
+      .from(leagueInvitations)
+      .where(
+        and(
+          eq(leagueInvitations.leagueId, leagueId),
+          eq(leagueInvitations.email, email.toLowerCase()),
+          eq(leagueInvitations.status, "pending")
+        )
+      )
+      .limit(1);
+
+    if (existingInvite.length > 0) {
+      return NextResponse.json(
+        { success: false, error: "Invitation already sent to this email" },
+        { status: 400 }
+      );
+    }
+
+    // Create invitation
+    await db.insert(leagueInvitations).values({
+      leagueId: leagueId,
+      email: email.toLowerCase(),
+      invitedBy: userId,
+      status: "pending",
+    });
+
+    // TODO: Send email notification here
+    // For now, we'll just store the invitation in the database
+
+    return NextResponse.json({
+      success: true,
+      message: "Invitation sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending league invitation:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to send invitation" },
+      { status: 500 }
+    );
+  }
+}
+
+// Get pending invitations for a league
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { league_id: string } }
+) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
+    const leagueId = params.league_id;
+
+    // Verify league exists and user is owner
+    const league = await db
+      .select()
+      .from(leagues)
+      .where(eq(leagues.id, leagueId))
+      .limit(1);
+
+    if (league.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "League not found" },
+        { status: 404 }
+      );
+    }
+
+    if (league[0].ownerId !== userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Not authorized to view invitations for this league",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Get pending invitations
+    const invitations = await db
+      .select()
+      .from(leagueInvitations)
+      .where(eq(leagueInvitations.leagueId, leagueId));
+
+    return NextResponse.json({
+      success: true,
+      invitations,
+    });
+  } catch (error) {
+    console.error("Error fetching league invitations:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch invitations" },
+      { status: 500 }
+    );
+  }
+}
