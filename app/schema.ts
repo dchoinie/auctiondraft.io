@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  uuid,
-  text,
-  integer,
-  timestamp,
-  boolean,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
 
 export const userProfiles = pgTable("user_profiles", {
   id: text("id").primaryKey(), // This should be the Clerk user ID
@@ -63,9 +56,20 @@ export const teams = pgTable("teams", {
 
 export const nflPlayers = pgTable("nfl_players", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  position: text("position").notNull(),
-  team: text("team").notNull(),
+  sleeperId: text("sleeper_id").unique().notNull(), // "3086" from API
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  position: text("position").notNull(), // "QB"
+  team: text("team"), // "NE" (can be null for free agents)
+  fantasyPositions: text("fantasy_positions").array(), // ["QB"]
+  status: text("status"), // "Active", "Inactive", etc.
+  injuryStatus: text("injury_status"), // null or injury details
+  yearsExp: integer("years_exp"),
+  age: integer("age"),
+  searchRank: integer("search_rank"), // For ordering/popularity
+  depthChartPosition: integer("depth_chart_position"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const rosters = pgTable("rosters", {
@@ -135,5 +139,15 @@ export const leagueInvitations = pgTable("league_invitations", {
   email: text("email").notNull(),
   invitedBy: text("invited_by").references(() => userProfiles.id),
   status: text("status").default("pending"), // pending, accepted, declined
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const apiUpdates = pgTable("api_updates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  endpoint: text("endpoint").notNull(), // "sleeper_nfl_players"
+  lastUpdated: timestamp("last_updated", { withTimezone: true }).defaultNow(),
+  playerCount: integer("player_count"), // How many players were updated
+  status: text("status").notNull(), // "success", "failed"
+  errorMessage: text("error_message"), // Store error details if failed
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });

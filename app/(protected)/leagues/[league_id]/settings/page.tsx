@@ -26,6 +26,7 @@ import {
   Trophy,
   DollarSign,
   UserCheck,
+  Database,
 } from "lucide-react";
 
 export default function LeagueSettingsPage() {
@@ -51,12 +52,51 @@ export default function LeagueSettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  // Player data state
+  const [playerDataInfo, setPlayerDataInfo] = useState<{
+    lastUpdated: string | null;
+    playerCount: number;
+    status: string;
+    loading: boolean;
+  }>({
+    lastUpdated: null,
+    playerCount: 0,
+    status: "unknown",
+    loading: false,
+  });
+
   // Sync settings to local state when loaded
   useEffect(() => {
     if (settings && !localSettings) {
       setLocalSettings(settings);
     }
   }, [settings, localSettings]);
+
+  // Fetch player data information
+  const fetchPlayerDataInfo = async () => {
+    setPlayerDataInfo((prev) => ({ ...prev, loading: true }));
+    try {
+      const response = await fetch("/api/admin/player-data-info");
+      const data = await response.json();
+
+      if (data.success) {
+        setPlayerDataInfo({
+          lastUpdated: data.lastUpdated,
+          playerCount: data.playerCount,
+          status: data.status,
+          loading: false,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching player data info:", error);
+      setPlayerDataInfo((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Fetch player data info when component loads
+  useEffect(() => {
+    fetchPlayerDataInfo();
+  }, []);
 
   // Check if user is league owner
   const isOwner = user?.id === settings?.ownerId;
@@ -559,6 +599,69 @@ export default function LeagueSettingsPage() {
               >
                 {inviteLoading ? "Inviting..." : "Send Invite"}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Player Data Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Player Data
+            </CardTitle>
+            <CardDescription>
+              NFL player database information and status
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {playerDataInfo.loading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span className="text-sm text-muted-foreground">
+                  Loading player data info...
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Total Players:</span>
+                  <span className="text-sm">
+                    {playerDataInfo.playerCount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Last Updated:</span>
+                  <span className="text-sm">
+                    {playerDataInfo.lastUpdated
+                      ? new Date(
+                          playerDataInfo.lastUpdated
+                        ).toLocaleDateString()
+                      : "Never"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Status:</span>
+                  <span
+                    className={`text-sm capitalize ${
+                      playerDataInfo.status === "success"
+                        ? "text-green-600"
+                        : playerDataInfo.status === "failed"
+                          ? "text-red-600"
+                          : "text-yellow-600"
+                    }`}
+                  >
+                    {playerDataInfo.status}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Player data is managed by platform administrators and sourced
+                from the Sleeper API. Data is refreshed at most once per day to
+                ensure accuracy.
+              </p>
             </div>
           </CardContent>
         </Card>
