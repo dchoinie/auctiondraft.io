@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import {
   seedNFLPlayers,
   shouldRefreshPlayerData,
 } from "@/lib/nflPlayerSeeding";
+import { requireAdmin } from "@/lib/adminAuth";
 
 /**
  * Platform Admin Endpoint: Seed NFL Players
@@ -14,16 +14,13 @@ import {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Not authenticated" },
-        { status: 401 }
-      );
+    // Check if user is admin
+    const adminError = await requireAdmin();
+    if (adminError) {
+      return adminError;
     }
 
-    console.log("NFL player seeding requested by platform admin:", userId);
+    console.log("NFL player seeding requested by platform admin");
 
     // Check if we need to refresh player data
     const needsRefresh = await shouldRefreshPlayerData();

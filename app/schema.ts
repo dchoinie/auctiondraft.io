@@ -1,4 +1,11 @@
-import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 
 export const userProfiles = pgTable("user_profiles", {
   id: text("id").primaryKey(), // This should be the Clerk user ID

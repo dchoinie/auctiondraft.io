@@ -9,6 +9,7 @@ export interface User {
   leagueCredits: number;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  isAdmin: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -169,6 +170,7 @@ export function useUser() {
   // Computed values
   const needsProfileCompletion = !user?.firstName || !user?.lastName;
   const hasCredits = (user?.leagueCredits || 0) > 0;
+  const isAdmin = user?.isAdmin || false;
 
   // Auto-fetch user when auth is loaded and we have a userId
   useEffect(() => {
@@ -190,6 +192,7 @@ export function useUser() {
     error,
     needsProfileCompletion,
     hasCredits,
+    isAdmin,
     updateProfile,
     refetch,
     updateCredits,

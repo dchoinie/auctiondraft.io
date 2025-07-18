@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getUserFromDatabase } from "@/lib/userSync";
 
 export async function GET(req: NextRequest) {
@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get admin status from Clerk metadata
+    const clerk = await clerkClient();
+    const clerkUser = await clerk.users.getUser(userId);
+    const isAdmin = clerkUser.privateMetadata?.isAdmin === true;
+
     return NextResponse.json({
       success: true,
       user: {
@@ -38,6 +43,7 @@ export async function GET(req: NextRequest) {
         leagueCredits: user.leagueCredits || 0,
         stripeCustomerId: user.stripeCustomerId,
         stripeSubscriptionId: user.stripeSubscriptionId,
+        isAdmin,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },

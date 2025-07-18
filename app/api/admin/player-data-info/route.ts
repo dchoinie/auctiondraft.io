@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getLastPlayerUpdate, getPlayerCount } from "@/lib/nflPlayerSeeding";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Not authenticated" },
-        { status: 401 }
-      );
+    // Check if user is admin
+    const adminError = await requireAdmin();
+    if (adminError) {
+      return adminError;
     }
 
     // Get player data information
