@@ -16,6 +16,7 @@ interface SleeperPlayer {
   age: number | null;
   search_rank: number | null;
   depth_chart_position: number | null;
+  search_full_name?: string; // Optional field for filtering out junk records
 }
 
 interface SleeperPlayersResponse {
@@ -98,10 +99,77 @@ export async function fetchPlayersFromSleeper(): Promise<SleeperPlayersResponse>
   return data;
 }
 
+// Define relevant fantasy positions for filtering
+const RELEVANT_FANTASY_POSITIONS = [
+  "QB",
+  "RB",
+  "WR",
+  "TE",
+  "K",
+  "DL",
+  "DE",
+  "DT",
+  "LB",
+  "OLB",
+  "ILB",
+  "DB",
+  "S",
+  "FS",
+  "SS",
+];
+
+/**
+ * Check if a player should be imported based on status and fantasy positions
+ */
+function shouldImportPlayer(player: SleeperPlayer): boolean {
+  // Filter out records without required fields (junk records)
+  if (!player.player_id || !player.search_full_name) {
+    return false;
+  }
+
+  // Filter out inactive and retired players (keep Active, Injured Reserve, Practice Squad, etc.)
+  if (player.status === "Inactive" || player.status === "Retired") {
+    return false;
+  }
+
+  // Filter out players without fantasy positions array or empty array
+  if (
+    !player.fantasy_positions ||
+    !Array.isArray(player.fantasy_positions) ||
+    player.fantasy_positions.length === 0
+  ) {
+    return false;
+  }
+
+  // Filter out players with search_rank higher than 999
+  if (player.search_rank !== null && player.search_rank > 999) {
+    return false;
+  }
+
+  // Check if player has at least one relevant fantasy position
+  const hasRelevantPosition = player.fantasy_positions.some((position) =>
+    RELEVANT_FANTASY_POSITIONS.includes(position)
+  );
+
+  return hasRelevantPosition;
+}
+
 /**
  * Transform Sleeper API player data to our database format
  */
 function transformSleeperPlayer(playerId: string, player: SleeperPlayer) {
+  // Handle depth_chart_position - convert to number or null if not numeric
+  let depthChartPosition = null;
+  if (
+    player.depth_chart_position !== null &&
+    player.depth_chart_position !== undefined
+  ) {
+    const parsed = parseInt(String(player.depth_chart_position), 10);
+    if (!isNaN(parsed)) {
+      depthChartPosition = parsed;
+    }
+  }
+
   return {
     sleeperId: playerId,
     firstName: player.first_name || "",
@@ -114,7 +182,7 @@ function transformSleeperPlayer(playerId: string, player: SleeperPlayer) {
     yearsExp: player.years_exp || null,
     age: player.age || null,
     searchRank: player.search_rank || null,
-    depthChartPosition: player.depth_chart_position || null,
+    depthChartPosition,
     updatedAt: new Date(),
   };
 }
@@ -134,12 +202,23 @@ export async function seedNFLPlayers(): Promise<SeedingResult> {
       `Found ${Object.keys(sleeperPlayers).length} players from Sleeper API`
     );
 
-    // Process players in batches to avoid overwhelming the database
+    // Filter players before processing
     const playerEntries = Object.entries(sleeperPlayers);
+
+    // Filter players before processing
+    const filteredEntries = playerEntries.filter(([playerId, playerData]) =>
+      shouldImportPlayer(playerData)
+    );
+
+    console.log(
+      `Importing ${filteredEntries.length} relevant players to database`
+    );
+
+    // Process players in batches to avoid overwhelming the database
     const batchSize = 100;
 
-    for (let i = 0; i < playerEntries.length; i += batchSize) {
-      const batch = playerEntries.slice(i, i + batchSize);
+    for (let i = 0; i < filteredEntries.length; i += batchSize) {
+      const batch = filteredEntries.slice(i, i + batchSize);
 
       for (const [playerId, playerData] of batch) {
         try {
@@ -178,7 +257,7 @@ export async function seedNFLPlayers(): Promise<SeedingResult> {
 
       // Log progress
       console.log(
-        `Processed ${Math.min(i + batchSize, playerEntries.length)} / ${playerEntries.length} players`
+        `Processed ${Math.min(i + batchSize, filteredEntries.length)} / ${filteredEntries.length} players`
       );
     }
 
