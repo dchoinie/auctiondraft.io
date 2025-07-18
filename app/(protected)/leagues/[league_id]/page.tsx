@@ -58,14 +58,18 @@ export default function LeaguePage() {
   // Check if user has a team in this league
   const userTeam = teams.find((team) => team.ownerId === user?.id);
 
-  // Check if league is full
-  const isLeagueFull = teams.length === settings.leagueSize;
+  // Check if league is full (only if settings exists)
+  const isLeagueFull = settings ? teams.length === settings.leagueSize : false;
 
   // Check if user can join the league
   const canJoinLeague = !isOwner && !userTeam && !isLeagueFull && user?.id;
 
+  // Check if owner needs to create their team
+  const ownerNeedsTeam = isOwner && !userTeam;
+
   // Check if draft can be started
-  const canStartDraft = isLeagueFull && isOwner && !settings.isDraftStarted;
+  const canStartDraft =
+    isLeagueFull && isOwner && settings && !settings.isDraftStarted;
 
   const handleJoinLeague = async () => {
     if (!teamName.trim()) {
@@ -209,14 +213,50 @@ export default function LeaguePage() {
                   {settings.isDraftStarted
                     ? "Draft Started"
                     : isLeagueFull
-                    ? "Ready"
-                    : "Filling"}
+                      ? "Ready"
+                      : "Filling"}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Owner Team Creation Prompt */}
+      {ownerNeedsTeam && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-orange-600" />
+              Create Your Team
+            </CardTitle>
+            <CardDescription>
+              As the league owner, you can create your own team to participate
+              in the draft. This is optional - you can also manage the league
+              without participating.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="font-medium">Ready to join your own league?</p>
+                <p className="text-sm text-muted-foreground">
+                  You&apos;ll have the same starting budget ($
+                  {settings.startingBudget}) and roster requirements as other
+                  teams.
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowJoinDialog(true)}
+                className="shrink-0 bg-orange-600 hover:bg-orange-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create My Team
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Draft Information */}
       {settings.draftDate && (
@@ -254,28 +294,60 @@ export default function LeaguePage() {
               Join This League
             </CardTitle>
             <CardDescription>
-              Create your team and join the league! There{" "}
+              You&apos;ve been invited to join <strong>{settings.name}</strong>!
+              Create your team and join the fantasy football action. There{" "}
               {isLeagueFull ? "are" : "is"} {settings.leagueSize - teams.length}{" "}
               spot{settings.leagueSize - teams.length === 1 ? "" : "s"}{" "}
               remaining.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="font-medium">Ready to draft?</p>
-                <p className="text-sm text-muted-foreground">
-                  Starting budget: ${settings.startingBudget} | Roster size:{" "}
-                  {settings.rosterSize}
-                </p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium">Starting Budget</p>
+                    <p className="text-sm text-muted-foreground">
+                      ${settings.startingBudget}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-purple-600" />
+                  <div>
+                    <p className="text-sm font-medium">Roster Size</p>
+                    <p className="text-sm text-muted-foreground">
+                      {settings.rosterSize} players
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium">League Size</p>
+                    <p className="text-sm text-muted-foreground">
+                      {teams.length} / {settings.leagueSize} teams
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Button
-                onClick={() => setShowJoinDialog(true)}
-                className="shrink-0"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Join League
-              </Button>
+              <div className="flex items-center justify-between pt-2">
+                <div className="space-y-1">
+                  <p className="font-medium">Ready to create your team?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Join now and start building your championship roster!
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowJoinDialog(true)}
+                  className="shrink-0"
+                  size="lg"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Join League
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -407,9 +479,13 @@ export default function LeaguePage() {
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Join League</DialogTitle>
+            <DialogTitle>
+              {isOwner ? "Create Your Team" : "Join League"}
+            </DialogTitle>
             <DialogDescription>
-              Enter a name for your team to join this league.
+              {isOwner
+                ? "Enter a name for your team. As the league owner, you can participate in the draft alongside other teams."
+                : "Enter a name for your team to join this league."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -436,7 +512,13 @@ export default function LeaguePage() {
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              {isCreatingTeam ? "Joining..." : "Join League"}
+              {isCreatingTeam
+                ? isOwner
+                  ? "Creating..."
+                  : "Joining..."
+                : isOwner
+                  ? "Create Team"
+                  : "Join League"}
             </Button>
           </div>
         </DialogContent>

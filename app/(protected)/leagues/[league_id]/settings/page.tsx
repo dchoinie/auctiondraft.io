@@ -498,8 +498,8 @@ export default function LeagueSettingsPage() {
                     settings?.leagueSize === null
                       ? "N/A"
                       : settings?.leagueSize === 0
-                      ? "Open"
-                      : "Full"}
+                        ? "Open"
+                        : "Full"}
                   </p>
                 </div>
               </div>
@@ -522,7 +522,7 @@ export default function LeagueSettingsPage() {
             <div className="space-y-2">
               <p className="text-sm">
                 <strong>Manage Teams:</strong> Visit the teams page to invite
-                users, manually add teams, or view all current teams.
+                users or view all current teams.
               </p>
               <p className="text-sm">
                 <strong>User Invitations:</strong> Send invitation emails to

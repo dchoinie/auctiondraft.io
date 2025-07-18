@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { leagues } from "@/app/schema";
-import { eq } from "drizzle-orm";
+import { leagues, teams } from "@/app/schema";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
@@ -48,14 +48,28 @@ export async function GET(
     const leagueData = league[0];
     console.log("League data:", leagueData);
 
-    // Check if user is the league owner
+    // Check if user is the league owner OR has a team in the league
     console.log("Checking ownership:", leagueData.ownerId, "vs", userId);
-    if (leagueData.ownerId !== userId) {
-      console.log("User not authorized, returning 403");
-      return NextResponse.json(
-        { success: false, error: "Not authorized to view these settings" },
-        { status: 403 }
-      );
+    const isOwner = leagueData.ownerId === userId;
+
+    if (!isOwner) {
+      // Check if user has a team in this league
+      console.log("User not owner, checking team membership");
+      const userTeam = await db
+        .select()
+        .from(teams)
+        .where(and(eq(teams.leagueId, leagueId), eq(teams.ownerId, userId)))
+        .limit(1);
+
+      if (userTeam.length === 0) {
+        console.log("User not a league member, returning 403");
+        return NextResponse.json(
+          { success: false, error: "Not authorized to view these settings" },
+          { status: 403 }
+        );
+      }
+
+      console.log("User is league member via team ownership");
     }
 
     const responseData = {

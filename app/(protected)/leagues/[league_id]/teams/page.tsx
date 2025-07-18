@@ -3,14 +3,13 @@
 /**
  * Teams Management Page
  *
- * This page allows league owners to manage teams in three ways:
- * 1. Direct Creation: Create teams for users via email lookup
- * 2. Invitations: Send invitation emails to users who can then create their own teams
- * 3. Self-Registration: Users can join the league directly from the league page
+ * This page allows league owners to manage teams in two ways:
+ * 1. Invitations: Send invitation emails to users who can then create their own teams
+ * 2. Self-Registration: Users can join the league directly from the league page
  *
  * Additional features:
  * - View all pending invitations with cancel option
- * - Edit team names and delete teams
+ * - Delete teams (except league owner's team)
  * - See team budget and owner information
  */
 
@@ -51,7 +50,6 @@ import {
   ArrowLeft,
   Users,
   Plus,
-  Edit3,
   Trash2,
   Crown,
   DollarSign,
@@ -59,6 +57,9 @@ import {
   AlertCircle,
   Loader2,
   Mail,
+  Link,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   Tooltip,
@@ -86,21 +87,8 @@ export default function TeamsPage() {
     teams,
     loading: teamsLoading,
     error: teamsError,
-    createTeam,
-    updateTeam,
     deleteTeam,
   } = useLeagueTeams(leagueId);
-
-  // State for create team dialog
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [createTeamName, setCreateTeamName] = useState("");
-  const [createTeamOwnerEmail, setCreateTeamOwnerEmail] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-
-  // State for edit team dialog
-  const [editingTeam, setEditingTeam] = useState<string | null>(null);
-  const [editTeamName, setEditTeamName] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
 
   // State for delete confirmation
   const [deletingTeam, setDeletingTeam] = useState<string | null>(null);
@@ -124,72 +112,11 @@ export default function TeamsPage() {
   const [invitationToCancel, setInvitationToCancel] =
     useState<Invitation | null>(null);
 
-  // State for user lookup
-  const [userLookupError, setUserLookupError] = useState<string | null>(null);
+  // State for copying league URL
+  const [isUrlCopied, setIsUrlCopied] = useState(false);
 
   // Check if user is league owner
   const isOwner = user?.id === settings?.ownerId;
-
-  const handleCreateTeam = async () => {
-    if (!createTeamName.trim() || !createTeamOwnerEmail.trim()) {
-      setUserLookupError("Team name and owner email are required");
-      return;
-    }
-
-    setIsCreating(true);
-    setUserLookupError(null);
-
-    try {
-      // Look up user by email to get their user ID
-      const lookupResponse = await fetch("/api/user/lookup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: createTeamOwnerEmail.trim() }),
-      });
-
-      const lookupData = await lookupResponse.json();
-
-      if (!lookupData.success) {
-        setUserLookupError(
-          lookupData.error || "Failed to find user with this email"
-        );
-        return;
-      }
-
-      // Create team with the found user's ID
-      const success = await createTeam({
-        name: createTeamName.trim(),
-        ownerId: lookupData.user.id,
-      });
-
-      if (success) {
-        setShowCreateDialog(false);
-        setCreateTeamName("");
-        setCreateTeamOwnerEmail("");
-      }
-    } catch (error) {
-      setUserLookupError("Failed to create team. Please try again.");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleEditTeam = async () => {
-    if (!editingTeam || !editTeamName.trim()) return;
-
-    setIsUpdating(true);
-    try {
-      const success = await updateTeam(editingTeam, editTeamName.trim());
-      if (success) {
-        setEditingTeam(null);
-        setEditTeamName("");
-      }
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   const handleDeleteTeam = async () => {
     if (!deletingTeam) return;
@@ -203,11 +130,6 @@ export default function TeamsPage() {
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const startEdit = (teamId: string, currentName: string) => {
-    setEditingTeam(teamId);
-    setEditTeamName(currentName);
   };
 
   // Invitation functions
@@ -489,7 +411,7 @@ export default function TeamsPage() {
                 </CardTitle>
                 <CardDescription>
                   {teams.length === 0
-                    ? "No teams have joined this league yet. Use 'Invite Users' to send invitation emails or 'Add Team' to manually create teams."
+                    ? "No teams have joined this league yet. Send email invitations or share the league URL for users to join directly."
                     : `${teams.length} team${
                         teams.length === 1 ? "" : "s"
                       } in this league`}
@@ -505,10 +427,38 @@ export default function TeamsPage() {
                     <Mail className="h-4 w-4 mr-2" />
                     Invite Users
                   </Button>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Team
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            const leagueUrl = `${window.location.origin}/leagues/${leagueId}`;
+                            try {
+                              await navigator.clipboard.writeText(leagueUrl);
+                              setIsUrlCopied(true);
+                              setTimeout(() => setIsUrlCopied(false), 2000);
+                            } catch (error) {
+                              console.error("Failed to copy URL:", error);
+                            }
+                          }}
+                        >
+                          {isUrlCopied ? (
+                            <Check className="h-4 w-4 mr-2" />
+                          ) : (
+                            <Link className="h-4 w-4 mr-2" />
+                          )}
+                          {isUrlCopied ? "Copied!" : "Copy League URL"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          Copy a shareable link to send via text, social media,
+                          or other platforms
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
             </div>
@@ -549,24 +499,15 @@ export default function TeamsPage() {
                       </div>
                     </div>
 
-                    {isOwner && (
+                    {isOwner && team.ownerId !== settings.ownerId && (
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => startEdit(team.id, team.name)}
+                          onClick={() => setDeletingTeam(team.id)}
                         >
-                          <Edit3 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                        {team.ownerId !== settings.ownerId && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeletingTeam(team.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -576,127 +517,6 @@ export default function TeamsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Create Team Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Team</DialogTitle>
-            <DialogDescription>
-              Manually add a team to your league. The team owner must have an
-              account.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {userLookupError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{userLookupError}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="team-name">Team Name</Label>
-              <Input
-                id="team-name"
-                value={createTeamName}
-                onChange={(e) => setCreateTeamName(e.target.value)}
-                placeholder="Enter team name"
-                disabled={isCreating}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="owner-email">Owner Email</Label>
-              <Input
-                id="owner-email"
-                type="email"
-                value={createTeamOwnerEmail}
-                onChange={(e) => setCreateTeamOwnerEmail(e.target.value)}
-                placeholder="Enter team owner's email"
-                disabled={isCreating}
-              />
-              <p className="text-xs text-muted-foreground">
-                The team owner must already have an account on the platform
-              </p>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-                disabled={isCreating}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateTeam}
-                disabled={
-                  isCreating ||
-                  !createTeamName.trim() ||
-                  !createTeamOwnerEmail.trim()
-                }
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Team"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Team Dialog */}
-      <Dialog open={!!editingTeam} onOpenChange={() => setEditingTeam(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Team Name</DialogTitle>
-            <DialogDescription>Update the team name.</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-team-name">Team Name</Label>
-              <Input
-                id="edit-team-name"
-                value={editTeamName}
-                onChange={(e) => setEditTeamName(e.target.value)}
-                placeholder="Enter team name"
-                disabled={isUpdating}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setEditingTeam(null)}
-                disabled={isUpdating}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEditTeam}
-                disabled={isUpdating || !editTeamName.trim()}
-              >
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Team"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Team Confirmation */}
       <AlertDialog

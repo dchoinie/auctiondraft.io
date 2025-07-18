@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { SidebarNavigation } from "./SidebarNavigation";
+import { UserButton } from "@clerk/nextjs";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
@@ -54,6 +55,17 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
             <span className="sr-only">Toggle sidebar</span>
           </Button>
           <div className="flex-1" />
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-8 w-8",
+                userButtonPopoverCard: "bg-background border",
+                userButtonPopoverActionButton:
+                  "text-foreground hover:bg-accent",
+                userButtonPopoverActionButtonText: "text-foreground",
+              },
+            }}
+          />
         </header>
 
         {/* Page content */}
