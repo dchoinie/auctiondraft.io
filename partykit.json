@@ -2,5 +2,8 @@
   "$schema": "https://www.partykit.io/schema.json",
   "name": "auctiondraftio-party",
   "main": "party/index.ts",
-  "compatibilityDate": "2025-07-16"
+  "compatibilityDate": "2025-07-16",
+  "parties": {
+    "draft": "party/index.ts"
+  }
 }

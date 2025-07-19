@@ -58,6 +58,7 @@ export const teams = pgTable("teams", {
   ownerId: text("owner_id").references(() => userProfiles.id),
   leagueId: uuid("league_id").references(() => leagues.id),
   budget: integer("budget").default(200),
+  draftOrder: integer("draft_order"), // Order in which teams pick during draft
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -118,8 +119,17 @@ export const draftState = pgTable("draft_state", {
   currentNominationId: uuid("current_nomination_id").references(
     () => draftNominations.id
   ),
+  currentTurnTeamId: uuid("current_turn_team_id").references(() => teams.id), // Which team's turn it is to nominate
   clockEndsAt: timestamp("clock_ends_at", { withTimezone: true }),
   phase: text("phase").default("nominating"), // or 'bidding'
+});
+
+export const draftBids = pgTable("draft_bids", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nominationId: uuid("nomination_id").references(() => draftNominations.id),
+  teamId: uuid("team_id").references(() => teams.id),
+  amount: integer("amount").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const payments = pgTable("payments", {
