@@ -41,6 +41,10 @@ export const leagues = pgTable("leagues", {
   dstSlots: integer("dst_slots").default(1),
   kSlots: integer("k_slots").default(1),
   benchSlots: integer("bench_slots").default(7),
+  // Draft Management Settings
+  draftType: text("draft_type").default("snake"), // "linear" or "snake"
+  timerEnabled: integer("timer_enabled").default(0), // 0 = false, 1 = true
+  timerDuration: integer("timer_duration").default(60), // seconds
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

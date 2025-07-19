@@ -18,6 +18,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Save,
   Users,
@@ -27,6 +35,8 @@ import {
   DollarSign,
   UserCheck,
   Database,
+  GripVertical,
+  X,
 } from "lucide-react";
 
 export default function LeagueSettingsPage() {
@@ -65,6 +75,26 @@ export default function LeagueSettingsPage() {
     loading: false,
   });
 
+  // Manual draft order state
+  const [showDraftOrderModal, setShowDraftOrderModal] = useState(false);
+  const [teams, setTeams] = useState<
+    Array<{
+      id: string;
+      name: string;
+      ownerId: string;
+      draftOrder: number | null;
+    }>
+  >([]);
+  const [draftOrderTeams, setDraftOrderTeams] = useState<
+    Array<{
+      id: string;
+      name: string;
+      ownerId: string;
+      draftOrder: number;
+    }>
+  >([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+
   // Sync settings to local state when loaded
   useEffect(() => {
     if (settings && !localSettings) {
@@ -93,9 +123,27 @@ export default function LeagueSettingsPage() {
     }
   };
 
+  // Fetch teams for draft order management
+  const fetchTeams = async () => {
+    setTeamsLoading(true);
+    try {
+      const response = await fetch(`/api/leagues/${leagueId}/draft/order`);
+      const data = await response.json();
+
+      if (data.success) {
+        setTeams(data.data.teams);
+      }
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
   // Fetch player data info when component loads
   useEffect(() => {
     fetchPlayerDataInfo();
+    fetchTeams();
   }, []);
 
   // Check if user is league owner
@@ -157,6 +205,134 @@ export default function LeagueSettingsPage() {
       console.error("Failed to send invitation:", err);
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  // Handle draft order randomization
+  const handleRandomizeDraftOrder = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/leagues/${leagueId}/draft/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "randomize" }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccessMessage("Draft order randomized successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        throw new Error(data.error || "Failed to randomize draft order");
+      }
+    } catch (err) {
+      console.error("Failed to randomize draft order:", err);
+      // You might want to set an error state here
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle manual draft order setting
+  const handleSetManualDraftOrder = () => {
+    // Sort teams by current draft order or by name if no order set
+    const sortedTeams = [...teams].sort((a, b) => {
+      if (a.draftOrder && b.draftOrder) {
+        return a.draftOrder - b.draftOrder;
+      }
+      if (a.draftOrder && !b.draftOrder) return -1;
+      if (!a.draftOrder && b.draftOrder) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Create draft order teams with sequential numbers
+    const orderedTeams = sortedTeams.map((team, index) => ({
+      ...team,
+      draftOrder: index + 1,
+    }));
+
+    setDraftOrderTeams(orderedTeams);
+    setShowDraftOrderModal(true);
+  };
+
+  // Handle moving team up in draft order
+  const moveTeamUp = (index: number) => {
+    if (index === 0) return;
+
+    const newOrder = [...draftOrderTeams];
+    [newOrder[index], newOrder[index - 1]] = [
+      newOrder[index - 1],
+      newOrder[index],
+    ];
+
+    // Update draft order numbers
+    const updatedOrder = newOrder.map((team, idx) => ({
+      ...team,
+      draftOrder: idx + 1,
+    }));
+
+    setDraftOrderTeams(updatedOrder);
+  };
+
+  // Handle moving team down in draft order
+  const moveTeamDown = (index: number) => {
+    if (index === draftOrderTeams.length - 1) return;
+
+    const newOrder = [...draftOrderTeams];
+    [newOrder[index], newOrder[index + 1]] = [
+      newOrder[index + 1],
+      newOrder[index],
+    ];
+
+    // Update draft order numbers
+    const updatedOrder = newOrder.map((team, idx) => ({
+      ...team,
+      draftOrder: idx + 1,
+    }));
+
+    setDraftOrderTeams(updatedOrder);
+  };
+
+  // Save manual draft order
+  const handleSaveDraftOrder = async () => {
+    setSaving(true);
+    try {
+      // Create draft order object with teamId -> draftOrder mapping
+      const draftOrder = draftOrderTeams.reduce(
+        (acc, team) => {
+          acc[team.id] = team.draftOrder;
+          return acc;
+        },
+        {} as { [teamId: string]: number }
+      );
+
+      const response = await fetch(`/api/leagues/${leagueId}/draft/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "set", draftOrder }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccessMessage("Draft order set successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+        setShowDraftOrderModal(false);
+        // Refresh teams to show new order
+        await fetchTeams();
+      } else {
+        throw new Error(data.error || "Failed to set draft order");
+      }
+    } catch (err) {
+      console.error("Failed to set draft order:", err);
+      // You might want to set an error state here
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -327,6 +503,228 @@ export default function LeagueSettingsPage() {
                 }
                 rows={3}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Draft Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Draft Management
+            </CardTitle>
+            <CardDescription>
+              Configure draft order and auction settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Draft Order Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold">Draft Order</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Set the order teams will nominate players
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRandomizeDraftOrder}
+                    disabled={
+                      localSettings.isDraftStarted === 1 ||
+                      saving ||
+                      teams.length === 0
+                    }
+                  >
+                    {saving ? "Processing..." : "Randomize Order"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSetManualDraftOrder}
+                    disabled={
+                      localSettings.isDraftStarted === 1 || teams.length === 0
+                    }
+                  >
+                    Set Manually
+                  </Button>
+                </div>
+              </div>
+              {localSettings.isDraftStarted === 1 && (
+                <Alert>
+                  <AlertDescription>
+                    Draft order cannot be changed after the draft has started.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Current Draft Order Display */}
+              {teams.length > 0 && (
+                <div className="mt-4">
+                  <h5 className="font-medium mb-3">Current Draft Order:</h5>
+                  {teamsLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      <span className="text-sm text-muted-foreground">
+                        Loading teams...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2">
+                      {teams
+                        .filter((team) => team.draftOrder !== null)
+                        .sort(
+                          (a, b) => (a.draftOrder || 0) - (b.draftOrder || 0)
+                        )
+                        .map((team) => (
+                          <div
+                            key={team.id}
+                            className="flex items-center gap-3 p-2 bg-muted rounded-md"
+                          >
+                            <div className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-bold">
+                              {team.draftOrder}
+                            </div>
+                            <span className="text-sm font-medium">
+                              {team.name}
+                            </span>
+                          </div>
+                        ))}
+                      {teams.filter((team) => team.draftOrder === null).length >
+                        0 && (
+                        <div className="text-sm text-muted-foreground italic">
+                          {
+                            teams.filter((team) => team.draftOrder === null)
+                              .length
+                          }{" "}
+                          team(s) without draft order
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Nomination Type */}
+            <div className="space-y-4">
+              <div>
+                <Label>Nomination Type</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Choose how teams nominate players each round
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="linear"
+                    name="draftType"
+                    value="linear"
+                    checked={(localSettings.draftType || "linear") === "linear"}
+                    onChange={(e) =>
+                      handleInputChange("draftType", e.target.value)
+                    }
+                    disabled={localSettings.isDraftStarted === 1}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="linear" className="font-normal">
+                    <strong>Linear:</strong> Teams nominate in the same order
+                    every round (1, 2, 3, 4...)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="snake"
+                    name="draftType"
+                    value="snake"
+                    checked={(localSettings.draftType || "linear") === "snake"}
+                    onChange={(e) =>
+                      handleInputChange("draftType", e.target.value)
+                    }
+                    disabled={localSettings.isDraftStarted === 1}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="snake" className="font-normal">
+                    <strong>Snake:</strong> Order reverses each round (1, 2, 3,
+                    4... then 4, 3, 2, 1...)
+                  </Label>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Timer Settings */}
+            <div className="space-y-4">
+              <div>
+                <Label>Auction Timer</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Configure if and how long teams have to make nominations
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timer-enabled"
+                    checked={(localSettings.timerEnabled || 0) === 1}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "timerEnabled",
+                        e.target.checked ? 1 : 0
+                      )
+                    }
+                    disabled={localSettings.isDraftStarted === 1}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="timer-enabled" className="font-normal">
+                    Enable nomination timer
+                  </Label>
+                </div>
+
+                {(localSettings.timerEnabled || 0) === 1 && (
+                  <div className="ml-6 space-y-2">
+                    <Label htmlFor="timer-duration">
+                      Timer Duration (seconds)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="timer-duration"
+                        type="number"
+                        min="30"
+                        max="300"
+                        value={localSettings.timerDuration || 60}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "timerDuration",
+                            parseInt(e.target.value)
+                          )
+                        }
+                        disabled={localSettings.isDraftStarted === 1}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        ({Math.floor((localSettings.timerDuration || 60) / 60)}:
+                        {String(
+                          (localSettings.timerDuration || 60) % 60
+                        ).padStart(2, "0")}{" "}
+                        minutes)
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Teams will have this amount of time to nominate a player.
+                      If time expires, the turn automatically advances to the
+                      next team.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -679,6 +1077,80 @@ export default function LeagueSettingsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Manual Draft Order Modal */}
+      <Dialog open={showDraftOrderModal} onOpenChange={setShowDraftOrderModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Draft Order</DialogTitle>
+            <DialogDescription>
+              Arrange teams in the order they will nominate players. Team #1
+              will nominate first.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {draftOrderTeams.map((team, index) => (
+              <div
+                key={team.id}
+                className="flex items-center gap-3 p-3 border rounded-lg bg-card"
+              >
+                <div className="flex flex-col gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => moveTeamUp(index)}
+                    disabled={index === 0}
+                    className="h-6 w-6 p-0"
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => moveTeamDown(index)}
+                    disabled={index === draftOrderTeams.length - 1}
+                    className="h-6 w-6 p-0"
+                  >
+                    ↓
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center justify-center w-8 h-8 bg-primary text-primary-foreground rounded-full text-sm font-bold">
+                    {team.draftOrder}
+                  </div>
+                  <div>
+                    <p className="font-semibold">{team.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Pick #{team.draftOrder}
+                    </p>
+                  </div>
+                </div>
+
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowDraftOrderModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveDraftOrder}
+              disabled={saving}
+              className="flex-1"
+            >
+              {saving ? "Saving..." : "Save Order"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

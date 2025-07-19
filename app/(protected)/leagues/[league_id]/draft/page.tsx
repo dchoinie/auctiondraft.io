@@ -21,7 +21,7 @@ import { NominationInterface } from "@/components/draft/NominationInterface";
 import { BiddingInterface } from "@/components/draft/BiddingInterface";
 import { CountdownComponent } from "@/components/draft/CountdownComponent";
 import { BidHistory } from "@/components/draft/BidHistory";
-import { Loader2, Users, Trophy, Clock } from "lucide-react";
+import { Loader2, Users, Trophy, Clock, User } from "lucide-react";
 
 // Draft message types (copied from party to avoid import issues)
 enum DraftMessageType {
@@ -536,6 +536,17 @@ export default function DraftRoomPage() {
         </Alert>
       )}
 
+      {/* Your Turn Alert */}
+      {isUserTurn && draftState.draftState?.phase === "nominating" && (
+        <Alert className="border-primary bg-primary/10">
+          <User className="h-4 w-4" />
+          <AlertDescription className="font-semibold">
+            It&apos;s your turn to nominate a player! Select a player from the
+            nomination interface below.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Draft Status */}
       <Card>
         <CardHeader>
@@ -655,6 +666,7 @@ export default function DraftRoomPage() {
             <NominationInterface
               onNominate={handleNomination}
               userTeam={draftState.userTeam}
+              availablePlayers={draftState.availablePlayers}
             />
           )}
 

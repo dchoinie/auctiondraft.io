@@ -208,7 +208,17 @@ export async function POST(
 async function determineRosterSlot(
   teamId: string,
   playerPosition: string,
-  leagueData: any
+  leagueData: {
+    qbSlots?: number;
+    rbSlots?: number;
+    wrSlots?: number;
+    teSlots?: number;
+    flexSlots?: number;
+    superflexSlots?: number;
+    dstSlots?: number;
+    kSlots?: number;
+    benchSlots?: number;
+  }
 ): Promise<string | null> {
   // Get current roster
   const roster = await db
@@ -309,6 +319,17 @@ async function getNextTeamTurn(
   leagueId: string,
   currentTeamId: string
 ): Promise<string> {
+  // Get league settings for draft type
+  const league = await db
+    .select({
+      draftType: leagues.draftType,
+    })
+    .from(leagues)
+    .where(eq(leagues.id, leagueId))
+    .limit(1);
+
+  const draftType = league[0]?.draftType || "linear";
+
   // Get all teams with draft order
   const teams = await db
     .select()
@@ -319,8 +340,49 @@ async function getNextTeamTurn(
   // Find current team index
   const currentTeamIndex = teams.findIndex((team) => team.id === currentTeamId);
 
-  // Get next team (wrap around if at the end)
-  const nextTeamIndex = (currentTeamIndex + 1) % teams.length;
+  if (draftType === "linear") {
+    // Linear: Always go to next team in order
+    const nextTeamIndex = (currentTeamIndex + 1) % teams.length;
+    return teams[nextTeamIndex].id;
+  } else if (draftType === "snake") {
+    // Snake: Calculate based on total players drafted and round
 
+    // Count total players drafted in this league
+    const totalDrafted = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(rosters)
+      .leftJoin(teams, eq(rosters.teamId, teams.id))
+      .where(eq(teams.leagueId, leagueId));
+
+    const playersPerRound = teams.length;
+    const completedRounds = Math.floor(
+      (totalDrafted[0]?.count || 0) / playersPerRound
+    );
+    const currentRound = completedRounds + 1; // 1-indexed
+
+    // Even rounds go in reverse order for snake
+    const isReverseRound = currentRound % 2 === 0;
+
+    if (isReverseRound) {
+      // Go backwards in draft order
+      const nextTeamIndex = currentTeamIndex - 1;
+      if (nextTeamIndex < 0) {
+        // Wrap to end of next round (back to normal order)
+        return teams[teams.length - 1].id;
+      }
+      return teams[nextTeamIndex].id;
+    } else {
+      // Go forwards in draft order
+      const nextTeamIndex = currentTeamIndex + 1;
+      if (nextTeamIndex >= teams.length) {
+        // Wrap to start of next round (reverse order)
+        return teams[teams.length - 1].id;
+      }
+      return teams[nextTeamIndex].id;
+    }
+  }
+
+  // Fallback to linear
+  const nextTeamIndex = (currentTeamIndex + 1) % teams.length;
   return teams[nextTeamIndex].id;
 }

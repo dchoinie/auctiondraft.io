@@ -71,6 +71,35 @@ export default function LeaguePage() {
   const canStartDraft =
     isLeagueFull && isOwner && settings && !settings.isDraftStarted;
 
+  // Handle draft start
+  const handleStartDraft = async () => {
+    setIsCreatingTeam(true); // Reuse loading state
+    setJoinError(null);
+
+    try {
+      const response = await fetch(`/api/leagues/${leagueId}/draft`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "start" }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Navigate to draft room (settings will refresh when we come back)
+        router.push(`/leagues/${leagueId}/draft`);
+      } else {
+        setJoinError(data.error || "Failed to start draft");
+      }
+    } catch (err) {
+      setJoinError("Failed to start draft");
+    } finally {
+      setIsCreatingTeam(false);
+    }
+  };
+
   const handleJoinLeague = async () => {
     if (!teamName.trim()) {
       setJoinError("Team name is required");
@@ -155,13 +184,40 @@ export default function LeaguePage() {
           )}
 
           {canStartDraft && (
-            <Button>
+            <Button onClick={handleStartDraft} disabled={isCreatingTeam}>
               <PlayCircle className="h-4 w-4 mr-2" />
-              Start Draft
+              {isCreatingTeam ? "Starting..." : "Start Draft"}
+            </Button>
+          )}
+
+          {settings?.isDraftStarted === 1 && (
+            <Button onClick={() => router.push(`/leagues/${leagueId}/draft`)}>
+              <Trophy className="h-4 w-4 mr-2" />
+              Enter Draft Room
             </Button>
           )}
         </div>
       </div>
+
+      {/* Draft Status Alert */}
+      {settings?.isDraftStarted === 1 && (
+        <Alert className="border-green-200 bg-green-50">
+          <Trophy className="h-4 w-4" />
+          <AlertDescription className="text-green-800">
+            <strong>Draft is live!</strong> The draft is currently in progress.
+            Click &quot;Enter Draft Room&quot; to participate.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error Messages */}
+      {joinError && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertDescription className="text-red-800">
+            {joinError}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* League Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

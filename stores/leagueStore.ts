@@ -29,6 +29,10 @@ export interface LeagueSettings {
   dstSlots: number;
   kSlots: number;
   benchSlots: number;
+  // Draft Management Settings
+  draftType: string;
+  timerEnabled: number;
+  timerDuration: number;
 }
 
 interface LeagueState {
@@ -385,7 +389,8 @@ export function useLeagueAdmin(leagueId?: string) {
   // Use stable selectors to avoid infinite loops
   const isAdmin = useLeagueStore(
     useCallback(
-      (state) => (leagueId ? state.adminStatusCache[leagueId] ?? false : false),
+      (state) =>
+        leagueId ? (state.adminStatusCache[leagueId] ?? false) : false,
       [leagueId]
     )
   );
@@ -393,7 +398,7 @@ export function useLeagueAdmin(leagueId?: string) {
   const loading = useLeagueStore(
     useCallback(
       (state) =>
-        leagueId ? state.adminStatusLoading[leagueId] ?? false : false,
+        leagueId ? (state.adminStatusLoading[leagueId] ?? false) : false,
       [leagueId]
     )
   );
@@ -429,14 +434,15 @@ export function useLeagueSettings(leagueId?: string) {
 
   const loading = useLeagueStore(
     useCallback(
-      (state) => (leagueId ? state.settingsLoading[leagueId] ?? false : false),
+      (state) =>
+        leagueId ? (state.settingsLoading[leagueId] ?? false) : false,
       [leagueId]
     )
   );
 
   const error = useLeagueStore(
     useCallback(
-      (state) => (leagueId ? state.settingsError[leagueId] ?? null : null),
+      (state) => (leagueId ? (state.settingsError[leagueId] ?? null) : null),
       [leagueId]
     )
   );

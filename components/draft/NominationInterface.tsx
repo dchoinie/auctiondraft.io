@@ -35,35 +35,19 @@ interface UserTeam {
 interface NominationInterfaceProps {
   onNominate: (playerId: string, playerName: string, amount: number) => void;
   userTeam: UserTeam;
+  availablePlayers: NFLPlayer[];
 }
 
 export function NominationInterface({
   onNominate,
   userTeam,
+  availablePlayers,
 }: NominationInterfaceProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<NFLPlayer | null>(null);
   const [nominationAmount, setNominationAmount] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [availablePlayers, setAvailablePlayers] = useState<NFLPlayer[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  const loadAvailablePlayers = async () => {
-    try {
-      setLoading(true);
-      // This would be replaced with actual API call
-      const response = await fetch(`/api/players?limit=100`);
-      const data = await response.json();
-      if (data.players) {
-        setAvailablePlayers(data.players);
-      }
-    } catch (err) {
-      setError("Failed to load players");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePlayerSelect = (player: NFLPlayer) => {
     setSelectedPlayer(player);
@@ -195,7 +179,7 @@ export function NominationInterface({
               </div>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" onClick={loadAvailablePlayers}>
+                  <Button variant="outline">
                     <Plus className="h-4 w-4 mr-2" />
                     Select Player
                   </Button>
@@ -218,11 +202,7 @@ export function NominationInterface({
 
                     {/* Players List */}
                     <ScrollArea className="h-[400px]">
-                      {loading ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          Loading players...
-                        </div>
-                      ) : filteredPlayers.length === 0 ? (
+                      {filteredPlayers.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                           No players found
                         </div>
