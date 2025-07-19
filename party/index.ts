@@ -33,6 +33,9 @@ export enum DraftMessageType {
   // Turn management
   TURN_CHANGE = "TURN_CHANGE",
 
+  // Budget updates
+  BUDGET_UPDATED = "BUDGET_UPDATED",
+
   // Error handling
   ERROR = "ERROR",
 }
@@ -51,6 +54,7 @@ interface DraftParticipant {
   teamName: string;
   isActive: boolean;
   joinedAt: number;
+  lastActivity: number;
 }
 
 interface DraftRoomState {
@@ -83,6 +87,7 @@ interface DraftRoomState {
 export default class DraftRoomServer implements Party.Server {
   private state: DraftRoomState;
   private countdownTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
 
   constructor(readonly room: Party.Room) {
     // Initialize draft room state
@@ -95,6 +100,43 @@ export default class DraftRoomServer implements Party.Server {
       phase: "waiting",
       bids: [],
     };
+
+    // Start heartbeat to monitor participant activity
+    this.startHeartbeat();
+  }
+
+  private startHeartbeat() {
+    this.heartbeatTimer = setInterval(() => {
+      // Clean up stale participants (inactive for more than 30 seconds)
+      const now = Date.now();
+      const staleThreshold = 30000; // 30 seconds
+
+      for (const [userId, participant] of this.state.participants) {
+        if (now - participant.lastActivity > staleThreshold) {
+          // Check if connection is still valid
+          const connection = this.room.getConnection(participant.connectionId);
+          if (!connection) {
+            this.state.participants.delete(userId);
+            this.broadcastMessage({
+              type: DraftMessageType.USER_LEFT,
+              data: {
+                userId: participant.userId,
+                teamId: participant.teamId,
+                teamName: participant.teamName,
+              },
+              timestamp: Date.now(),
+            });
+          }
+        }
+      }
+
+      // Broadcast participant status every 10 seconds
+      this.broadcastMessage({
+        type: DraftMessageType.DRAFT_STATE_UPDATE,
+        data: this.getPublicState(),
+        timestamp: Date.now(),
+      });
+    }, 10000); // Every 10 seconds
   }
 
   onRequest(req: Party.Request) {
@@ -119,6 +161,10 @@ export default class DraftRoomServer implements Party.Server {
   onMessage(message: string, sender: Party.Connection) {
     try {
       const parsedMessage: DraftMessage = JSON.parse(message);
+
+      // Update participant activity
+      this.updateParticipantActivity(sender.id);
+
       this.handleMessage(parsedMessage, sender);
     } catch (error) {
       console.error(
@@ -126,6 +172,15 @@ export default class DraftRoomServer implements Party.Server {
         error
       );
       this.sendError(sender, "Invalid message format");
+    }
+  }
+
+  private updateParticipantActivity(connectionId: string) {
+    for (const participant of this.state.participants.values()) {
+      if (participant.connectionId === connectionId) {
+        participant.lastActivity = Date.now();
+        break;
+      }
     }
   }
 
@@ -193,6 +248,7 @@ export default class DraftRoomServer implements Party.Server {
       teamName,
       isActive: true,
       joinedAt: Date.now(),
+      lastActivity: Date.now(),
     };
 
     this.state.participants.set(userId, participant);
@@ -421,6 +477,46 @@ export default class DraftRoomServer implements Party.Server {
     });
   }
 
+  // Method to update turn from external source (API)
+  updateTurn(newTurnTeamId: string) {
+    this.state.currentTurnTeamId = newTurnTeamId;
+    this.state.phase = "nominating";
+
+    // Broadcast turn change
+    this.broadcastMessage({
+      type: DraftMessageType.TURN_CHANGE,
+      data: {
+        newTurnTeamId,
+        phase: "nominating",
+      },
+      timestamp: Date.now(),
+    });
+
+    // Also broadcast general state update
+    this.broadcastMessage({
+      type: DraftMessageType.DRAFT_STATE_UPDATE,
+      data: this.getPublicState(),
+      timestamp: Date.now(),
+    });
+  }
+
+  // Method to broadcast budget updates from external source (API)
+  updateBudgets(
+    teamBudgets: Array<{
+      teamId: string;
+      remainingBudget: number;
+      remainingRosterSlots: number;
+    }>
+  ) {
+    this.broadcastMessage({
+      type: DraftMessageType.BUDGET_UPDATED,
+      data: {
+        teamBudgets,
+      },
+      timestamp: Date.now(),
+    });
+  }
+
   private sendMessage(conn: Party.Connection, message: DraftMessage) {
     conn.send(JSON.stringify(message));
   }
@@ -447,5 +543,22 @@ export default class DraftRoomServer implements Party.Server {
       phase: this.state.phase,
       bids: this.state.bids,
     };
+  }
+
+  // Cleanup method for when room shuts down
+  onAlarm() {
+    this.cleanup();
+  }
+
+  private cleanup() {
+    if (this.countdownTimer) {
+      clearTimeout(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 }

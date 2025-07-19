@@ -264,6 +264,8 @@ export default function DraftRoomPage() {
             : null
         );
         setBids((message.data as any).bids || []);
+        // Clear countdown when new bid is placed
+        setCountdown(null);
         break;
 
       case DraftMessageType.START_COUNTDOWN:
@@ -279,10 +281,70 @@ export default function DraftRoomPage() {
         break;
 
       case DraftMessageType.PLAYER_ACQUIRED:
-        // Refresh draft state after player acquisition
-        loadDraftState();
+        const { playerId } = message.data as any;
+
+        // Remove acquired player from available players immediately
+        setDraftState((prev) => {
+          if (!prev) return null;
+
+          const updatedAvailablePlayers = prev.availablePlayers.filter(
+            (player) => player.id !== playerId
+          );
+
+          return {
+            ...prev,
+            availablePlayers: updatedAvailablePlayers,
+            currentNomination: null,
+          };
+        });
+
+        // Clear auction state
         setBids([]);
         setCountdown(null);
+
+        // Refresh full state in background for accuracy
+        setTimeout(() => loadDraftState(), 1000);
+        break;
+
+      case DraftMessageType.TURN_CHANGE:
+        setDraftState((prev) =>
+          prev
+            ? {
+                ...prev,
+                draftState: {
+                  ...prev.draftState!,
+                  currentTurnTeamId: (message.data as any).newTurnTeamId,
+                  phase: (message.data as any).phase,
+                },
+              }
+            : null
+        );
+        break;
+
+      case DraftMessageType.BUDGET_UPDATED:
+        const { teamBudgets } = message.data as any;
+        setDraftState((prev) => {
+          if (!prev) return null;
+
+          const updatedTeams = prev.teams.map((team) => {
+            const budgetUpdate = teamBudgets.find(
+              (b: any) => b.teamId === team.id
+            );
+            if (budgetUpdate) {
+              return {
+                ...team,
+                remainingBudget: budgetUpdate.remainingBudget,
+                remainingRosterSlots: budgetUpdate.remainingRosterSlots,
+              };
+            }
+            return team;
+          });
+
+          return {
+            ...prev,
+            teams: updatedTeams,
+          };
+        });
         break;
 
       case DraftMessageType.ERROR:

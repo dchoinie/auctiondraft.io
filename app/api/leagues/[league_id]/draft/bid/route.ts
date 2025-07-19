@@ -7,6 +7,7 @@ import {
   draftNominations,
   draftBids,
   rosters,
+  leagues,
 } from "@/app/schema";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -99,7 +100,7 @@ export async function POST(
     const nominationData = nomination[0];
 
     // Check if bid is higher than current bid
-    if (amount <= nominationData.currentBid) {
+    if (!nominationData.currentBid || amount <= nominationData.currentBid) {
       return NextResponse.json(
         { success: false, error: "Bid must be higher than current bid" },
         { status: 400 }
@@ -171,7 +172,7 @@ export async function POST(
 async function getTeamRemainingBudget(teamId: string): Promise<number> {
   // Get team budget
   const team = await db
-    .select({ budget: teams.budget })
+    .select({ budget: teams.budget, leagueId: teams.leagueId })
     .from(teams)
     .where(eq(teams.id, teamId))
     .limit(1);
@@ -180,16 +181,58 @@ async function getTeamRemainingBudget(teamId: string): Promise<number> {
     return 0;
   }
 
-  // Get total spent on roster
-  const rosterSpending = await db
+  // Get league settings for total roster slots
+  if (!team[0].leagueId) {
+    return 0;
+  }
+
+  const league = await db
+    .select({
+      qbSlots: leagues.qbSlots,
+      rbSlots: leagues.rbSlots,
+      wrSlots: leagues.wrSlots,
+      teSlots: leagues.teSlots,
+      flexSlots: leagues.flexSlots,
+      dstSlots: leagues.dstSlots,
+      kSlots: leagues.kSlots,
+      benchSlots: leagues.benchSlots,
+    })
+    .from(leagues)
+    .where(eq(leagues.id, team[0].leagueId))
+    .limit(1);
+
+  if (league.length === 0) {
+    return 0;
+  }
+
+  const leagueData = league[0];
+  const totalRosterSlots =
+    (leagueData.qbSlots || 1) +
+    (leagueData.rbSlots || 2) +
+    (leagueData.wrSlots || 2) +
+    (leagueData.teSlots || 1) +
+    (leagueData.flexSlots || 1) +
+    (leagueData.dstSlots || 1) +
+    (leagueData.kSlots || 1) +
+    (leagueData.benchSlots || 7);
+
+  // Get total spent on roster and current roster count
+  const rosterData = await db
     .select({
       totalSpent: sql<number>`COALESCE(SUM(${rosters.price}), 0)`,
+      rosterCount: sql<number>`COUNT(${rosters.id})`,
     })
     .from(rosters)
     .where(eq(rosters.teamId, teamId));
 
-  const totalSpent = rosterSpending[0]?.totalSpent || 0;
-  const remainingBudget = (team[0].budget || 200) - totalSpent;
+  const totalSpent = rosterData[0]?.totalSpent || 0;
+  const rosterCount = rosterData[0]?.rosterCount || 0;
+  const remainingRosterSlots = totalRosterSlots - rosterCount;
 
-  return Math.max(0, remainingBudget);
+  // Calculate available budget minus minimum $1 per remaining slot
+  const grossRemainingBudget = (team[0].budget || 200) - totalSpent;
+  const minimumReserved = Math.max(0, remainingRosterSlots - 1); // Subtract 1 because current bid counts as 1 slot
+  const availableBudget = grossRemainingBudget - minimumReserved;
+
+  return Math.max(0, availableBudget);
 }
