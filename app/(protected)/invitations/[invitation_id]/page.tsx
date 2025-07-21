@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@/stores/userStore";
+import { useLeagueStore } from "@/stores/leagueStore";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,6 +63,8 @@ export default function InvitationPage() {
   // Accept/Decline states
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [teamName, setTeamName] = useState("");
+  const [firstName, setFirstName] = useState(user?.firstName || "");
+  const [lastName, setLastName] = useState(user?.lastName || "");
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
   const [actionComplete, setActionComplete] = useState(false);
@@ -101,6 +104,14 @@ export default function InvitationPage() {
       setError("Team name is required");
       return;
     }
+    if (!firstName.trim()) {
+      setError("First name is required");
+      return;
+    }
+    if (!lastName.trim()) {
+      setError("Last name is required");
+      return;
+    }
 
     setIsAccepting(true);
     setError(null);
@@ -111,13 +122,30 @@ export default function InvitationPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ teamName: teamName.trim() }),
+          body: JSON.stringify({
+            teamName: teamName.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+          }),
         }
       );
 
       const data = await response.json();
 
       if (data.success) {
+        // Refetch leagues so sidebar and UI update
+        if (typeof window !== "undefined") {
+          // Only call in client
+          import("@/stores/leagueStore").then((mod) => {
+            mod.useLeagueStore.getState().refetch();
+          });
+          import("@/stores/userStore").then((mod) => {
+            const userId = user?.id;
+            if (userId) {
+              mod.useUserStore.getState().refetch(userId);
+            }
+          });
+        }
         setActionComplete(true);
         setShowAcceptDialog(false);
         setStatusMessage("Successfully joined the league!");
@@ -214,7 +242,7 @@ export default function InvitationPage() {
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
             <Trophy className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold">League Invitation</h1>
+          <h1 className="text-3xl font-bold text-gray-50">League Invitation</h1>
           <p className="text-muted-foreground mt-2">
             You&apos;ve been invited to join a fantasy football league
           </p>
@@ -348,11 +376,33 @@ export default function InvitationPage() {
           <DialogHeader>
             <DialogTitle>Join {invitation.leagueName}</DialogTitle>
             <DialogDescription>
-              Choose a name for your team in this league.
+              Enter your name and choose a name for your team in this league.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="first-name">First Name</Label>
+              <Input
+                id="first-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter your first name"
+                disabled={isAccepting}
+                maxLength={50}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last-name">Last Name</Label>
+              <Input
+                id="last-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter your last name"
+                disabled={isAccepting}
+                maxLength={50}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="team-name">Team Name</Label>
               <Input
@@ -378,7 +428,12 @@ export default function InvitationPage() {
               </Button>
               <Button
                 onClick={handleAcceptInvitation}
-                disabled={isAccepting || !teamName.trim()}
+                disabled={
+                  isAccepting ||
+                  !teamName.trim() ||
+                  !firstName.trim() ||
+                  !lastName.trim()
+                }
               >
                 {isAccepting ? (
                   <>

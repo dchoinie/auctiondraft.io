@@ -25,7 +25,7 @@ export async function POST(
     const resolvedParams = await params;
     const { league_id: leagueId, invitation_id: invitationId } = resolvedParams;
     const body = await req.json();
-    const { teamName } = body;
+    const { teamName, firstName, lastName } = body;
 
     if (
       !teamName ||
@@ -34,6 +34,26 @@ export async function POST(
     ) {
       return NextResponse.json(
         { success: false, error: "Team name is required" },
+        { status: 400 }
+      );
+    }
+    if (
+      !firstName ||
+      typeof firstName !== "string" ||
+      firstName.trim().length === 0
+    ) {
+      return NextResponse.json(
+        { success: false, error: "First name is required" },
+        { status: 400 }
+      );
+    }
+    if (
+      !lastName ||
+      typeof lastName !== "string" ||
+      lastName.trim().length === 0
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Last name is required" },
         { status: 400 }
       );
     }
@@ -131,6 +151,14 @@ export async function POST(
 
     // Start transaction to create team and update invitation
     try {
+      // Update user's first and last name in userProfiles
+      await db
+        .update(userProfiles)
+        .set({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        })
+        .where(eq(userProfiles.id, userId));
       // Create the team
       const newTeam = await db
         .insert(teams)

@@ -66,6 +66,25 @@ export default function Dashboard() {
   return (
     <>
       <div className="container min-h-[calc(100vh-4rem)] mx-auto p-6">
+        {/* Main Content */}
+        <div className="flex gap-4">
+          <div className="h-24 w-1/4">1</div>
+          <div className="h-24 w-1/4">2</div>
+          <div className="h-24 w-1/4">3</div>
+          <div className="h-[550px] w-1/4 border border-gray-50 p-6 rounded shadow">
+            <h6 className="text-xl font-exo2 text-gray-50 text-center mb-3">
+              Trending Players
+            </h6>
+            <iframe
+              src="https://sleeper.app/embed/players/nfl/trending/add?lookback_hours=24&limit=25"
+              width="100%"
+              height="450px"
+              style={{ borderRadius: "10px" }}
+            ></iframe>
+          </div>
+        </div>
+
+        {/* Payment Status */}
         {paymentStatus === "success" && (
           <div className="mb-6">
             <Alert className="border-green-200 bg-green-50">
