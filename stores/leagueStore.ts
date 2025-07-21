@@ -8,6 +8,7 @@ export interface League {
   ownerId: string;
   isDraftStarted: number;
   createdAt: string;
+  settings: LeagueSettings;
 }
 
 export interface LeagueSettings {
@@ -19,7 +20,6 @@ export interface LeagueSettings {
   draftDate: string | null;
   draftTime: string | null;
   draftLocation: string | null;
-  rosterSize: number;
   startingBudget: number;
   qbSlots: number;
   rbSlots: number;

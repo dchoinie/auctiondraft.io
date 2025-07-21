@@ -4,13 +4,18 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { SidebarNavigation } from "./SidebarNavigation";
-import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@/stores/userStore";
-import { log } from "console";
+import Link from "next/link";
+import dynamic from "next/dynamic";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
 }
+
+const UserButton = dynamic(
+  () => import("@clerk/nextjs").then((mod) => mod.UserButton),
+  { ssr: false }
+);
 
 export function MobileSidebar({ children }: MobileSidebarProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -23,10 +28,17 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div className="lg:hidden">
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-            <div className="fixed inset-y-0 left-0 z-50 w-64 bg-muted/40 border-r">
+          <div className="fixed inset-0 z-50 backdrop-blur-sm">
+            <div className="fixed inset-y-0 left-0 z-50 w-64 border-r">
               <div className="flex items-center justify-between h-16 px-6 border-b">
-                <h1 className="text-xl font-bold">Auction Draft IO</h1>
+                <h1 className="text-xl font-bold text-white">
+                  Auction Draft IO
+                </h1>
+                <div className="flex items-center gap-2">
+                  <h6 className="italic mr-2">
+                    League Credits: {user?.leagueCredits}
+                  </h6>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -49,7 +61,7 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top navbar */}
-        <header className="flex justify-between h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="flex justify-between h-16 items-center gap-4 border-b bg-gradient-to-r from-emerald-900 to-gray-900 px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -60,14 +72,23 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
             <span className="sr-only">Toggle sidebar</span>
           </Button>
           <div className="">
-            <h6 className="text-lg font-bold">
-              Welcome back, {user?.firstName}!
+            <h6 className="text-lg font-bold text-white">
+              Welcome Back, {user?.firstName}!
             </h6>
           </div>
           <div className="flex items-center gap-2">
-            <h6 className="italic mr-2">
-              League Credits: {user?.leagueCredits}
-            </h6>
+            <div className="flex flex-col text-center">
+              <h6 className="italic mr-2 text-gray-50 m-0 p-0">
+                League Credits: {user?.leagueCredits}
+              </h6>
+              <Button
+                asChild
+                variant="link"
+                className="h-6 font-exo2 text-gray-50"
+              >
+                <Link href="/credits">Buy More Credits</Link>
+              </Button>
+            </div>
             <UserButton
               appearance={{
                 elements: {

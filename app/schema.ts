@@ -30,7 +30,6 @@ export const leagues = pgTable("leagues", {
   draftDate: timestamp("draft_date", { withTimezone: true }),
   draftTime: text("draft_time"), // stored as HH:MM format
   draftLocation: text("draft_location"),
-  rosterSize: integer("roster_size").default(16),
   startingBudget: integer("starting_budget").default(200),
   // Roster position settings (default fantasy football lineup)
   qbSlots: integer("qb_slots").default(1),
@@ -46,6 +45,7 @@ export const leagues = pgTable("leagues", {
   timerEnabled: integer("timer_enabled").default(0), // 0 = false, 1 = true
   timerDuration: integer("timer_duration").default(60), // seconds
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  joinCode: text("join_code"),
 });
 
 export const teams = pgTable("teams", {

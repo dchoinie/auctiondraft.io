@@ -2,9 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLeagueAdmin } from "@/stores/leagueStore";
-import { Badge } from "@/components/ui/badge";
+import { League, useLeagueAdmin } from "@/stores/leagueStore";
+import { useLeagueStore } from "@/stores/leagueStore";
+import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { Home, Plus, Users } from "lucide-react";
+import { Badge } from "./ui/badge";
+
+interface NavItem {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+}
+
+const navItems: NavItem[] = [
+  {
+    icon: <Home />,
+    label: "Dashboard",
+    href: "/dashboard",
+  },
+  {
+    icon: <Plus />,
+    label: "Create A League",
+    href: "/leagues/create",
+  },
+  {
+    icon: <Users />,
+    label: "Join A League",
+    href: "/leagues/join",
+  },
+];
 
 interface SidebarNavigationProps {
   leagueId?: string;
@@ -12,143 +39,76 @@ interface SidebarNavigationProps {
 
 export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
   const pathname = usePathname();
+  const { leagues } = useLeagueStore();
   const { isAdmin, loading } = useLeagueAdmin(leagueId);
+
+  console.log(leagues);
 
   // Extract league ID from pathname if not provided
   const pathLeagueId = leagueId || pathname.match(/\/leagues\/([^\/]+)/)?.[1];
-
-  // Define which navigation items are admin-only
-  const adminOnlyItems = [
-    "Create League",
-    "Manage Teams",
-    "Buy Credits",
-    "Settings",
-  ];
-
-  // Global navigation items (always visible)
-  const globalItems = [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Leagues", href: "/leagues" },
-    { label: "My Teams", href: "/teams" },
-    { label: "Players", href: "/players" },
-  ];
-
-  // League-specific items (only visible when in a league context)
-  const leagueItems = [
-    { label: "Draft Room", href: (id: string) => `/leagues/${id}/draft` },
-    { label: "Manage Teams", href: (id: string) => `/leagues/${id}/teams` },
-  ];
-
-  // Admin-only items
-  const adminItems = [
-    { label: "Create League", href: "/leagues/create" },
-    { label: "Buy Credits", href: "/billing" },
-    { label: "Settings", href: "/settings" },
-  ];
 
   const isActive = (href: string) => {
     if (typeof href === "function") return false;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
+  const rosterSize = (league: League) => {
+    return (
+      (league.settings.qbSlots || 0) +
+      (league.settings.rbSlots || 0) +
+      (league.settings.wrSlots || 0) +
+      (league.settings.teSlots || 0) +
+      (league.settings.flexSlots || 0) +
+      (league.settings.dstSlots || 0) +
+      (league.settings.kSlots || 0) +
+      (league.settings.benchSlots || 0)
+    );
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Global Navigation */}
-      <div>
-        <div className="space-y-1">
-          {globalItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                isActive(item.href)
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
+    <>
+      <div className="flex flex-col mt-3 gap-3">
+        {navItems.map((item: NavItem, i: number) => (
+          <Button
+            asChild
+            className={cn("font-exo2 bg-emerald-800 hover:bg-emerald-700")}
+            key={`${item.label}-${i}`}
+          >
+            <Link href={item.href}>
+              {item.icon}
               {item.label}
             </Link>
-          ))}
-        </div>
+          </Button>
+        ))}
       </div>
-
-      {/* League Navigation (only show when in league context) */}
-      {pathLeagueId && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            League
-          </h3>
-          <div className="space-y-1">
-            {leagueItems.map((item) => {
-              const href =
-                typeof item.href === "function"
-                  ? item.href(pathLeagueId)
-                  : item.href;
-
-              // Skip admin-only items if user is not admin
-              if (adminOnlyItems.includes(item.label) && !isAdmin) {
-                return null;
-              }
-
-              return (
-                <Link
-                  key={item.label}
-                  href={href}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive(href)
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  {item.label}
-                  {adminOnlyItems.includes(item.label) && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      Admin
-                    </Badge>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Admin Navigation (only show for admins) */}
-      {isAdmin && !loading && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Admin
-          </h3>
-          <div className="space-y-1">
-            {adminItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive(item.href)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                {item.label}
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  Admin
-                </Badge>
+      <div className="flex flex-col gap-3 mt-3">
+        <h5 className="text-gray-50 font-exo2 text-sm mb-3">My Leagues</h5>
+        {leagues.length > 0 ? (
+          leagues.map((league: League) => (
+            <Button
+              asChild
+              key={league.id}
+              variant="ghost"
+              className="w-full hover:bg-emerald-800/70"
+              style={{ height: "auto" }}
+            >
+              <Link href={`/leagues/${league.id}`}>
+                <div className="flex flex-col w-full">
+                  <p className="text-gray-50">{league.name}</p>
+                  <small className="text-gray-400 text-wrap">
+                    {`${league.settings.leagueSize}-man`}
+                    {`/${rosterSize(league)} roster`}
+                    {`/$${league.settings.startingBudget} budget`}
+                    {`/${league.settings.draftType} nominations`}
+                  </small>
+                </div>
               </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Loading state */}
-      {loading && (
-        <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-        </div>
-      )}
-    </div>
+            </Button>
+          ))
+        ) : (
+          <p className="text-gray-50">No leagues found</p>
+        )}
+      </div>
+    </>
   );
 }

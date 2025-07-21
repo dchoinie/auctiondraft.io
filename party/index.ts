@@ -895,7 +895,15 @@ export default class DraftRoomServer implements Party.Server {
       }
 
       const leagueData = league[0];
-      const totalRosterSlots = leagueData.rosterSize || 16;
+      const totalRosterSlots =
+        (leagueData.qbSlots || 0) +
+        (leagueData.rbSlots || 0) +
+        (leagueData.wrSlots || 0) +
+        (leagueData.teSlots || 0) +
+        (leagueData.flexSlots || 0) +
+        (leagueData.dstSlots || 0) +
+        (leagueData.kSlots || 0) +
+        (leagueData.benchSlots || 0);
 
       const teamBudgets = [];
 
@@ -952,7 +960,7 @@ export default class DraftRoomServer implements Party.Server {
 
       const leagueQuery = await db
         .select({
-          rosterSize: leagues.rosterSize,
+          rosterSize: sql<number>`(${leagues.qbSlots} + ${leagues.rbSlots} + ${leagues.wrSlots} + ${leagues.teSlots} + ${leagues.flexSlots} + ${leagues.dstSlots} + ${leagues.kSlots} + ${leagues.benchSlots})`,
         })
         .from(leagues)
         .where(eq(leagues.id, team[0].leagueId))
@@ -961,8 +969,6 @@ export default class DraftRoomServer implements Party.Server {
       if (leagueQuery.length === 0) {
         return 0;
       }
-
-      const totalRosterSlots = leagueQuery[0].rosterSize || 16;
 
       // Get total spent on drafted players and current roster count
       const rosterData = await db
@@ -975,7 +981,8 @@ export default class DraftRoomServer implements Party.Server {
 
       const totalSpent = rosterData[0]?.totalSpent || 0;
       const rosterCount = rosterData[0]?.rosterCount || 0;
-      const remainingRosterSlots = totalRosterSlots - rosterCount;
+      const remainingRosterSlots =
+        (leagueQuery[0].rosterSize || 0) - rosterCount;
 
       // Calculate available budget minus minimum $1 per remaining slot
       const grossRemainingBudget = (team[0].budget || 200) - totalSpent;

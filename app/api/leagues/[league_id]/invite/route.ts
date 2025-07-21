@@ -109,8 +109,12 @@ export async function POST(
     try {
       const emailResult = await sendLeagueInvitationEmail({
         invitationId: newInvitation[0].id,
+        leagueId: league[0].id,
+        joinCode: league[0].joinCode || null,
         leagueName: league[0].name,
-        inviterName: `${inviter[0].firstName || ""} ${inviter[0].lastName || ""}`.trim() || "League Admin",
+        inviterName:
+          `${inviter[0].firstName || ""} ${inviter[0].lastName || ""}`.trim() ||
+          "League Admin",
         inviterEmail: inviter[0].email,
         leagueSize: league[0].leagueSize || 10,
         currentTeams: currentTeams.length,

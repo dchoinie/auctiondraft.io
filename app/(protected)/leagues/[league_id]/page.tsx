@@ -261,18 +261,6 @@ export default function LeaguePage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Roster Size</p>
-                <p className="text-2xl font-bold">{settings.rosterSize}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-orange-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
@@ -377,15 +365,6 @@ export default function LeaguePage() {
                     <p className="text-sm font-medium">Starting Budget</p>
                     <p className="text-sm text-muted-foreground">
                       ${settings.startingBudget}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-purple-600" />
-                  <div>
-                    <p className="text-sm font-medium">Roster Size</p>
-                    <p className="text-sm text-muted-foreground">
-                      {settings.rosterSize} players
                     </p>
                   </div>
                 </div>

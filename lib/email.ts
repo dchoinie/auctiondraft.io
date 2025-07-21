@@ -11,6 +11,8 @@ const APP_NAME = "AuctionDraft.io";
 
 export interface LeagueInvitationEmailData {
   invitationId: string;
+  leagueId: string;
+  joinCode: string | null;
   leagueName: string;
   inviterName: string;
   inviterEmail: string;
@@ -23,11 +25,6 @@ export async function sendLeagueInvitationEmail(
   data: LeagueInvitationEmailData
 ) {
   const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invitations/${data.invitationId}`;
-
-  console.log("Sending invitation email to:", data.recipientEmail);
-  console.log("Invitation URL:", invitationUrl);
-  console.log("From email:", FROM_EMAIL);
-  console.log("Resend API key configured:", !!process.env.RESEND_API_KEY);
 
   try {
     const result = await resend.emails.send({
@@ -130,7 +127,7 @@ function createLeagueInvitationEmailTemplate(
     .cta-button {
       display: inline-block;
       background-color: #2563eb;
-      color: white;
+      color: #fff;
       padding: 15px 30px;
       text-decoration: none;
       border-radius: 8px;
@@ -154,6 +151,30 @@ function createLeagueInvitationEmailTemplate(
       color: #2563eb;
       text-decoration: none;
     }
+    .alt-join {
+      background-color: #f1f5f9;
+      border-radius: 8px;
+      padding: 18px;
+      margin: 30px 0 10px 0;
+      border: 1px solid #e1e5e9;
+    }
+    .alt-join-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2563eb;
+      margin-bottom: 8px;
+    }
+    .alt-join-label {
+      font-weight: bold;
+      color: #1f2937;
+    }
+    .alt-join-code {
+      font-family: monospace;
+      background: #e0e7ef;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body>
@@ -166,9 +187,7 @@ function createLeagueInvitationEmailTemplate(
     <h1 class="league-name">🏆 ${data.leagueName}</h1>
     
     <p class="invitation-text">
-      <strong>${
-        data.inviterName
-      }</strong> has invited you to join their fantasy football league!
+      <strong>${data.inviterName}</strong> has invited you to join their fantasy football league!
     </p>
     
     <div class="stats">
@@ -206,7 +225,23 @@ function createLeagueInvitationEmailTemplate(
       If you can't click the button, copy and paste this link into your browser:
       <br><a href="${invitationUrl}" class="link">${invitationUrl}</a>
     </p>
-    
+
+    <div class="alt-join">
+      <div class="alt-join-title">Alternative Way to Join</div>
+      <p style="margin-bottom: 8px;">If you prefer, you can join manually:</p>
+      <ol style="margin-left: 18px;">
+        <li><span>Create an account at <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}" class="link">AuctionDraft.io</a></span></li>
+        <li><span>Navigate to <span class="alt-join-label">/join</span> from the main menu</span></li>
+        <li><span>Enter the following information:</span>
+          <ul style="margin-top: 6px;">
+            <li><span class="alt-join-label">League ID:</span> <span class="alt-join-code">${data.leagueId}</span></li>
+            <li><span class="alt-join-label">Join Code:</span> <span class="alt-join-code">${data.joinCode || "(none)"}</span></li>
+          </ul>
+        </li>
+      </ol>
+      <p style="margin-top: 8px;">Then follow the prompts to join the league and create your team.</p>
+    </div>
+
     <div class="footer">
       <p>
         This invitation was sent to ${data.recipientEmail}
@@ -214,9 +249,7 @@ function createLeagueInvitationEmailTemplate(
         If you didn't expect this invitation, you can safely ignore this email.
       </p>
       <p>
-        <a href="${
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        }" class="link">${APP_NAME}</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}" class="link">${APP_NAME}</a>
       </p>
     </div>
   </div>

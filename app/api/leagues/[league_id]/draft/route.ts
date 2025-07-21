@@ -100,7 +100,15 @@ export async function GET(
         const remainingBudget = (team.budget || 200) - totalSpent;
 
         // Calculate remaining roster spots based on league roster size
-        const totalRosterSlots = league[0].rosterSize || 16;
+        const totalRosterSlots =
+          (league[0].qbSlots || 0) +
+          (league[0].rbSlots || 0) +
+          (league[0].wrSlots || 0) +
+          (league[0].teSlots || 0) +
+          (league[0].flexSlots || 0) +
+          (league[0].dstSlots || 0) +
+          (league[0].kSlots || 0) +
+          (league[0].benchSlots || 0);
         const totalFilledSlots = draftedPlayersForTeam.length;
         const remainingRosterSlots = totalRosterSlots - totalFilledSlots;
 

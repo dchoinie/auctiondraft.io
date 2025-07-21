@@ -83,7 +83,6 @@ export async function GET(
         draftDate: leagueData.draftDate?.toISOString().split("T")[0] || null,
         draftTime: leagueData.draftTime || null,
         draftLocation: leagueData.draftLocation || null,
-        rosterSize: leagueData.rosterSize || 16,
         startingBudget: leagueData.startingBudget || 200,
         qbSlots: leagueData.qbSlots || 1,
         rbSlots: leagueData.rbSlots || 2,
@@ -159,7 +158,6 @@ export async function PUT(
     if (body.draftTime) updateData.draftTime = body.draftTime;
     if (body.draftLocation !== undefined)
       updateData.draftLocation = body.draftLocation;
-    if (body.rosterSize) updateData.rosterSize = parseInt(body.rosterSize);
     if (body.startingBudget)
       updateData.startingBudget = parseInt(body.startingBudget);
     if (body.qbSlots !== undefined) updateData.qbSlots = parseInt(body.qbSlots);

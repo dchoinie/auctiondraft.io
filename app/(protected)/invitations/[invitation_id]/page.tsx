@@ -216,7 +216,7 @@ export default function InvitationPage() {
           </div>
           <h1 className="text-3xl font-bold">League Invitation</h1>
           <p className="text-muted-foreground mt-2">
-            You've been invited to join a fantasy football league
+            You&apos;ve been invited to join a fantasy football league
           </p>
         </div>
 
