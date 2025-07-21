@@ -82,7 +82,7 @@ export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
         ))}
       </div>
       <div className="flex flex-col gap-3 mt-3">
-        <h5 className="text-gray-50 font-exo2 text-sm mb-3">My Leagues</h5>
+        <h5 className="text-gray-50 font-exo2 text-sm my-3">My Leagues</h5>
         {leagues.length > 0 ? (
           leagues.map((league: League) => (
             <Button

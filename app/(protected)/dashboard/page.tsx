@@ -79,7 +79,7 @@ export default function Dashboard() {
               src="https://sleeper.app/embed/players/nfl/trending/add?lookback_hours=24&limit=25"
               width="100%"
               height="450px"
-              style={{ borderRadius: "10px" }}
+              style={{ borderRadius: "5px", overflowX: "hidden" }}
             ></iframe>
           </div>
         </div>

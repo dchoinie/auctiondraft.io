@@ -3,9 +3,9 @@ import { stripe } from "@/lib/stripe";
 
 // Map league credits to Stripe Price IDs (update with your actual price IDs)
 const CREDIT_PRICE_MAP: Record<number, string> = {
-  1: process.env.NEXT_PUBLIC_STRIPE_1_LEAGUE_PRICE_ID!, // Replace with your Stripe Price ID for 1 league
-  3: process.env.NEXT_PUBLIC_STRIPE_3_LEAGUE_PRICE_ID!, // Replace with your Stripe Price ID for 3 leagues
-  5: process.env.NEXT_PUBLIC_STRIPE_UNLIMIED_PRICE_ID!, // Replace with your Stripe Price ID for 5 leagues
+  1: process.env.NEXT_PUBLIC_STRIPE_1_PRICE_ID!,
+  3: process.env.NEXT_PUBLIC_STRIPE_3_PRICE_ID!,
+  5: process.env.NEXT_PUBLIC_STRIPE_UNLIMITED_PRICE_ID!,
 };
 
 export async function POST(req: NextRequest) {
@@ -18,10 +18,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Optionally, get the user's email from the request/session
-    // const { user } = auth();
-    // const customer_email = user?.emailAddresses[0]?.emailAddress;
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -32,8 +28,8 @@ export async function POST(req: NextRequest) {
       ],
       mode: "payment",
       // customer_email,
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/?success=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/?canceled=1`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/?success=1`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/?canceled=1`,
     });
 
     return NextResponse.json({ url: session.url });
