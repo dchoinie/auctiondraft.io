@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { SidebarNavigation } from "./SidebarNavigation";
 import { UserButton } from "@clerk/nextjs";
+import { useUser } from "@/stores/userStore";
+import { log } from "console";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
@@ -12,6 +14,9 @@ interface MobileSidebarProps {
 
 export function MobileSidebar({ children }: MobileSidebarProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { user } = useUser();
+
+  console.log(user);
 
   return (
     <>
@@ -44,7 +49,7 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top navbar */}
-        <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="flex justify-between h-16 items-center gap-4 border-b bg-background px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -54,18 +59,27 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle sidebar</span>
           </Button>
-          <div className="flex-1" />
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "h-8 w-8",
-                userButtonPopoverCard: "bg-background border",
-                userButtonPopoverActionButton:
-                  "text-foreground hover:bg-accent",
-                userButtonPopoverActionButtonText: "text-foreground",
-              },
-            }}
-          />
+          <div className="">
+            <h6 className="text-lg font-bold">
+              Welcome back, {user?.firstName}!
+            </h6>
+          </div>
+          <div className="flex items-center gap-2">
+            <h6 className="italic mr-2">
+              League Credits: {user?.leagueCredits}
+            </h6>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "h-8 w-8",
+                  userButtonPopoverCard: "bg-background border",
+                  userButtonPopoverActionButton:
+                    "text-foreground hover:bg-accent",
+                  userButtonPopoverActionButtonText: "text-foreground",
+                },
+              }}
+            />
+          </div>
         </header>
 
         {/* Page content */}

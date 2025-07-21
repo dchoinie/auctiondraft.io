@@ -36,12 +36,14 @@ interface NominationInterfaceProps {
   onNominate: (playerId: string, playerName: string, amount: number) => void;
   userTeam: UserTeam;
   availablePlayers: NFLPlayer[];
+  disabled?: boolean;
 }
 
 export function NominationInterface({
   onNominate,
   userTeam,
   availablePlayers,
+  disabled = false,
 }: NominationInterfaceProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<NFLPlayer | null>(null);
   const [nominationAmount, setNominationAmount] = useState(1);
@@ -167,6 +169,7 @@ export function NominationInterface({
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedPlayer(null)}
+                      disabled={disabled}
                     >
                       Change
                     </Button>
@@ -179,7 +182,7 @@ export function NominationInterface({
               </div>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" disabled={disabled}>
                     <Plus className="h-4 w-4 mr-2" />
                     Select Player
                   </Button>
@@ -268,6 +271,7 @@ export function NominationInterface({
                 variant="outline"
                 size="sm"
                 onClick={() => setNominationAmount(1)}
+                disabled={disabled}
               >
                 Min ($1)
               </Button>
@@ -280,11 +284,13 @@ export function NominationInterface({
           {/* Nominate Button */}
           <Button
             onClick={handleNominate}
-            disabled={!selectedPlayer || nominationAmount < 1}
+            disabled={!selectedPlayer || nominationAmount < 1 || disabled}
             className="w-full"
             size="lg"
           >
-            Nominate Player for ${nominationAmount}
+            {disabled
+              ? "Saving..."
+              : `Nominate Player for $${nominationAmount}`}
           </Button>
         </div>
       </CardContent>

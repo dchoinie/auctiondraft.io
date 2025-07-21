@@ -55,9 +55,6 @@ export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
     <div className="space-y-6">
       {/* Global Navigation */}
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Main
-        </h3>
         <div className="space-y-1">
           {globalItems.map((item) => (
             <Link

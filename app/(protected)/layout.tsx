@@ -11,7 +11,7 @@ export default function ProtectedLayout({
   return (
     <>
       <SignedIn>
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen">
           <DesktopSidebar />
           <MobileSidebar>{children}</MobileSidebar>
         </div>

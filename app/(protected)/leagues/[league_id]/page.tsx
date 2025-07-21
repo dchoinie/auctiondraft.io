@@ -40,7 +40,7 @@ import { useState } from "react";
 export default function LeaguePage() {
   const params = useParams();
   const router = useRouter();
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, isAdmin } = useUser();
   const leagueId = params.league_id as string;
 
   const { settings, loading: settingsLoading } = useLeagueSettings(leagueId);
@@ -76,13 +76,19 @@ export default function LeaguePage() {
     setIsCreatingTeam(true); // Reuse loading state
     setJoinError(null);
 
+    // Check if league is full, if not and user is admin, show test mode option
+    const shouldUseTestMode = !isLeagueFull && isAdmin;
+
     try {
       const response = await fetch(`/api/leagues/${leagueId}/draft`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action: "start" }),
+        body: JSON.stringify({
+          action: "start",
+          testMode: shouldUseTestMode,
+        }),
       });
 
       const data = await response.json();
@@ -183,10 +189,15 @@ export default function LeaguePage() {
             </>
           )}
 
-          {canStartDraft && (
+          {(canStartDraft ||
+            (isAdmin && !isLeagueFull && teams.length > 0)) && (
             <Button onClick={handleStartDraft} disabled={isCreatingTeam}>
               <PlayCircle className="h-4 w-4 mr-2" />
-              {isCreatingTeam ? "Starting..." : "Start Draft"}
+              {isCreatingTeam
+                ? "Starting..."
+                : canStartDraft
+                  ? "Start Draft"
+                  : "Start Draft (Test Mode)"}
             </Button>
           )}
 

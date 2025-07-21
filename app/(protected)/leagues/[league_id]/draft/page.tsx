@@ -3,15 +3,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/stores/userStore";
 import PartySocket from "partysocket";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,6 +26,7 @@ enum DraftMessageType {
   DRAFT_STATE_UPDATE = "DRAFT_STATE_UPDATE",
   DRAFT_STARTED = "DRAFT_STARTED",
   DRAFT_ENDED = "DRAFT_ENDED",
+  START_DRAFT = "START_DRAFT",
   NOMINATE_PLAYER = "NOMINATE_PLAYER",
   PLAYER_NOMINATED = "PLAYER_NOMINATED",
   PLACE_BID = "PLACE_BID",
@@ -40,8 +35,11 @@ enum DraftMessageType {
   COUNTDOWN_UPDATE = "COUNTDOWN_UPDATE",
   COUNTDOWN_ENDED = "COUNTDOWN_ENDED",
   PLAYER_ACQUIRED = "PLAYER_ACQUIRED",
+  SAVING_PLAYER = "SAVING_PLAYER",
   TURN_CHANGE = "TURN_CHANGE",
+  BUDGET_UPDATED = "BUDGET_UPDATED",
   ERROR = "ERROR",
+  TEST_MODE_TOGGLE = "TEST_MODE_TOGGLE",
 }
 
 interface DraftState {
@@ -107,7 +105,7 @@ interface DraftMessage {
 
 export default function DraftRoomPage() {
   const params = useParams();
-  const { user } = useUser();
+  const { user, isAdmin } = useUser();
   const leagueId = params.league_id as string;
 
   // State management
@@ -116,6 +114,13 @@ export default function DraftRoomPage() {
   const [error, setError] = useState<string | null>(null);
   const [socket, setSocket] = useState<PartySocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [testMode, setTestMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [phase, setPhase] = useState("nominating");
+  const [leagueSettings, setLeagueSettings] = useState<{
+    timerEnabled: boolean;
+    timerDuration: number;
+  } | null>(null);
   const [bids, setBids] = useState<
     Array<{
       id: string;
@@ -186,7 +191,7 @@ export default function DraftRoomPage() {
     });
 
     partySocket.addEventListener("open", () => {
-      console.log("Connected to PartyKit");
+      console.log("✅ Connected to PartyKit");
       setConnected(true);
 
       // Join the room
@@ -201,20 +206,40 @@ export default function DraftRoomPage() {
           timestamp: Date.now(),
         })
       );
+
+      // Start the draft if it's not already started
+      // Find the first team in draft order
+      const firstTeam = draftState.teams
+        .filter((team) => team.draftOrder !== null)
+        .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))[0];
+
+      if (firstTeam) {
+        console.log("🚀 Starting draft with first team:", firstTeam.name);
+        partySocket.send(
+          JSON.stringify({
+            type: DraftMessageType.START_DRAFT,
+            data: {
+              firstTeamId: firstTeam.id,
+            },
+            timestamp: Date.now(),
+          })
+        );
+      }
     });
 
     partySocket.addEventListener("message", (event) => {
+      console.log("📨 Received message from PartyKit:", event.data);
       const message: DraftMessage = JSON.parse(event.data);
       handleRealtimeMessage(message);
     });
 
     partySocket.addEventListener("close", () => {
-      console.log("Disconnected from PartyKit");
+      console.log("❌ Disconnected from PartyKit");
       setConnected(false);
     });
 
     partySocket.addEventListener("error", (error) => {
-      console.error("PartyKit error:", error);
+      console.error("❌ PartyKit error:", error);
       setConnected(false);
     });
 
@@ -229,6 +254,33 @@ export default function DraftRoomPage() {
         setParticipants((message.data.participants as any[]) || []);
         setBids((message.data.bids as any[]) || []);
         setCountdown(message.data.countdown as any);
+        if (typeof message.data.saving === "boolean")
+          setSaving(message.data.saving);
+        if (typeof message.data.phase === "string")
+          setPhase(message.data.phase);
+        if (message.data.currentTurnTeamId) {
+          setDraftState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  draftState: {
+                    ...prev.draftState!,
+                    currentTurnTeamId: message.data?.currentTurnTeamId as
+                      | string
+                      | null,
+                  },
+                }
+              : null
+          );
+        }
+        if (message.data.leagueSettings) {
+          setLeagueSettings(
+            message.data.leagueSettings as {
+              timerEnabled: boolean;
+              timerDuration: number;
+            }
+          );
+        }
         break;
 
       case DraftMessageType.USER_JOINED:
@@ -239,6 +291,23 @@ export default function DraftRoomPage() {
         setParticipants((prev) =>
           prev.filter((p) => p.userId !== (message.data as any).userId)
         );
+        break;
+
+      case DraftMessageType.DRAFT_STARTED:
+        // Update draft state with the first team's turn
+        setDraftState((prev) =>
+          prev
+            ? {
+                ...prev,
+                draftState: {
+                  ...prev.draftState!,
+                  currentTurnTeamId: (message.data as any).firstTeamId,
+                  phase: (message.data as any).phase || "nominating",
+                },
+              }
+            : null
+        );
+        setPhase((message.data as any).phase || "nominating");
         break;
 
       case DraftMessageType.PLAYER_NOMINATED:
@@ -252,6 +321,7 @@ export default function DraftRoomPage() {
             : null
         );
         setBids((message.data as any).bids || []);
+        setPhase((message.data as any).phase || "bidding");
         break;
 
       case DraftMessageType.BID_PLACED:
@@ -280,6 +350,11 @@ export default function DraftRoomPage() {
         setCountdown(null);
         break;
 
+      case DraftMessageType.SAVING_PLAYER:
+        setSaving(true);
+        setPhase("saving");
+        break;
+
       case DraftMessageType.PLAYER_ACQUIRED:
         const { playerId } = message.data as any;
 
@@ -301,6 +376,8 @@ export default function DraftRoomPage() {
         // Clear auction state
         setBids([]);
         setCountdown(null);
+        setSaving(false);
+        setPhase("nominating");
 
         // Refresh full state in background for accuracy
         setTimeout(() => loadDraftState(), 1000);
@@ -314,11 +391,14 @@ export default function DraftRoomPage() {
                 draftState: {
                   ...prev.draftState!,
                   currentTurnTeamId: (message.data as any).newTurnTeamId,
-                  phase: (message.data as any).phase,
+                  phase: (message.data as any).phase || "nominating",
                 },
               }
             : null
         );
+        if ((message.data as any).phase) {
+          setPhase((message.data as any).phase);
+        }
         break;
 
       case DraftMessageType.BUDGET_UPDATED:
@@ -351,6 +431,10 @@ export default function DraftRoomPage() {
         setError((message.data as any).error);
         break;
 
+      case DraftMessageType.TEST_MODE_TOGGLE:
+        setTestMode((message.data as any).enabled);
+        break;
+
       default:
         console.log("Unknown message type:", message.type);
     }
@@ -361,69 +445,78 @@ export default function DraftRoomPage() {
     playerName: string,
     amount: number
   ) => {
-    if (!socket || !draftState?.userTeam) return;
+    if (!socket || !draftState?.userTeam || !user?.id) {
+      console.error("❌ Nomination failed - missing required data:", {
+        socket: !!socket,
+        userTeam: !!draftState?.userTeam,
+        userId: !!user?.id,
+      });
+      return;
+    }
+
+    // Check if socket is actually connected
+    if (socket.readyState !== WebSocket.OPEN) {
+      console.error("❌ Nomination failed - socket not connected:", {
+        readyState: socket.readyState,
+        connected: connected,
+      });
+      setError("Not connected to draft server");
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/leagues/${leagueId}/draft/nominate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playerId,
-          nominationAmount: amount,
-        }),
+      console.log("🏈 Sending nomination:", {
+        playerId,
+        playerName,
+        amount,
+        teamId: draftState.userTeam.id,
+        userId: user.id,
+        socketReadyState: socket.readyState,
       });
 
-      const data = await response.json();
+      const nominationMessage = {
+        type: DraftMessageType.NOMINATE_PLAYER,
+        data: {
+          playerId,
+          playerName,
+          nominationAmount: amount,
+          teamId: draftState.userTeam.id,
+          userId: user.id,
+        },
+        timestamp: Date.now(),
+      };
 
-      if (data.success) {
-        // Send nomination to PartyKit
-        socket.send(
-          JSON.stringify({
-            type: DraftMessageType.NOMINATE_PLAYER,
-            data: {
-              playerId,
-              playerName,
-              nominationAmount: amount,
-              teamId: draftState.userTeam.id,
-            },
-            timestamp: Date.now(),
-          })
-        );
-      } else {
-        setError(data.error || "Failed to nominate player");
-      }
+      console.log(
+        "📤 Raw nomination message:",
+        JSON.stringify(nominationMessage, null, 2)
+      );
+
+      // Send nomination directly to PartyKit
+      socket.send(JSON.stringify(nominationMessage));
+
+      console.log("✅ Nomination message sent successfully");
     } catch (err) {
+      console.error("❌ Failed to nominate player:", err);
       setError("Failed to nominate player");
     }
   };
 
   const handleBid = async (amount: number) => {
-    if (!socket || !draftState?.userTeam) return;
+    if (!socket || !draftState?.userTeam || !user?.id) return;
 
     try {
-      const response = await fetch(`/api/leagues/${leagueId}/draft/bid`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Send bid to PartyKit
-        socket.send(
-          JSON.stringify({
-            type: DraftMessageType.PLACE_BID,
-            data: {
-              teamId: draftState.userTeam.id,
-              amount,
-            },
-            timestamp: Date.now(),
-          })
-        );
-      } else {
-        setError(data.error || "Failed to place bid");
-      }
+      // Send bid directly to PartyKit
+      socket.send(
+        JSON.stringify({
+          type: DraftMessageType.PLACE_BID,
+          data: {
+            teamId: draftState.userTeam.id,
+            amount,
+            userId: user.id,
+          },
+          timestamp: Date.now(),
+        })
+      );
     } catch (err) {
       setError("Failed to place bid");
     }
@@ -442,34 +535,26 @@ export default function DraftRoomPage() {
   };
 
   const handleCountdownEnd = async () => {
-    if (!draftState?.currentNomination?.id) return;
+    // Countdown ending and player acquisition is now handled automatically by PartyKit server
+    // No action needed from frontend
+  };
 
-    try {
-      const response = await fetch(`/api/leagues/${leagueId}/draft/acquire`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nominationId: draftState.currentNomination.id,
-        }),
-      });
+  const handleTestModeToggle = async () => {
+    if (!socket) return;
 
-      const data = await response.json();
+    // Toggle test mode locally
+    setTestMode(!testMode);
 
-      if (data.success) {
-        // PartyKit will handle the broadcast
-        socket?.send(
-          JSON.stringify({
-            type: DraftMessageType.PLAYER_ACQUIRED,
-            data: data.data,
-            timestamp: Date.now(),
-          })
-        );
-      } else {
-        setError(data.error || "Failed to acquire player");
-      }
-    } catch (err) {
-      setError("Failed to acquire player");
-    }
+    // Send test mode toggle to PartyKit
+    socket.send(
+      JSON.stringify({
+        type: DraftMessageType.TEST_MODE_TOGGLE,
+        data: {
+          enabled: !testMode,
+        },
+        timestamp: Date.now(),
+      })
+    );
   };
 
   if (loading) {
@@ -501,12 +586,27 @@ export default function DraftRoomPage() {
     );
   }
 
-  const isUserTurn =
-    draftState.draftState?.currentTurnTeamId === draftState.userTeam?.id;
+  // Get current turn team ID from PartyKit state (not from API)
+  const currentTurnTeamId = draftState.draftState?.currentTurnTeamId || null;
+
+  const isUserTurn = currentTurnTeamId === draftState.userTeam?.id;
   const canBid =
-    draftState.draftState?.phase === "bidding" &&
+    phase === "bidding" &&
     draftState.currentNomination &&
-    draftState.currentNomination.highestBidderId !== draftState.userTeam?.id;
+    draftState.currentNomination.highestBidderId !== draftState.userTeam?.id &&
+    !saving;
+  const canNominate = isUserTurn && phase === "nominating" && !saving;
+
+  // Debug logging
+  console.log("🔍 Draft Debug Info:", {
+    currentTurnTeamId,
+    userTeamId: draftState.userTeam?.id,
+    isUserTurn,
+    phase,
+    saving,
+    canNominate,
+    currentNomination: draftState.currentNomination,
+  });
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -519,6 +619,64 @@ export default function DraftRoomPage() {
           <p className="text-muted-foreground mt-1">Live Auction Draft</p>
         </div>
         <div className="flex items-center space-x-4">
+          {isAdmin && (
+            <Button
+              variant={testMode ? "destructive" : "outline"}
+              onClick={handleTestModeToggle}
+              size="sm"
+            >
+              {testMode ? "Test Mode: ON" : "Test Mode: OFF"}
+            </Button>
+          )}
+          {isAdmin && !currentTurnTeamId && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (socket && draftState.teams.length > 0) {
+                  const firstTeam = draftState.teams
+                    .filter((team) => team.draftOrder !== null)
+                    .sort(
+                      (a, b) => (a.draftOrder || 0) - (b.draftOrder || 0)
+                    )[0];
+
+                  if (firstTeam) {
+                    socket.send(
+                      JSON.stringify({
+                        type: DraftMessageType.START_DRAFT,
+                        data: {
+                          firstTeamId: firstTeam.id,
+                        },
+                        timestamp: Date.now(),
+                      })
+                    );
+                  }
+                }
+              }}
+              size="sm"
+            >
+              Start Draft
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (socket) {
+                  console.log("🧪 Testing connection...");
+                  socket.send(
+                    JSON.stringify({
+                      type: DraftMessageType.TEST_MODE_TOGGLE,
+                      data: { enabled: !testMode },
+                      timestamp: Date.now(),
+                    })
+                  );
+                }
+              }}
+              size="sm"
+            >
+              Test Connection
+            </Button>
+          )}
           <Badge variant={connected ? "default" : "destructive"}>
             {connected ? "Connected" : "Disconnected"}
           </Badge>
@@ -537,12 +695,22 @@ export default function DraftRoomPage() {
       )}
 
       {/* Your Turn Alert */}
-      {isUserTurn && draftState.draftState?.phase === "nominating" && (
+      {canNominate && (
         <Alert className="border-primary bg-primary/10">
           <User className="h-4 w-4" />
           <AlertDescription className="font-semibold">
             It&apos;s your turn to nominate a player! Select a player from the
             nomination interface below.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Saving Alert */}
+      {saving && (
+        <Alert className="border-amber-500 bg-amber-50">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertDescription className="font-semibold">
+            Saving draft results... Please wait.
           </AlertDescription>
         </Alert>
       )}
@@ -556,12 +724,10 @@ export default function DraftRoomPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Phase</p>
-              <p className="font-semibold capitalize">
-                {draftState.draftState?.phase || "waiting"}
-              </p>
+              <p className="font-semibold capitalize">{phase}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Current Turn</p>
@@ -576,6 +742,14 @@ export default function DraftRoomPage() {
               <Badge variant={isUserTurn ? "default" : "secondary"}>
                 {isUserTurn ? "Your Turn" : "Waiting"}
               </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Timer Settings</p>
+              <p className="font-semibold">
+                {leagueSettings?.timerEnabled
+                  ? `${leagueSettings.timerDuration}s enabled`
+                  : "Disabled"}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -654,6 +828,7 @@ export default function DraftRoomPage() {
                       currentBid={draftState.currentNomination.currentBid}
                       onBid={handleBid}
                       onStartCountdown={handleStartCountdown}
+                      disabled={saving}
                     />
                   )}
                 </div>
@@ -662,11 +837,12 @@ export default function DraftRoomPage() {
           )}
 
           {/* Nomination Interface */}
-          {isUserTurn && draftState.draftState?.phase === "nominating" && (
+          {canNominate && (
             <NominationInterface
               onNominate={handleNomination}
               userTeam={draftState.userTeam}
               availablePlayers={draftState.availablePlayers}
+              disabled={saving}
             />
           )}
 

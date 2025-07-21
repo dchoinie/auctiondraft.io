@@ -48,14 +48,6 @@ export const leagues = pgTable("leagues", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
-export const rosterSlots = pgTable("roster_slots", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  leagueId: uuid("league_id").references(() => leagues.id),
-  position: text("position").notNull(),
-  slotCount: integer("slot_count").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
-
 export const teams = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -84,55 +76,12 @@ export const nflPlayers = pgTable("nfl_players", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const rosters = pgTable("rosters", {
+export const draftedPlayers = pgTable("drafted_players", {
   id: uuid("id").primaryKey().defaultRandom(),
   teamId: uuid("team_id").references(() => teams.id),
   playerId: uuid("player_id").references(() => nflPlayers.id),
-  price: integer("price").notNull(),
-  assignedSlot: text("assigned_slot"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
-
-export const draftNominations = pgTable("draft_nominations", {
-  id: uuid("id").primaryKey().defaultRandom(),
   leagueId: uuid("league_id").references(() => leagues.id),
-  nominatingTeamId: uuid("nominating_team_id").references(() => teams.id),
-  playerId: uuid("player_id").references(() => nflPlayers.id),
-  currentBid: integer("current_bid"),
-  highestBidderTeamId: uuid("highest_bidder_team_id").references(
-    () => teams.id
-  ),
-  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
-
-export const transactions = pgTable("transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  leagueId: uuid("league_id").references(() => leagues.id),
-  teamId: uuid("team_id").references(() => teams.id),
-  playerId: uuid("player_id").references(() => nflPlayers.id),
-  amount: integer("amount"),
-  type: text("type"), // 'bid' or 'win'
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
-
-export const draftState = pgTable("draft_state", {
-  leagueId: uuid("league_id")
-    .primaryKey()
-    .references(() => leagues.id),
-  currentNominationId: uuid("current_nomination_id").references(
-    () => draftNominations.id
-  ),
-  currentTurnTeamId: uuid("current_turn_team_id").references(() => teams.id), // Which team's turn it is to nominate
-  clockEndsAt: timestamp("clock_ends_at", { withTimezone: true }),
-  phase: text("phase").default("nominating"), // or 'bidding'
-});
-
-export const draftBids = pgTable("draft_bids", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  nominationId: uuid("nomination_id").references(() => draftNominations.id),
-  teamId: uuid("team_id").references(() => teams.id),
-  amount: integer("amount").notNull(),
+  draftPrice: integer("draft_price").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

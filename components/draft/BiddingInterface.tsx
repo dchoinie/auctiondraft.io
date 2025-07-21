@@ -3,21 +3,21 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DollarSign, Clock, Gavel } from "lucide-react";
+import { Clock, Gavel, Minus, Plus } from "lucide-react";
 
 interface BiddingInterfaceProps {
   currentBid: number;
   onBid: (amount: number) => void;
   onStartCountdown: () => void;
+  disabled?: boolean;
 }
 
 export function BiddingInterface({
   currentBid,
   onBid,
   onStartCountdown,
+  disabled = false,
 }: BiddingInterfaceProps) {
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +28,15 @@ export function BiddingInterface({
     setBidAmount(currentBid + 1);
   }, [currentBid]);
 
-  const handleBidChange = (value: string) => {
-    const amount = parseInt(value) || 0;
-    setBidAmount(amount);
+  const handleDecreaseBid = () => {
+    const newAmount = Math.max(currentBid + 1, bidAmount - 1);
+    setBidAmount(newAmount);
+    setError(null);
+  };
 
-    if (amount <= currentBid) {
-      setError(`Bid must be higher than current bid of $${currentBid}`);
-    } else {
-      setError(null);
-    }
+  const handleIncreaseBid = () => {
+    setBidAmount(bidAmount + 1);
+    setError(null);
   };
 
   const handlePlaceBid = async () => {
@@ -58,13 +58,6 @@ export function BiddingInterface({
       setIsSubmitting(false);
     }
   };
-
-  const quickBidAmounts = [
-    currentBid + 1,
-    currentBid + 2,
-    currentBid + 5,
-    currentBid + 10,
-  ];
 
   return (
     <Card className="border-orange-200 bg-orange-50/50">
@@ -92,70 +85,63 @@ export function BiddingInterface({
             </div>
           </div>
 
-          {/* Quick Bid Buttons */}
+          {/* Bid Controls */}
           <div className="space-y-2">
-            <Label>Quick Bid</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {quickBidAmounts.map((amount) => (
-                <Button
-                  key={amount}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBidAmount(amount)}
-                  className="justify-start"
-                >
-                  ${amount}
-                </Button>
-              ))}
-            </div>
-          </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDecreaseBid}
+                disabled={bidAmount <= currentBid + 1 || disabled}
+                className="px-3"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
 
-          {/* Custom Bid Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="bid-amount">Custom Bid Amount</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="bid-amount"
-                type="number"
-                min={currentBid + 1}
-                value={bidAmount}
-                onChange={(e) => handleBidChange(e.target.value)}
-                className="pl-10"
-              />
+              <Button
+                onClick={handlePlaceBid}
+                disabled={bidAmount <= currentBid || isSubmitting || disabled}
+                className="flex-1"
+                size="lg"
+              >
+                {isSubmitting || disabled
+                  ? "Placing Bid..."
+                  : `Bid $${bidAmount}`}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleIncreaseBid}
+                disabled={disabled}
+                className="px-3"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
+
+            <p className="text-sm text-muted-foreground text-center">
               Minimum bid: ${currentBid + 1}
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={handlePlaceBid}
-              disabled={bidAmount <= currentBid || isSubmitting}
-              className="w-full"
-              size="lg"
-            >
-              {isSubmitting ? "Placing Bid..." : `Bid $${bidAmount}`}
-            </Button>
-
-            <Button
-              onClick={onStartCountdown}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              <Clock className="h-4 w-4 mr-2" />
-              Start Countdown
-            </Button>
-          </div>
+          {/* Start Countdown Button */}
+          <Button
+            onClick={onStartCountdown}
+            variant="outline"
+            className="w-full"
+            size="lg"
+            disabled={disabled}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Start Countdown
+          </Button>
 
           {/* Bidding Tips */}
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">Bidding Tips</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Bids must be higher than the current high bid</li>
+              <li>• Use +/- to adjust your bid amount</li>
               <li>• Starting a countdown gives others 10 seconds to bid</li>
               <li>• If no one bids during countdown, you win the player</li>
               <li>• New bids will cancel any active countdown</li>

@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import {
-  leagues,
-  teams,
-  draftState,
-  draftNominations,
-  nflPlayers,
-  rosters,
-} from "@/app/schema";
+import { leagues, teams, nflPlayers, draftedPlayers } from "@/app/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 
 export async function GET(
@@ -56,13 +49,6 @@ export async function GET(
       );
     }
 
-    // Get draft state
-    const currentDraftState = await db
-      .select()
-      .from(draftState)
-      .where(eq(draftState.leagueId, leagueId))
-      .limit(1);
-
     // Get all teams with draft order
     const allTeams = await db
       .select()
@@ -70,33 +56,9 @@ export async function GET(
       .where(eq(teams.leagueId, leagueId))
       .orderBy(teams.draftOrder);
 
-    // Get current nomination if exists
-    let currentNomination = null;
-    if (
-      currentDraftState.length > 0 &&
-      currentDraftState[0].currentNominationId
-    ) {
-      const nomination = await db
-        .select({
-          id: draftNominations.id,
-          playerId: draftNominations.playerId,
-          playerName: sql<string>`${nflPlayers.firstName} || ' ' || ${nflPlayers.lastName}`,
-          currentBid: draftNominations.currentBid,
-          highestBidderId: draftNominations.highestBidderTeamId,
-          nominatingTeamId: draftNominations.nominatingTeamId,
-          startedAt: draftNominations.startedAt,
-        })
-        .from(draftNominations)
-        .leftJoin(nflPlayers, eq(draftNominations.playerId, nflPlayers.id))
-        .where(
-          eq(draftNominations.id, currentDraftState[0].currentNominationId)
-        )
-        .limit(1);
+    // Note: Draft state and nominations are now managed in PartyKit memory, not in database
 
-      currentNomination = nomination[0] || null;
-    }
-
-    // Get available players (not on any roster in this league)
+    // Get available players (not drafted in this league)
     const availablePlayersQuery = await db
       .select({
         id: nflPlayers.id,
@@ -108,70 +70,38 @@ export async function GET(
       })
       .from(nflPlayers)
       .leftJoin(
-        rosters,
+        draftedPlayers,
         and(
-          eq(rosters.playerId, nflPlayers.id),
-          eq(
-            rosters.teamId,
-            sql`ANY(SELECT id FROM teams WHERE league_id = ${leagueId})`
-          )
+          eq(draftedPlayers.playerId, nflPlayers.id),
+          eq(draftedPlayers.leagueId, leagueId)
         )
       )
-      .where(isNull(rosters.id))
+      .where(isNull(draftedPlayers.id))
       .orderBy(nflPlayers.searchRank)
       .limit(100); // Limit for performance
 
     // Calculate remaining budget and roster spots for each team
     const teamStats = await Promise.all(
       allTeams.map(async (team) => {
-        // Get current roster
-        const roster = await db
+        // Get current drafted players for this team
+        const draftedPlayersForTeam = await db
           .select({
-            playerId: rosters.playerId,
-            price: rosters.price,
-            assignedSlot: rosters.assignedSlot,
+            playerId: draftedPlayers.playerId,
+            draftPrice: draftedPlayers.draftPrice,
           })
-          .from(rosters)
-          .where(eq(rosters.teamId, team.id));
+          .from(draftedPlayers)
+          .where(eq(draftedPlayers.teamId, team.id));
 
         // Calculate remaining budget
-        const totalSpent = roster.reduce(
-          (sum, player) => sum + player.price,
+        const totalSpent = draftedPlayersForTeam.reduce(
+          (sum, player) => sum + (player.draftPrice || 0),
           0
         );
         const remainingBudget = (team.budget || 200) - totalSpent;
 
-        // Calculate remaining roster spots
-        const rosterSlots = {
-          qb: league[0].qbSlots || 1,
-          rb: league[0].rbSlots || 2,
-          wr: league[0].wrSlots || 2,
-          te: league[0].teSlots || 1,
-          flex: league[0].flexSlots || 1,
-          dst: league[0].dstSlots || 1,
-          k: league[0].kSlots || 1,
-          bench: league[0].benchSlots || 7,
-        };
-
-        const filledSlots = {
-          qb: roster.filter((p) => p.assignedSlot === "QB").length,
-          rb: roster.filter((p) => p.assignedSlot === "RB").length,
-          wr: roster.filter((p) => p.assignedSlot === "WR").length,
-          te: roster.filter((p) => p.assignedSlot === "TE").length,
-          flex: roster.filter((p) => p.assignedSlot === "FLEX").length,
-          dst: roster.filter((p) => p.assignedSlot === "DST").length,
-          k: roster.filter((p) => p.assignedSlot === "K").length,
-          bench: roster.filter((p) => p.assignedSlot === "BENCH").length,
-        };
-
-        const totalRosterSlots = Object.values(rosterSlots).reduce(
-          (sum, slots) => sum + slots,
-          0
-        );
-        const totalFilledSlots = Object.values(filledSlots).reduce(
-          (sum, slots) => sum + slots,
-          0
-        );
+        // Calculate remaining roster spots based on league roster size
+        const totalRosterSlots = league[0].rosterSize || 16;
+        const totalFilledSlots = draftedPlayersForTeam.length;
         const remainingRosterSlots = totalRosterSlots - totalFilledSlots;
 
         return {
@@ -179,8 +109,7 @@ export async function GET(
           remainingBudget,
           remainingRosterSlots,
           totalRosterSlots,
-          filledSlots,
-          roster: roster.length,
+          roster: draftedPlayersForTeam.length,
         };
       })
     );
@@ -189,9 +118,9 @@ export async function GET(
       success: true,
       data: {
         league: league[0],
-        draftState: currentDraftState[0] || null,
+        draftState: null, // Draft state is managed in PartyKit memory
         teams: teamStats,
-        currentNomination,
+        currentNomination: null, // Current nomination is managed in PartyKit memory
         availablePlayers: availablePlayersQuery,
         userTeam: userTeam[0],
       },
@@ -222,9 +151,21 @@ export async function POST(
 
     const leagueId = resolvedParams.league_id;
     const body = await req.json();
-    const { action } = body;
+    const { action, testMode } = body;
 
-    // Verify user is league owner
+    // Check if user is platform admin for test mode
+    let isAdmin = false;
+    if (testMode) {
+      try {
+        const clerk = await clerkClient();
+        const user = await clerk.users.getUser(userId);
+        isAdmin = user.privateMetadata?.isAdmin === true;
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+      }
+    }
+
+    // Verify user is league owner or admin (for test mode)
     const league = await db
       .select()
       .from(leagues)
@@ -238,16 +179,19 @@ export async function POST(
       );
     }
 
-    if (league[0].ownerId !== userId) {
+    if (league[0].ownerId !== userId && !isAdmin) {
       return NextResponse.json(
-        { success: false, error: "Only league owner can manage draft" },
+        {
+          success: false,
+          error: "Only league owner or admin can manage draft",
+        },
         { status: 403 }
       );
     }
 
     switch (action) {
       case "start":
-        return await startDraft(leagueId);
+        return await startDraft(leagueId, testMode && isAdmin);
       case "reset":
         return await resetDraft(leagueId);
       default:
@@ -265,62 +209,44 @@ export async function POST(
   }
 }
 
-async function startDraft(leagueId: string) {
-  // Check if all teams have draft orders
-  const teams = await db
+async function startDraft(leagueId: string, testMode: boolean = false) {
+  // Get all teams
+  const leagueTeams = await db
     .select()
     .from(teams)
     .where(eq(teams.leagueId, leagueId));
 
-  const teamsWithoutOrder = teams.filter((team) => team.draftOrder === null);
-  if (teamsWithoutOrder.length > 0) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "All teams must have draft orders before starting the draft",
-      },
-      { status: 400 }
+  // Only check for draft orders if not in test mode
+  if (!testMode) {
+    const teamsWithoutOrder = leagueTeams.filter(
+      (team) => team.draftOrder === null
     );
+    if (teamsWithoutOrder.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "All teams must have draft orders before starting the draft",
+        },
+        { status: 400 }
+      );
+    }
   }
 
-  // Get first team in draft order
-  const firstTeam = teams
-    .filter((team) => team.draftOrder !== null)
-    .sort((a, b) => a.draftOrder! - b.draftOrder!)[0];
+  // Get first team in draft order, or first team if in test mode
+  const firstTeam = testMode
+    ? leagueTeams[0]
+    : leagueTeams
+        .filter((team) => team.draftOrder !== null)
+        .sort((a, b) => a.draftOrder! - b.draftOrder!)[0];
 
   if (!firstTeam) {
     return NextResponse.json(
-      { success: false, error: "No teams found with draft order" },
+      { success: false, error: "No teams found" },
       { status: 400 }
     );
   }
 
-  // Create or update draft state
-  const existingDraftState = await db
-    .select()
-    .from(draftState)
-    .where(eq(draftState.leagueId, leagueId))
-    .limit(1);
-
-  if (existingDraftState.length > 0) {
-    // Update existing draft state
-    await db
-      .update(draftState)
-      .set({
-        currentTurnTeamId: firstTeam.id,
-        phase: "nominating",
-        currentNominationId: null,
-        clockEndsAt: null,
-      })
-      .where(eq(draftState.leagueId, leagueId));
-  } else {
-    // Create new draft state
-    await db.insert(draftState).values({
-      leagueId,
-      currentTurnTeamId: firstTeam.id,
-      phase: "nominating",
-    });
-  }
+  // Note: Draft state is now managed in PartyKit memory, not in database
 
   // Mark league as draft started
   await db
@@ -332,29 +258,16 @@ async function startDraft(leagueId: string) {
     success: true,
     message: "Draft started successfully",
     data: {
-      currentTurnTeamId: firstTeam.id,
-      phase: "nominating",
+      message: "Draft state will be managed in PartyKit memory",
     },
   });
 }
 
 async function resetDraft(leagueId: string) {
-  // Delete all draft-related data
-  await db
-    .delete(draftNominations)
-    .where(eq(draftNominations.leagueId, leagueId));
+  // Note: Draft state is managed in PartyKit memory, only clearing drafted players from database
 
-  await db.delete(draftState).where(eq(draftState.leagueId, leagueId));
-
-  // Clear all rosters
-  await db
-    .delete(rosters)
-    .where(
-      eq(
-        rosters.teamId,
-        sql`ANY(SELECT id FROM teams WHERE league_id = ${leagueId})`
-      )
-    );
+  // Clear all drafted players for this league
+  await db.delete(draftedPlayers).where(eq(draftedPlayers.leagueId, leagueId));
 
   // Mark league as draft not started
   await db
