@@ -34,35 +34,86 @@ import {
 } from "@/components/ui/tooltip";
 import { Users, Crown, Mail, Trash2, Loader2, AlertCircle } from "lucide-react";
 import React from "react";
+import { LeagueSettings } from "@/stores/leagueStore";
+import { Team } from "@/stores/teamStore";
+import { Invitation } from "@/lib/email";
 
-export function TeamsTab(props: any) {
-  // All state and handlers should be passed as props or use the same hooks as before
-  // For now, this is a direct copy of the original tab content
-  // You can refactor to use props for state/handlers as needed
+interface TeamsTabProps {
+  cancellingInvitation: string | null;
+  deletingTeam: string | null;
+  handleCancelInvitation: () => void;
+  handleDeleteTeam: () => void;
+  handleSendInvitation: () => void;
+  invitationToCancel: Invitation;
+  inviteEmail: string;
+  inviteError: string | null;
+  isDeleting: boolean;
+  isOwner: boolean;
+  isSendingInvite: boolean;
+  pendingInvitations: Invitation[];
+  setDeletingTeam: (teamId: string | null) => void;
+  setInviteEmail: (email: string) => void;
+  setShowCancelDialog: (show: boolean) => void;
+  setShowInviteDialog: (show: boolean) => void;
+  settings?: LeagueSettings;
+  showCancelDialog: boolean;
+  showInviteDialog: boolean;
+  startCancelInvitation: (invitation: Invitation) => void;
+  teams: Team[];
+  teamsLoading: boolean;
+  userLoading: boolean;
+}
+
+export function TeamsTab(props: TeamsTabProps) {
+  const {
+    cancellingInvitation,
+    deletingTeam,
+    handleCancelInvitation,
+    handleDeleteTeam,
+    handleSendInvitation,
+    invitationToCancel,
+    inviteEmail,
+    inviteError,
+    isDeleting,
+    isOwner,
+    isSendingInvite,
+    pendingInvitations,
+    setDeletingTeam,
+    setInviteEmail,
+    setShowCancelDialog,
+    setShowInviteDialog,
+    settings,
+    showCancelDialog,
+    showInviteDialog,
+    startCancelInvitation,
+    teams,
+    teamsLoading,
+    userLoading,
+  } = props;
   return (
     <>
       {/* --- Begin Teams Management Section --- */}
-      {props.userLoading || props.teamsLoading ? (
+      {userLoading || teamsLoading ? (
         <div className="flex items-center justify-center min-h-32">
-          <div className="text-lg">Loading...</div>
+          <div className="text-lg text-gray-200">Loading...</div>
         </div>
-      ) : !props.settings ? (
+      ) : !settings ? (
         <div className="container mx-auto p-6">
-          <Alert className="max-w-md mx-auto">
+          <Alert className="max-w-md mx-auto bg-gradient-to-br from-gray-800/90 to-gray-900/90 border-gray-700 text-gray-100">
             <AlertDescription>League not found.</AlertDescription>
           </Alert>
         </div>
       ) : (
         <>
           {/* Pending Invitations */}
-          {props.isOwner && props.pendingInvitations.length > 0 && (
-            <Card className="mb-6">
+          {isOwner && pendingInvitations.length > 0 && (
+            <Card className="mb-6 bg-gradient-to-br from-emerald-900/80 to-gray-900/80 border-2 border-emerald-800 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-emerald-200">
                   <Mail className="h-5 w-5" />
                   Pending Invitations
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-emerald-100/80">
                   Users invited to join your league. Click the trash icon to
                   cancel an invitation.
                 </CardDescription>
@@ -70,18 +121,20 @@ export function TeamsTab(props: any) {
               <CardContent>
                 <TooltipProvider>
                   <div className="space-y-2">
-                    {props.pendingInvitations.map((invitation: any) => (
+                    {pendingInvitations.map((invitation: Invitation) => (
                       <div
                         key={invitation.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+                        className="flex items-center justify-between p-3 border border-emerald-900 rounded-lg bg-emerald-950/60"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                            <Mail className="h-4 w-4 text-orange-600" />
+                          <div className="w-8 h-8 bg-orange-900/80 rounded-full flex items-center justify-center">
+                            <Mail className="h-4 w-4 text-orange-400" />
                           </div>
                           <div>
-                            <p className="font-medium">{invitation.email}</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="font-medium text-emerald-100">
+                              {invitation.email}
+                            </p>
+                            <p className="text-sm text-emerald-200/70">
                               Invited{" "}
                               {new Date(
                                 invitation.createdAt
@@ -90,7 +143,7 @@ export function TeamsTab(props: any) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                          <span className="text-sm px-2 py-1 bg-yellow-900/80 text-yellow-300 rounded">
                             Pending
                           </span>
                           <Tooltip>
@@ -99,15 +152,14 @@ export function TeamsTab(props: any) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() =>
-                                  props.startCancelInvitation(invitation)
+                                  startCancelInvitation(invitation)
                                 }
                                 disabled={
-                                  props.cancellingInvitation === invitation.id
+                                  cancellingInvitation === invitation.id
                                 }
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
                               >
-                                {props.cancellingInvitation ===
-                                invitation.id ? (
+                                {cancellingInvitation === invitation.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <Trash2 className="h-4 w-4" />
@@ -127,81 +179,81 @@ export function TeamsTab(props: any) {
             </Card>
           )}
           {/* Teams List */}
-          <Card>
+          <Card className="bg-gradient-to-br from-gray-900/90 to-emerald-950/80 border-2 border-gray-800 shadow-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-emerald-200">
                     <Users className="h-5 w-5" />
                     League Teams
                   </CardTitle>
-                  <CardDescription>
-                    {props.teams.length === 0
+                  <CardDescription className="text-emerald-100/80">
+                    {teams.length === 0
                       ? "No teams have joined this league yet. Send email invitations or share the league URL for users to join directly."
-                      : `${props.teams.length} team${props.teams.length === 1 ? "" : "s"} in this league`}
+                      : `${teams.length} team${teams.length === 1 ? "" : "s"} in this league`}
                   </CardDescription>
                 </div>
-                {props.isOwner &&
-                  props.teams.length < props.settings.leagueSize && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => props.setShowInviteDialog(true)}
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Invite Users
-                      </Button>
-                    </div>
-                  )}
+                {isOwner && teams.length < settings.leagueSize && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="border-emerald-700 text-emerald-200 hover:bg-emerald-900/40"
+                      onClick={() => setShowInviteDialog(true)}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Invite Users
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent>
-              {props.teams.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              {teams.length === 0 ? (
+                <div className="text-center py-8 text-emerald-100/70">
+                  <Users className="h-12 w-12 mx-auto mb-4 text-emerald-900/60" />
                   <p className="text-lg font-medium">No teams yet</p>
                   <p>Teams will appear here as people join your league</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {props.teams.map((team: any) => (
+                  {teams.map((team: Team) => (
                     <div
                       key={team.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between p-4 border border-gray-800 rounded-lg bg-gray-950/70 hover:bg-emerald-900/30 transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-purple-900 rounded-full flex items-center justify-center text-white font-bold">
                           {team.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2">
+                          <h3 className="font-semibold flex items-center gap-2 text-emerald-100">
                             {team.name}
-                            {team.ownerId === props.settings.ownerId && (
-                              <Crown className="h-4 w-4 text-yellow-500" />
+                            {team.ownerId === settings.ownerId && (
+                              <Crown className="h-4 w-4 text-yellow-400" />
                             )}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-emerald-200/80">
                             {team.ownerFirstName && team.ownerLastName
                               ? `${team.ownerFirstName} ${team.ownerLastName}`
                               : team.ownerEmail || "Unknown Owner"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-emerald-200/60">
                             Budget: ${team.budget}
                           </p>
                         </div>
                       </div>
-                      {props.isOwner &&
-                        team.ownerId !== props.settings.ownerId && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => props.setDeletingTeam(team.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
+                      {isOwner && team.ownerId !== settings.ownerId && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                            onClick={() => setDeletingTeam(team.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -210,10 +262,10 @@ export function TeamsTab(props: any) {
           </Card>
           {/* Delete Team Confirmation */}
           <AlertDialog
-            open={!!props.deletingTeam}
-            onOpenChange={() => props.setDeletingTeam(null)}
+            open={!!deletingTeam}
+            onOpenChange={() => setDeletingTeam(null)}
           >
-            <AlertDialogContent>
+            <AlertDialogContent className="bg-gradient-to-br from-gray-900/90 to-emerald-950/90 border-2 border-gray-800 text-emerald-100">
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Team</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -223,15 +275,18 @@ export function TeamsTab(props: any) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={props.isDeleting}>
+                <AlertDialogCancel
+                  disabled={isDeleting}
+                  className="bg-gray-800 text-gray-200 border-gray-700"
+                >
                   Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={props.handleDeleteTeam}
-                  disabled={props.isDeleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleDeleteTeam}
+                  disabled={isDeleting}
+                  className="bg-red-700 text-red-100 hover:bg-red-800"
                 >
-                  {props.isDeleting ? (
+                  {isDeleting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Deleting...
@@ -244,11 +299,8 @@ export function TeamsTab(props: any) {
             </AlertDialogContent>
           </AlertDialog>
           {/* Send Invitation Dialog */}
-          <Dialog
-            open={props.showInviteDialog}
-            onOpenChange={props.setShowInviteDialog}
-          >
-            <DialogContent>
+          <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+            <DialogContent className="bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100">
               <DialogHeader>
                 <DialogTitle>Invite User to League</DialogTitle>
                 <DialogDescription>
@@ -257,23 +309,29 @@ export function TeamsTab(props: any) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {props.inviteError && (
-                  <Alert variant="destructive">
+                {inviteError && (
+                  <Alert
+                    variant="destructive"
+                    className="bg-red-900/80 border-red-700 text-red-100"
+                  >
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{props.inviteError}</AlertDescription>
+                    <AlertDescription>{inviteError}</AlertDescription>
                   </Alert>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email Address</Label>
+                  <Label htmlFor="invite-email" className="text-emerald-200">
+                    Email Address
+                  </Label>
                   <Input
                     id="invite-email"
                     type="email"
-                    value={props.inviteEmail}
-                    onChange={(e) => props.setInviteEmail(e.target.value)}
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="Enter user's email address"
-                    disabled={props.isSendingInvite}
+                    disabled={isSendingInvite}
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-emerald-200/70">
                     The user will receive an invitation email with a link to
                     join your league
                   </p>
@@ -281,18 +339,18 @@ export function TeamsTab(props: any) {
                 <div className="flex justify-end space-x-2">
                   <Button
                     variant="outline"
-                    onClick={() => props.setShowInviteDialog(false)}
-                    disabled={props.isSendingInvite}
+                    onClick={() => setShowInviteDialog(false)}
+                    disabled={isSendingInvite}
+                    className="border-gray-700 text-emerald-200 hover:bg-gray-800/40"
                   >
                     Cancel
                   </Button>
                   <Button
-                    onClick={props.handleSendInvitation}
-                    disabled={
-                      props.isSendingInvite || !props.inviteEmail.trim()
-                    }
+                    onClick={handleSendInvitation}
+                    disabled={isSendingInvite || !inviteEmail.trim()}
+                    className="bg-emerald-800 text-emerald-100 hover:bg-emerald-900"
                   >
-                    {props.isSendingInvite ? (
+                    {isSendingInvite ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Sending...
@@ -310,15 +368,15 @@ export function TeamsTab(props: any) {
           </Dialog>
           {/* Cancel Invitation Confirmation Dialog */}
           <AlertDialog
-            open={props.showCancelDialog}
-            onOpenChange={props.setShowCancelDialog}
+            open={showCancelDialog}
+            onOpenChange={setShowCancelDialog}
           >
-            <AlertDialogContent>
+            <AlertDialogContent className="bg-gradient-to-br from-gray-900/90 to-emerald-950/90 border-2 border-gray-800 text-emerald-100">
               <AlertDialogHeader>
                 <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
                 <AlertDialogDescription>
                   Are you sure you want to cancel the invitation to{" "}
-                  <strong>{props.invitationToCancel?.email}</strong>?
+                  <strong>{invitationToCancel?.email}</strong>?
                   <br />
                   <br />
                   This action cannot be undone. The user will no longer be able
@@ -326,13 +384,15 @@ export function TeamsTab(props: any) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Keep Invitation</AlertDialogCancel>
+                <AlertDialogCancel className="bg-gray-800 text-gray-200 border-gray-700">
+                  Keep Invitation
+                </AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={props.handleCancelInvitation}
-                  disabled={!!props.cancellingInvitation}
-                  className="bg-red-600 hover:bg-red-700"
+                  onClick={handleCancelInvitation}
+                  disabled={!!cancellingInvitation}
+                  className="bg-red-700 text-red-100 hover:bg-red-800"
                 >
-                  {props.cancellingInvitation ? (
+                  {cancellingInvitation ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Cancelling...

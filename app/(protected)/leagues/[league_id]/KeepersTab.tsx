@@ -1,20 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLeagueTeams } from "@/stores/teamStore";
+import { useLeagueKeepers, Keeper } from "@/stores/keepersStore";
 import { usePlayers, Player } from "@/stores/playersStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Keeper {
-  id: string;
-  leagueId: string;
-  teamId: string;
-  playerId: string;
-  keeperPrice: number;
-  createdAt: string;
-}
 
 interface KeepersTabProps {
   leagueId: string;
@@ -23,6 +15,12 @@ interface KeepersTabProps {
 export function KeepersTab({ leagueId }: KeepersTabProps) {
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
   const {
+    keepers: existingKeepers,
+    loading: keepersLoading,
+    createKeeper,
+    deleteKeeper,
+  } = useLeagueKeepers(leagueId);
+  const {
     players,
     loading: playersLoading,
     fetchPlayersPage,
@@ -30,7 +28,6 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
   const [keeperSelections, setKeeperSelections] = useState<{
     [teamId: string]: Array<{ playerId: string; amount: string }>;
   }>({});
-  const [existingKeepers, setExistingKeepers] = useState<Keeper[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,19 +38,6 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
       fetchPlayersPage();
     }
   }, [players, playersLoading, fetchPlayersPage]);
-
-  // Fetch existing keepers
-  const fetchKeepers = async () => {
-    const res = await fetch(`/api/leagues/${leagueId}/keepers`);
-    if (res.ok) {
-      const data = await res.json();
-      setExistingKeepers(data.keepers || []);
-    }
-  };
-
-  useEffect(() => {
-    fetchKeepers();
-  }, [leagueId]);
 
   const handleSelectChange = (
     teamId: string,
@@ -95,12 +79,8 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
   // Delete an existing keeper (API call)
   const handleDeleteExistingKeeper = async (keeperId: string) => {
     try {
-      const res = await fetch(`/api/leagues/${leagueId}/keepers/${keeperId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setExistingKeepers((prev) => prev.filter((k) => k.id !== keeperId));
-      } else {
+      const success = await deleteKeeper(keeperId);
+      if (!success) {
         alert("Failed to delete keeper");
       }
     } catch {
@@ -119,24 +99,21 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
           return selections
             .filter((sel) => sel.playerId && sel.amount)
             .map(async (selection) => {
-              const res = await fetch(`/api/leagues/${leagueId}/keepers`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  team_id: team.id,
-                  league_id: leagueId,
-                  player_id: selection.playerId,
-                  amount: Number(selection.amount),
-                }),
+              const success = await createKeeper({
+                team_id: team.id,
+                league_id: leagueId,
+                player_id: selection.playerId,
+                amount: Number(selection.amount),
               });
-              if (!res.ok)
+              if (!success)
                 throw new Error(`Failed to save keeper for ${team.name}`);
-              return res.json();
+              return success;
             });
         })
       );
       setSuccess("Keepers saved successfully!");
-      await fetchKeepers();
+      // Clear selections after successful save
+      setKeeperSelections({});
     } catch (e: unknown) {
       if (e instanceof Error) {
         setError(e.message);
@@ -148,7 +125,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
     }
   };
 
-  if (teamsLoading) {
+  if (teamsLoading || keepersLoading) {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, i) => (

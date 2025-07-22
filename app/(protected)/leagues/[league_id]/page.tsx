@@ -7,6 +7,7 @@ import { League, useLeagueStore } from "@/stores/leagueStore";
 import { useParams } from "next/navigation";
 import { useUser } from "@/stores/userStore";
 import { useLeagueTeams } from "@/stores/teamStore";
+import { useLeagueKeepers } from "@/stores/keepersStore";
 import { KeepersTab } from "./KeepersTab";
 import { DraftTab } from "./DraftTab";
 import { TeamsTab } from "./TeamsTab";
@@ -112,6 +113,13 @@ export default function LeaguePage() {
     error: teamsError,
     deleteTeam,
   } = useLeagueTeams(leagueId);
+
+  // Keepers state/logic - prefetch to avoid refetching on tab change
+  const {
+    keepers = [],
+    loading: keepersLoading,
+    error: keepersError,
+  } = useLeagueKeepers(leagueId);
   // State for delete confirmation
   const [deletingTeam, setDeletingTeam] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

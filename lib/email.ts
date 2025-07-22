@@ -256,3 +256,17 @@ function createLeagueInvitationEmailTemplate(
 </html>
   `;
 }
+
+// Shared Invitation interface for use across the app
+export interface Invitation {
+  id: string;
+  leagueId: string;
+  email: string;
+  status: string;
+  createdAt: string;
+  leagueName: string;
+  leagueSize: number;
+  inviterFirstName: string | null;
+  inviterLastName: string | null;
+  inviterEmail: string | null;
+}
