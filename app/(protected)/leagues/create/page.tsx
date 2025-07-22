@@ -120,7 +120,7 @@ export default function CreateLeaguePage() {
   };
 
   return (
-    <>
+    <div className="max-w-3xl mx-auto">
       <PageTitle
         title="Create a New League"
         subtitle="Fill our the league settings form to create a new league"
@@ -138,8 +138,8 @@ export default function CreateLeaguePage() {
       </PageTitle>
 
       {/* Create form */}
-      <div className="flex mt-12">
-        <Card className="w-full max-w-3xl bg-transparent p-6 border-none shadow-none">
+      <div className="flex mt-6">
+        <Card className="w-full bg-transparent border-none shadow-none">
           <CardContent>
             {error && (
               <Alert variant="destructive" className="mb-4">
@@ -469,6 +469,6 @@ export default function CreateLeaguePage() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }

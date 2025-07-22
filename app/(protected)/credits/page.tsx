@@ -51,7 +51,7 @@ export default function CreditsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-10">
+    <div className="max-w-3xl mx-auto">
       <PageTitle
         title="Buy League Credits"
         subtitle="Purchase credits to create or join more leagues."
@@ -89,28 +89,22 @@ export default function CreditsPage() {
             className="flex flex-col justify-between h-full"
           >
             <CardHeader>
-              <CardTitle className="text-xl text-gray-50">
+              <CardTitle className="text-xl text-gray-900">
                 {option.label}
               </CardTitle>
-              <CardDescription className="text-lg text-gray-200 font-bold mt-2">
+              <CardDescription className="text-lg text-gray-700 font-bold mt-2">
                 ${option.price.toFixed(2)}
               </CardDescription>
-              {option.credits === 5 && (
-                <span className="inline-block mt-2 px-2 py-1 text-xs bg-emerald-700 text-white rounded">
-                  Best Value: Unlimited Leagues
-                </span>
-              )}
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-gray-300 space-y-1">
+              <ul className="text-sm text-gray-500 space-y-1">
                 <li>
-                  {option.credits === 1 && "Create or join 1 league"}
-                  {option.credits === 3 && "Create or join up to 3 leagues"}
+                  {option.credits === 1 && "Create 1 league"}
+                  {option.credits === 3 && "Create up to 3 leagues"}
                   {option.credits === 5 &&
-                    "Create or join unlimited leagues for the season"}
+                    "Create unlimited leagues for the season"}
                 </li>
                 <li>Instant credit delivery after payment</li>
-                <li>Secure checkout with Stripe</li>
               </ul>
             </CardContent>
             <CardFooter>

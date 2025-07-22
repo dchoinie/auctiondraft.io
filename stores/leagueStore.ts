@@ -51,9 +51,6 @@ interface LeagueState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   fetchLeagues: () => Promise<void>;
-  setAdminStatus: (leagueId: string, isAdmin: boolean) => void;
-  setAdminStatusLoading: (leagueId: string, loading: boolean) => void;
-  fetchAdminStatus: (leagueId: string) => Promise<void>;
   setLeagueSettings: (leagueId: string, settings: LeagueSettings) => void;
   setSettingsLoading: (leagueId: string, loading: boolean) => void;
   setSettingsError: (leagueId: string, error: string | null) => void;
@@ -92,19 +89,11 @@ export const useLeagueStore = create<LeagueState>()(
       fetchLeagues: async () => {
         try {
           set({ loading: true, error: null });
-
-          console.log("Fetching leagues from API...");
           const response = await fetch("/api/leagues");
           const data = await response.json();
 
-          console.log("Leagues API response:", data);
-
           if (data.success) {
             set({ leagues: data.leagues });
-            console.log("League membership updated:", {
-              hasLeagues: data.leagues.length > 0,
-              leagueCount: data.leagues.length,
-            });
           } else {
             set({ error: data.error || "Failed to fetch leagues" });
           }
@@ -116,46 +105,6 @@ export const useLeagueStore = create<LeagueState>()(
           });
         } finally {
           set({ loading: false });
-        }
-      },
-
-      setAdminStatus: (leagueId, isAdmin) => {
-        const currentCache = get().adminStatusCache;
-        set({
-          adminStatusCache: { ...currentCache, [leagueId]: isAdmin },
-        });
-      },
-
-      setAdminStatusLoading: (leagueId, loading) => {
-        const currentLoading = get().adminStatusLoading;
-        set({
-          adminStatusLoading: { ...currentLoading, [leagueId]: loading },
-        });
-      },
-
-      fetchAdminStatus: async (leagueId: string) => {
-        // Check if we already have this cached
-        const { adminStatusCache } = get();
-        if (adminStatusCache[leagueId] !== undefined) {
-          return;
-        }
-
-        try {
-          get().setAdminStatusLoading(leagueId, true);
-          const response = await fetch(
-            `/api/check-league-admin?leagueId=${leagueId}`
-          );
-          const data = await response.json();
-
-          if (data.success !== false) {
-            get().setAdminStatus(leagueId, data.isAdmin || false);
-          } else {
-            console.error("Failed to check admin status:", data.error);
-          }
-        } catch (err) {
-          console.error("Error checking admin status:", err);
-        } finally {
-          get().setAdminStatusLoading(leagueId, false);
         }
       },
 
@@ -185,14 +134,10 @@ export const useLeagueStore = create<LeagueState>()(
           get().setSettingsLoading(leagueId, true);
           get().setSettingsError(leagueId, null);
 
-          console.log("Fetching settings for league:", leagueId);
           const response = await fetch(`/api/leagues/${leagueId}/settings`);
-
-          console.log("Response status:", response.status);
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.log("Error response:", errorData);
             throw new Error(
               errorData.error ||
                 `HTTP ${response.status}: Failed to fetch league settings`
@@ -200,7 +145,6 @@ export const useLeagueStore = create<LeagueState>()(
           }
 
           const data = await response.json();
-          console.log("Settings data:", data);
 
           if (data.success) {
             get().setLeagueSettings(leagueId, data.league);
@@ -216,7 +160,6 @@ export const useLeagueStore = create<LeagueState>()(
               ? err.message
               : "Failed to fetch league settings";
           get().setSettingsError(leagueId, errorMessage);
-          console.error("Error fetching league settings:", err);
         } finally {
           get().setSettingsLoading(leagueId, false);
         }
@@ -402,13 +345,6 @@ export function useLeagueAdmin(leagueId?: string) {
       [leagueId]
     )
   );
-
-  // Auto-fetch admin status when needed
-  useEffect(() => {
-    if (isLoaded && userId && leagueId) {
-      useLeagueStore.getState().fetchAdminStatus(leagueId);
-    }
-  }, [userId, isLoaded, leagueId]);
 
   return {
     isAdmin,

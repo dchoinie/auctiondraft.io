@@ -21,8 +21,6 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user } = useUser();
 
-  console.log(user);
-
   return (
     <>
       {/* Mobile sidebar overlay */}
@@ -84,7 +82,7 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
               <Button
                 asChild
                 variant="link"
-                className="h-6 font-exo2 text-gray-50"
+                className="h-6 font-exo2 text-yellow-600"
               >
                 <Link href="/credits">Buy More Credits</Link>
               </Button>

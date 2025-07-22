@@ -102,7 +102,7 @@ export default function JoinLeaguePage() {
   };
 
   return (
-    <div className="max-w-md">
+    <div className="max-w-2xl mx-auto">
       <PageTitle title="Join an existing league" />
       <form className="space-y-4 mt-6" onSubmit={handleValidate}>
         <div>

@@ -92,10 +92,8 @@ export function LeagueCreationCTA() {
       const data = await response.json();
 
       if (data.success) {
-        console.log("League created successfully:", data.league);
         setShowLeagueCreation(false);
         setLeagueName("");
-        console.log("Refetching leagues and user data...");
         refetchLeagues();
         refetchUser(); // Refresh user data to update credits
       } else {

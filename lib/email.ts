@@ -34,7 +34,6 @@ export async function sendLeagueInvitationEmail(
       html: createLeagueInvitationEmailTemplate(data, invitationUrl),
     });
 
-    console.log("Email sent successfully:", result);
     return { success: true, messageId: result.data?.id };
   } catch (error) {
     console.error("Error sending email:", error);

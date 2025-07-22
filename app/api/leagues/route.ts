@@ -96,11 +96,22 @@ export async function GET(req: NextRequest) {
         index === self.findIndex((l) => l.id === league.id)
     );
 
-    console.log("Found leagues:", uniqueLeagues);
+    // Format draftDate as YYYY-MM-DD for all leagues
+    const formattedLeagues = uniqueLeagues.map((league) => ({
+      ...league,
+      settings: {
+        ...league.settings,
+        draftDate: league.settings.draftDate
+          ? new Date(league.settings.draftDate).toISOString().split("T")[0]
+          : null,
+      },
+    }));
+
+    console.log("Found leagues:", formattedLeagues);
 
     return NextResponse.json({
       success: true,
-      leagues: uniqueLeagues,
+      leagues: formattedLeagues,
     });
   } catch (error) {
     console.error("Error fetching leagues:", error);

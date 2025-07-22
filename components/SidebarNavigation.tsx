@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { League, useLeagueAdmin } from "@/stores/leagueStore";
+import { League } from "@/stores/leagueStore";
+import { useUserStore } from "@/stores/userStore";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -33,24 +33,9 @@ const navItems: NavItem[] = [
   },
 ];
 
-interface SidebarNavigationProps {
-  leagueId?: string;
-}
-
-export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
-  const pathname = usePathname();
+export function SidebarNavigation() {
   const { leagues } = useLeagueStore();
-  const { isAdmin, loading } = useLeagueAdmin(leagueId);
-
-  console.log(leagues);
-
-  // Extract league ID from pathname if not provided
-  const pathLeagueId = leagueId || pathname.match(/\/leagues\/([^\/]+)/)?.[1];
-
-  const isActive = (href: string) => {
-    if (typeof href === "function") return false;
-    return pathname === href || pathname.startsWith(href + "/");
-  };
+  const { user } = useUserStore();
 
   const rosterSize = (league: League) => {
     return (
@@ -101,6 +86,11 @@ export function SidebarNavigation({ leagueId }: SidebarNavigationProps) {
                     {`/$${league.settings.startingBudget} budget`}
                     {`/${league.settings.draftType} nominations`}
                   </small>
+                  {user?.id === league.ownerId && (
+                    <Badge className="bg-yellow-600 hover:bg-yellow-600 text-gray-50 self-start mt-1">
+                      Admin
+                    </Badge>
+                  )}
                 </div>
               </Link>
             </Button>

@@ -154,7 +154,8 @@ export async function PUT(
 
     if (body.name) updateData.name = body.name;
     if (body.leagueSize) updateData.leagueSize = parseInt(body.leagueSize);
-    if (body.draftDate) updateData.draftDate = new Date(body.draftDate);
+    if (body.draftDate)
+      updateData.draftDate = new Date(body.draftDate + "T00:00:00Z");
     if (body.draftTime) updateData.draftTime = body.draftTime;
     if (body.draftLocation !== undefined)
       updateData.draftLocation = body.draftLocation;
