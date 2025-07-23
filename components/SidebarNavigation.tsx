@@ -74,7 +74,7 @@ export function SidebarNavigation() {
               asChild
               key={league.id}
               variant="ghost"
-              className="w-full bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl cursor-pointer h-auto"
+              className="w-full bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl cursor-pointer h-auto hover:bg-emerald-700"
             >
               <Link href={`/leagues/${league.id}`}>
                 <div className="flex flex-col w-full">
@@ -86,7 +86,7 @@ export function SidebarNavigation() {
                     {`/${league.settings.draftType} nominations`}
                   </small>
                   {user?.id === league.ownerId && (
-                    <Badge className="bg-yellow-600 hover:bg-yellow-600 text-gray-50 self-start mt-1">
+                    <Badge className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl text-gray-50 self-start mt-1">
                       Admin
                     </Badge>
                   )}

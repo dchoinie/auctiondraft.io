@@ -18,7 +18,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import PageTitle from "@/components/PageTitle";
 import Link from "next/link";
 import { useUser } from "@/stores/userStore";
-import { Plus } from "lucide-react";
+import { Plus, Info, UserPlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const DEFAULTS = {
   name: "",
@@ -124,45 +125,67 @@ export default function CreateLeaguePage() {
     <div className="max-w-3xl mx-auto">
       <PageTitle
         title="Create a New League"
-        subtitle="Fill our the league settings form to create a new league"
+        subtitle="Fill out the league settings form to create a new league"
       >
-        <p className="max-w-xl text-gray-300 italic font-exo2">
-          Please note, creating a league will cost 1 league credit. If you do
-          not have any league credits, your league will not be created. Please
-          visit the{" "}
-          <Link href="/credits" className="underline">
-            credits page
-          </Link>{" "}
-          to add credits to your account.
-        </p>
-        <div className="font-exo2 text-yellow-600">{`Current league credits: ${user?.leagueCredits}`}</div>
+        <div className="mb-4">
+          <div className="flex items-start gap-3 bg-emerald-50/80 border border-emerald-200 rounded-lg p-4">
+            <Info className="text-emerald-700 mt-1" size={22} />
+            <div>
+              <p className="text-emerald-900 font-medium">
+                Creating a league will cost{" "}
+                <span className="font-bold">1 league credit</span>. If you do
+                not have any league credits, your league will not be created.
+              </p>
+              <p className="text-emerald-800 mt-1">
+                Visit the{" "}
+                <Link href="/credits" className="underline font-semibold">
+                  credits page
+                </Link>{" "}
+                to add credits to your account.
+              </p>
+            </div>
+          </div>
+          <div className="mt-2">
+            <Badge className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl">
+              Current league credits: {user?.leagueCredits}
+            </Badge>
+          </div>
+        </div>
       </PageTitle>
 
       {/* Create form */}
       <div className="flex mt-6">
-        <Card className="w-full bg-transparent border-none shadow-none">
+        <Card className="w-full bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100 p-3">
           <CardContent>
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-red-700 font-semibold text-base">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
             {success && (
               <Alert className="mb-4 border-green-200 bg-green-50">
-                <AlertDescription className="text-green-800">
+                <AlertDescription className="text-green-800 font-semibold text-base">
                   {success}
                 </AlertDescription>
               </Alert>
             )}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-10 divide-y divide-emerald-100"
+            >
               {/* League Name & Size */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label className="text-gray-50" htmlFor="name">
+                  <Label
+                    className="text-emerald-300 font-semibold"
+                    htmlFor="name"
+                  >
                     League Name
                   </Label>
                   <Input
-                    className="bg-gray-200"
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 mt-1"
                     id="name"
                     {...register("name", {
                       required: "League name is required",
@@ -170,17 +193,20 @@ export default function CreateLeaguePage() {
                     maxLength={50}
                   />
                   {errors.name && (
-                    <span className="text-xs text-destructive">
+                    <span className="block mt-1 text-sm text-red-600 font-semibold">
                       {errors.name.message as string}
                     </span>
                   )}
                 </div>
                 <div>
-                  <Label className="text-gray-50" htmlFor="leagueSize">
+                  <Label
+                    className="text-emerald-300 font-semibold"
+                    htmlFor="leagueSize"
+                  >
                     League Size
                   </Label>
                   <Input
-                    className="bg-gray-200"
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                     id="leagueSize"
                     type="number"
                     {...register("leagueSize", {
@@ -190,12 +216,15 @@ export default function CreateLeaguePage() {
                 </div>
               </div>
               {/* Join Code */}
-              <div className="mt-4">
-                <Label className="text-gray-50" htmlFor="joinCode">
+              <div className="pt-8">
+                <Label
+                  className="text-emerald-300 font-semibold"
+                  htmlFor="joinCode"
+                >
                   Join Code (optional)
                 </Label>
                 <Input
-                  className="bg-gray-200"
+                  className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                   id="joinCode"
                   {...register("joinCode")}
                   maxLength={50}
@@ -203,35 +232,44 @@ export default function CreateLeaguePage() {
                 />
               </div>
               {/* Draft Date/Time/Location */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="pt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <Label className="text-gray-50" htmlFor="draftDate">
+                  <Label
+                    className="text-emerald-300 font-semibold"
+                    htmlFor="draftDate"
+                  >
                     Draft Date
                   </Label>
                   <Input
-                    className="bg-gray-200"
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                     id="draftDate"
                     type="date"
                     {...register("draftDate")}
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-50" htmlFor="draftTime">
+                  <Label
+                    className="text-emerald-300 font-semibold"
+                    htmlFor="draftTime"
+                  >
                     Draft Time
                   </Label>
                   <Input
-                    className="bg-gray-200"
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                     id="draftTime"
                     type="time"
                     {...register("draftTime")}
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-50" htmlFor="draftLocation">
+                  <Label
+                    className="text-emerald-300 font-semibold"
+                    htmlFor="draftLocation"
+                  >
                     Draft Location
                   </Label>
                   <Input
-                    className="bg-gray-200"
+                    className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                     id="draftLocation"
                     {...register("draftLocation")}
                     maxLength={100}
@@ -239,17 +277,26 @@ export default function CreateLeaguePage() {
                 </div>
               </div>
               {/* Roster Settings */}
-              <div>
-                <Label className="text-gray-50 mb-2 block">
-                  Roster Settings
-                </Label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="pt-8">
+                <div className="mb-2 flex items-center gap-2">
+                  <UserPlus className="text-emerald-700" size={20} />
+                  <h2 className="text-lg font-bold text-emerald-300">
+                    Roster Settings
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-200 mb-4">
+                  Configure your league&apos;s roster positions.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div>
-                    <Label className="text-gray-50" htmlFor="qbSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="qbSlots"
+                    >
                       QB
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="qbSlots"
                       type="number"
                       min={0}
@@ -262,11 +309,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="rbSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="rbSlots"
+                    >
                       RB
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="rbSlots"
                       type="number"
                       min={0}
@@ -279,11 +329,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="wrSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="wrSlots"
+                    >
                       WR
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="wrSlots"
                       type="number"
                       min={0}
@@ -296,11 +349,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="teSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="teSlots"
+                    >
                       TE
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="teSlots"
                       type="number"
                       min={0}
@@ -313,11 +369,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="flexSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="flexSlots"
+                    >
                       FLEX
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="flexSlots"
                       type="number"
                       min={0}
@@ -330,11 +389,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="dstSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="dstSlots"
+                    >
                       D/ST
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="dstSlots"
                       type="number"
                       min={0}
@@ -347,11 +409,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="kSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="kSlots"
+                    >
                       K
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="kSlots"
                       type="number"
                       min={0}
@@ -364,11 +429,14 @@ export default function CreateLeaguePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-50" htmlFor="benchSlots">
+                    <Label
+                      className="text-emerald-300 font-semibold"
+                      htmlFor="benchSlots"
+                    >
                       Bench
                     </Label>
                     <Input
-                      className="bg-gray-200"
+                      className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                       id="benchSlots"
                       type="number"
                       min={1}
@@ -383,15 +451,15 @@ export default function CreateLeaguePage() {
                 </div>
               </div>
               {/* Draft Type, Timer */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label className="text-gray-50 mb-2 block">
+                  <Label className="text-emerald-300 font-semibold mb-2 block">
                     Nomination Type
                   </Label>
                   <div className="flex gap-4 mt-2">
-                    <label className="text-gray-50 flex items-center gap-2">
+                    <label className="text-emerald-300 flex items-center gap-2 font-medium">
                       <Input
-                        className="bg-gray-200"
+                        className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition"
                         type="radio"
                         value="snake"
                         {...register("draftType")}
@@ -399,9 +467,9 @@ export default function CreateLeaguePage() {
                       />
                       Snake
                     </label>
-                    <label className="text-gray-50 flex items-center gap-2">
+                    <label className="text-emerald-300 flex items-center gap-2 font-medium">
                       <Input
-                        className="bg-gray-200"
+                        className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition"
                         type="radio"
                         value="linear"
                         {...register("draftType")}
@@ -411,7 +479,7 @@ export default function CreateLeaguePage() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-gray-50 mb-2 block">
+                  <Label className="text-emerald-300 font-semibold mb-2 block">
                     Bidding Timer
                   </Label>
                   <Controller
@@ -424,7 +492,7 @@ export default function CreateLeaguePage() {
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
-                        <span className="text-gray-50">
+                        <span className="text-emerald-300 font-medium">
                           {field.value ? "Enabled" : "Disabled"}
                         </span>
                       </div>
@@ -432,11 +500,14 @@ export default function CreateLeaguePage() {
                   />
                   {timerEnabled && (
                     <div className="mt-2">
-                      <Label className="text-gray-50" htmlFor="timerDuration">
+                      <Label
+                        className="text-emerald-300 font-semibold"
+                        htmlFor="timerDuration"
+                      >
                         Timer Duration (seconds)
                       </Label>
                       <Input
-                        className="bg-gray-200"
+                        className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
                         id="timerDuration"
                         type="number"
                         min={30}
@@ -448,7 +519,7 @@ export default function CreateLeaguePage() {
                         })}
                       />
                       {errors.timerDuration && (
-                        <span className="text-xs text-destructive">
+                        <span className="block mt-1 text-sm text-red-600 font-semibold">
                           Timer must be 30-300 seconds
                         </span>
                       )}
@@ -456,7 +527,7 @@ export default function CreateLeaguePage() {
                   )}
                 </div>
               </div>
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-8">
                 <Button
                   type="submit"
                   disabled={loading}
@@ -464,7 +535,29 @@ export default function CreateLeaguePage() {
                   className="bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl hover:bg-emerald-800/80 transition-transform"
                 >
                   {loading ? (
-                    "Creating..."
+                    <span className="flex items-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8z"
+                        ></path>
+                      </svg>
+                      Creating...
+                    </span>
                   ) : (
                     <span className="flex items-center gap-2">
                       Create League <Plus />

@@ -179,15 +179,15 @@ export function TeamsTab(props: TeamsTabProps) {
             </Card>
           )}
           {/* Teams List */}
-          <Card className="bg-transparent">
+          <Card className="bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-emerald-200">
+                  <CardTitle className="flex items-center gap-2 text-emerald-300">
                     <Users className="h-5 w-5" />
                     League Teams
                   </CardTitle>
-                  <CardDescription className="text-emerald-100/80">
+                  <CardDescription className="text-gray-300">
                     {teams.length === 0
                       ? "No teams have joined this league yet. Send email invitations or share the league URL for users to join directly."
                       : `${teams.length} team${teams.length === 1 ? "" : "s"} in this league`}
@@ -197,7 +197,7 @@ export function TeamsTab(props: TeamsTabProps) {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      className="border-emerald-700 text-emerald-200 hover:bg-emerald-900/40"
+                      className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
                       onClick={() => setShowInviteDialog(true)}
                     >
                       <Mail className="h-4 w-4 mr-2" />
@@ -219,26 +219,23 @@ export function TeamsTab(props: TeamsTabProps) {
                   {teams.map((team: Team) => (
                     <div
                       key={team.id}
-                      className="flex items-center justify-between p-4 border border-gray-800 rounded-lg bg-emerald-700/50"
+                      className="flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-purple-900 rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
                           {team.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2 text-yellow-600">
+                          <h3 className="font-semibold flex items-center gap-2 text-emerald-300 leading-none">
                             {team.name}
                             {team.ownerId === settings.ownerId && (
                               <Crown className="h-4 w-4 text-yellow-400" />
                             )}
                           </h3>
-                          <p className="text-sm text-emerald-200/80">
+                          <p className="text-sm text-gray-300 tracking-wide">
                             {team.ownerFirstName && team.ownerLastName
                               ? `${team.ownerFirstName} ${team.ownerLastName}`
                               : team.ownerEmail || "Unknown Owner"}
-                          </p>
-                          <p className="text-xs text-emerald-200/60">
-                            Budget: ${team.budget}
                           </p>
                         </div>
                       </div>
@@ -303,7 +300,7 @@ export function TeamsTab(props: TeamsTabProps) {
             <DialogContent className="bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100">
               <DialogHeader>
                 <DialogTitle>Invite User to League</DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-gray-200">
                   Send an invitation email to a user. They can accept the
                   invitation and create their own team.
                 </DialogDescription>
@@ -341,14 +338,14 @@ export function TeamsTab(props: TeamsTabProps) {
                     variant="outline"
                     onClick={() => setShowInviteDialog(false)}
                     disabled={isSendingInvite}
-                    className="border-gray-700 text-emerald-200 hover:bg-gray-800/40"
+                    className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl"
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSendInvitation}
                     disabled={isSendingInvite || !inviteEmail.trim()}
-                    className="bg-emerald-800 text-emerald-100 hover:bg-emerald-900"
+                    className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl hover:text-gray-300"
                   >
                     {isSendingInvite ? (
                       <>

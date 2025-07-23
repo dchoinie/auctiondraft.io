@@ -115,12 +115,6 @@ export default function LeaguePage() {
     deleteTeam,
   } = useLeagueTeams(leagueId);
 
-  // Keepers state/logic - prefetch to avoid refetching on tab change
-  const {
-    keepers = [],
-    loading: keepersLoading,
-    error: keepersError,
-  } = useLeagueKeepers(leagueId);
   // State for delete confirmation
   const [deletingTeam, setDeletingTeam] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -130,7 +124,6 @@ export default function LeaguePage() {
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
-  const [invitationsLoading, setInvitationsLoading] = useState(false);
   // State for cancelling invitations
   const [cancellingInvitation, setCancellingInvitation] = useState<
     string | null
@@ -218,7 +211,7 @@ export default function LeaguePage() {
   };
 
   return (
-    <div className="max-w-screen-xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <h2 className="text-3xl font-bold text-gray-50 text-center mb-6">
         {league?.name}
       </h2>

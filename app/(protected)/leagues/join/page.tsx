@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/stores/userStore";
 import { useLeagueStore } from "@/stores/leagueStore";
+import { Info } from "lucide-react";
 
 export default function JoinLeaguePage() {
   const [leagueId, setLeagueId] = useState("");
@@ -103,17 +104,35 @@ export default function JoinLeaguePage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <PageTitle title="Join an existing league" />
-      <form className="space-y-4 mt-6" onSubmit={handleValidate}>
+      <PageTitle
+        title="Join an existing league"
+        subtitle="Enter the league ID and join code to join an existing league"
+      >
+        <div className="mb-4">
+          <div className="flex items-center gap-3 bg-emerald-50/80 border border-emerald-200 rounded-lg p-4">
+            <Info className="text-emerald-700" size={22} />
+            <div>
+              <p className="text-emerald-900 font-medium">
+                If you do not have a league ID, please contact your league
+                admin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </PageTitle>
+      <form
+        className="space-y-4 mt-6 bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100 p-6 rounded-lg"
+        onSubmit={handleValidate}
+      >
         <div>
           <label
             htmlFor="league-id"
-            className="block font-medium mb-1 text-gray-50"
+            className="block font-medium mb-1 text-emerald-300"
           >
             League ID
           </label>
           <Input
-            className="bg-gray-50"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
             id="league-id"
             value={leagueId}
             onChange={(e) => setLeagueId(e.target.value)}
@@ -125,12 +144,12 @@ export default function JoinLeaguePage() {
         <div>
           <label
             htmlFor="join-code"
-            className="block font-medium mb-1 text-gray-50"
+            className="block font-medium mb-1 text-emerald-300"
           >
             Join Code
           </label>
           <Input
-            className="bg-gray-50"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
             id="join-code"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
@@ -144,7 +163,11 @@ export default function JoinLeaguePage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button
+          type="submit"
+          className="w-full bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl"
+          disabled={loading}
+        >
           {loading ? "Validating..." : "Validate"}
         </Button>
       </form>

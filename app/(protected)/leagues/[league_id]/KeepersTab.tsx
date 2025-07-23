@@ -5,7 +5,7 @@ import { usePlayers, Player } from "@/stores/playersStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface KeepersTabProps {
@@ -156,7 +156,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
             : [{ playerId: "", amount: "" }];
         return (
           <div key={team.id} className="border-b pb-6 mb-6">
-            <div className="font-semibold mb-2 text-gray-50">
+            <div className="font-semibold text-emerald-300">
               {team.name}
               {team.ownerFirstName && team.ownerLastName
                 ? ` - ${team.ownerFirstName} ${team.ownerLastName}`
@@ -164,7 +164,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
             </div>
             {teamKeepers.length > 0 && (
               <div className="mb-2">
-                <div className="text-sm font-medium text-gray-50">
+                <div className="text-sm font-medium text-gray-300">
                   Existing Keepers:
                 </div>
                 <ul className="ml-4 list-disc">
@@ -211,7 +211,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
                 ) : (
                   <select
                     id={`player-select-${team.id}-${idx}`}
-                    className="border rounded px-2 py-1"
+                    className="border rounded px-2 py-1 bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
                     value={sel.playerId}
                     onChange={(e) =>
                       handleSelectChange(team.id, idx, e.target.value)
@@ -248,7 +248,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
                   id={`amount-input-${team.id}-${idx}`}
                   type="number"
                   min={1}
-                  className="w-24 bg-gray-50"
+                  className="w-24 bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
                   value={sel.amount ?? ""}
                   onChange={(e) =>
                     handleAmountChange(team.id, idx, e.target.value)
@@ -271,7 +271,7 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="ml-2"
+                    className="ml-2 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
                     onClick={() => handleAddKeeper(team.id)}
                   >
                     + Add Keeper
@@ -283,7 +283,12 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
         );
       })}
       <div className="pt-4">
-        <Button onClick={handleSave} disabled={saving}>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl"
+        >
+          <Save className="w-4 h-4" />
           {saving ? "Saving..." : "Save Keepers"}
         </Button>
         {success && <div className="text-green-600 mt-2">{success}</div>}

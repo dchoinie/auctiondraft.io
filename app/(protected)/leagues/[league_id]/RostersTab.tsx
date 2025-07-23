@@ -7,6 +7,7 @@ import {
   useDraftedPlayers,
   DraftedPlayer,
 } from "@/stores/draftedPlayersStore";
+import { Loader2 } from "lucide-react";
 
 const SLOT_ORDER = ["QB", "RB", "WR", "TE", "FLEX", "K", "DST", "BENCH"];
 
@@ -96,7 +97,11 @@ export function RostersTab() {
   }, [leagueId]);
 
   if (settingsLoading || teamsLoading || draftedLoading) {
-    return <div>Loading rosters...</div>;
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
   }
   if (!settings || !teams) {
     return <div>Unable to load league data.</div>;
@@ -125,33 +130,45 @@ export function RostersTab() {
       {teams.map((team) => {
         const slots = assignRosterSlots(playersByTeam[team.id], slotCounts);
         return (
-          <div key={team.id} className="border rounded-lg p-4 bg-white shadow">
-            <h2 className="text-xl font-bold mb-2">{team.name}</h2>
-            <table className="min-w-full border text-sm">
+          <div
+            key={team.id}
+            className="bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100 p-3 rounded-lg"
+          >
+            <h2 className="text-xl font-bold text-emerald-300">{team.name}</h2>
+            <h6 className="text-gray-400 text-sm mb-2">
+              {team.ownerFirstName && team.ownerLastName
+                ? `${team.ownerFirstName} ${team.ownerLastName}`
+                : team.ownerEmail || "Unknown Owner"}
+            </h6>
+            <table className="min-w-full border-collapse border-none text-sm">
               <thead>
-                <tr>
-                  <th className="border px-2 py-1">Slot</th>
-                  <th className="border px-2 py-1">Player</th>
-                  <th className="border px-2 py-1">Team</th>
-                  <th className="border px-2 py-1">Price</th>
+                <tr className="text-left">
+                  <th className="border-b text-emerald-300 px-2 py-1">Slot</th>
+                  <th className="border-b text-emerald-300 px-2 py-1">
+                    Player
+                  </th>
+                  <th className="border-b text-emerald-300 px-2 py-1">Team</th>
+                  <th className="border-b text-emerald-300 px-2 py-1">Price</th>
                 </tr>
               </thead>
               <tbody>
                 {SLOT_ORDER.map((slot) =>
                   slots[slot].map((player, idx) => (
                     <tr key={slot + idx}>
-                      <td className="border px-2 py-1">{SLOT_LABELS[slot]}</td>
-                      <td className="border px-2 py-1">
+                      <td className="border-none px-2 py-1">
+                        {SLOT_LABELS[slot]}
+                      </td>
+                      <td className="border-none px-2 py-1">
                         {player ? (
                           `${player.playerFirstName} ${player.playerLastName}`
                         ) : (
                           <span className="text-gray-400">Empty</span>
                         )}
                       </td>
-                      <td className="border px-2 py-1">
+                      <td className="border-none px-2 py-1">
                         {player ? player.playerTeam : ""}
                       </td>
-                      <td className="border px-2 py-1">
+                      <td className="border-none px-2 py-1">
                         {player ? `$${player.draftPrice}` : ""}
                       </td>
                     </tr>
