@@ -2,20 +2,15 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, LogOut, X } from "lucide-react";
 import { SidebarNavigation } from "./SidebarNavigation";
 import { useUser } from "@/stores/userStore";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import { SignOutButton } from "@clerk/nextjs";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
 }
-
-const UserButton = dynamic(
-  () => import("@clerk/nextjs").then((mod) => mod.UserButton),
-  { ssr: false }
-);
 
 export function MobileSidebar({ children }: MobileSidebarProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -69,35 +64,29 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle sidebar</span>
           </Button>
-          <div className="">
-            <h6 className="text-lg font-bold text-white">
-              Welcome Back, {user?.firstName}!
-            </h6>
+          <div>
+            <h6 className="text-lg font-bold text-gray-50">AuctionDraft.io</h6>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-col text-center">
               <h6 className="italic mr-2 text-gray-50 m-0 p-0">
                 League Credits: {user?.leagueCredits}
               </h6>
-              <Button
-                asChild
-                variant="link"
-                className="h-6 font-exo2 text-yellow-600"
-              >
+              <Button asChild variant="link" className="h-6 text-yellow-600">
                 <Link href="/credits">Buy More Credits</Link>
               </Button>
             </div>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "h-8 w-8",
-                  userButtonPopoverCard: "bg-background border",
-                  userButtonPopoverActionButton:
-                    "text-foreground hover:bg-accent",
-                  userButtonPopoverActionButtonText: "text-foreground",
-                },
-              }}
-            />
+            <SignOutButton>
+              <Button
+                size="sm"
+                className="bg-red-700 text-gray-50 hover:bg-red-500 hover:text-gray-50"
+              >
+                <div className="flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </div>
+              </Button>
+            </SignOutButton>
           </div>
         </header>
 

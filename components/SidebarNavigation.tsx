@@ -5,7 +5,6 @@ import { League } from "@/stores/leagueStore";
 import { useUserStore } from "@/stores/userStore";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { Button } from "./ui/button";
-import { cn } from "@/lib/utils";
 import { Home, Plus, Users } from "lucide-react";
 import { Badge } from "./ui/badge";
 
@@ -56,7 +55,7 @@ export function SidebarNavigation() {
         {navItems.map((item: NavItem, i: number) => (
           <Button
             asChild
-            className={cn("font-exo2 bg-emerald-800 hover:bg-emerald-700")}
+            className="bg-emerald-800 hover:bg-emerald-700"
             key={`${item.label}-${i}`}
           >
             <Link href={item.href}>
@@ -67,7 +66,7 @@ export function SidebarNavigation() {
         ))}
       </div>
       <div className="flex flex-col gap-3 mt-3">
-        <h5 className="text-gray-50 font-exo2 text-sm my-3">My Leagues</h5>
+        <h5 className="text-gray-50 text-sm my-3">My Leagues</h5>
         {leagues.length > 0 ? (
           leagues.map((league: League) => (
             <Button

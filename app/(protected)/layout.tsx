@@ -24,9 +24,7 @@ export default function ProtectedLayout({
               <span className="text-white flex gap-6">
                 <Loader2 className="w-8 h-8 animate-spin" />
                 <Trophy className="w-8 h-8" />
-                <span className="text-md font-exo2">
-                  AuctionDraft.io Loading...
-                </span>
+                <span className="text-md">AuctionDraft.io Loading...</span>
               </span>
             </div>
           </ClerkLoading>

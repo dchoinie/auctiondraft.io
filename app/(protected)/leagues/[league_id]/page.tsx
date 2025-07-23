@@ -218,7 +218,7 @@ export default function LeaguePage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* Center the TabsList */}
         <div className="flex justify-center">
-          <TabsList className="font-exo2">
+          <TabsList>
             {tabs.map((tab: Tab) => (
               <TabsTrigger
                 key={tab.value}
