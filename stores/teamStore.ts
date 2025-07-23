@@ -13,6 +13,7 @@ export interface Team {
   ownerFirstName: string | null;
   ownerLastName: string | null;
   ownerEmail: string | null;
+  draftOrder: number | null;
 }
 
 export interface TeamCreateData {
@@ -273,14 +274,14 @@ export function useLeagueTeams(leagueId?: string) {
 
   const loading = useTeamStore(
     useCallback(
-      (state) => (leagueId ? state.loading[leagueId] ?? false : false),
+      (state) => (leagueId ? (state.loading[leagueId] ?? false) : false),
       [leagueId]
     )
   );
 
   const error = useTeamStore(
     useCallback(
-      (state) => (leagueId ? state.error[leagueId] ?? null : null),
+      (state) => (leagueId ? (state.error[leagueId] ?? null) : null),
       [leagueId]
     )
   );

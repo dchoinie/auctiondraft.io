@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { useEffect } from "react";
 
 export interface DraftedPlayer {
   id: string;
@@ -93,4 +94,26 @@ export function useDraftedPlayers(leagueId?: string) {
       ? state.draftedPlayers[leagueId]
       : EMPTY_DRAFTED_PLAYERS
   );
+}
+
+export function useDraftedPlayersAuto(leagueId?: string) {
+  const draftedPlayers = useDraftedPlayersStore((state) =>
+    leagueId && state.draftedPlayers[leagueId]
+      ? state.draftedPlayers[leagueId]
+      : EMPTY_DRAFTED_PLAYERS
+  );
+  const loading = useDraftedPlayersStore(
+    (state) => state.loading[leagueId ?? ""]
+  );
+  const fetchDraftedPlayers = useDraftedPlayersStore(
+    (state) => state.fetchDraftedPlayers
+  );
+
+  useEffect(() => {
+    if (leagueId && !loading && draftedPlayers.length === 0) {
+      fetchDraftedPlayers(leagueId);
+    }
+  }, [leagueId, fetchDraftedPlayers, loading, draftedPlayers.length]);
+
+  return draftedPlayers;
 }

@@ -47,6 +47,7 @@ export async function GET(
         ownerFirstName: userProfiles.firstName,
         ownerLastName: userProfiles.lastName,
         ownerEmail: userProfiles.email,
+        draftOrder: teams.draftOrder,
       })
       .from(teams)
       .leftJoin(userProfiles, eq(teams.ownerId, userProfiles.id))
