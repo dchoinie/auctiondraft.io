@@ -74,8 +74,7 @@ export function SidebarNavigation() {
               asChild
               key={league.id}
               variant="ghost"
-              className="w-full hover:bg-emerald-800/70"
-              style={{ height: "auto" }}
+              className="w-full bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl cursor-pointer h-auto"
             >
               <Link href={`/leagues/${league.id}`}>
                 <div className="flex flex-col w-full">

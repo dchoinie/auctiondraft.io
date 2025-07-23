@@ -51,6 +51,7 @@ export default function LeaguePage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("draft");
 
   // Update localSettings when league changes
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function LeaguePage() {
       <h2 className="text-3xl font-bold text-gray-50 text-center mb-6">
         {league?.name}
       </h2>
-      <Tabs defaultValue="draft">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* Center the TabsList */}
         <div className="flex justify-center">
           <TabsList className="font-exo2">
@@ -238,7 +239,7 @@ export default function LeaguePage() {
         </div>
         {/* TabsContent stretches full width */}
         <TabsContent value="draft" className="mt-6">
-          <DraftTab />
+          <DraftTab setActiveTab={setActiveTab} />
         </TabsContent>
         <TabsContent value="teams" className="mt-6">
           <TeamsTab

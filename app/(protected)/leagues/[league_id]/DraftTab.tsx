@@ -3,6 +3,10 @@ import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMemo, useState, useEffect } from "react";
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { Users, List, Settings, Shield, LogIn } from "lucide-react";
 
 function getDraftDateTime(settings: LeagueSettings | null | undefined) {
   if (!settings?.draftDate || !settings?.draftTime) return null;
@@ -38,7 +42,11 @@ function useCountdown(targetDate: Date | null) {
   return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
-export function DraftTab() {
+export function DraftTab({
+  setActiveTab,
+}: {
+  setActiveTab?: (tab: string) => void;
+}) {
   const { league_id } = useParams();
   const { settings, loading } = useLeagueSettings(league_id as string);
   const draftDateTime = useMemo(() => getDraftDateTime(settings), [settings]);
@@ -59,7 +67,76 @@ export function DraftTab() {
           </div>
         </CardContent>
       </Card>
-      {/* TODO: Add more draft tab content below */}
+      {/* CTA and Tab Links */}
+      <div className="flex flex-col items-center gap-8 mt-4">
+        <Button
+          asChild
+          size="lg"
+          className="text-2xl px-12 py-6 bg-gradient-to-r from-yellow-500 to-yellow-700 text-yellow-50 font-extrabold shadow-lg border-2 border-yellow-400 hover:from-yellow-600 hover:to-yellow-800 hover:scale-105 transition-transform duration-200"
+        >
+          <Link href={`/leagues/${league_id}/draft`}>
+            <LogIn className="mr-3 w-7 h-7" /> Enter Draft Room
+          </Link>
+        </Button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+          <button
+            type="button"
+            className="group"
+            onClick={() => setActiveTab && setActiveTab("teams")}
+          >
+            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                <Users className="w-8 h-8 text-emerald-200 group-hover:text-emerald-100" />
+                <CardTitle className="text-lg text-emerald-100 group-hover:text-emerald-50">
+                  Teams
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </button>
+          <button
+            type="button"
+            className="group"
+            onClick={() => setActiveTab && setActiveTab("rosters")}
+          >
+            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                <List className="w-8 h-8 text-blue-200 group-hover:text-blue-100" />
+                <CardTitle className="text-lg text-blue-100 group-hover:text-blue-50">
+                  Rosters
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </button>
+          <button
+            type="button"
+            className="group"
+            onClick={() => setActiveTab && setActiveTab("settings")}
+          >
+            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                <Settings className="w-8 h-8 text-gray-200 group-hover:text-gray-100" />
+                <CardTitle className="text-lg text-gray-100 group-hover:text-gray-50">
+                  Settings
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </button>
+          <button
+            type="button"
+            className="group"
+            onClick={() => setActiveTab && setActiveTab("keepers")}
+          >
+            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                <Shield className="w-8 h-8 text-yellow-200 group-hover:text-yellow-100" />
+                <CardTitle className="text-lg text-yellow-100 group-hover:text-yellow-50">
+                  Keepers
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

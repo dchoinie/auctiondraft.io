@@ -99,7 +99,7 @@ export function TeamsTab(props: TeamsTabProps) {
         </div>
       ) : !settings ? (
         <div className="container mx-auto p-6">
-          <Alert className="max-w-md mx-auto bg-gradient-to-br from-gray-800/90 to-gray-900/90 border-gray-700 text-gray-100">
+          <Alert className="max-w-md mx-auto text-gray-100">
             <AlertDescription>League not found.</AlertDescription>
           </Alert>
         </div>
@@ -107,7 +107,7 @@ export function TeamsTab(props: TeamsTabProps) {
         <>
           {/* Pending Invitations */}
           {isOwner && pendingInvitations.length > 0 && (
-            <Card className="mb-6 bg-gradient-to-br from-emerald-900/80 to-gray-900/80 border-2 border-emerald-800 shadow-xl">
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-emerald-200">
                   <Mail className="h-5 w-5" />
@@ -179,7 +179,7 @@ export function TeamsTab(props: TeamsTabProps) {
             </Card>
           )}
           {/* Teams List */}
-          <Card className="bg-gradient-to-br from-gray-900/90 to-emerald-950/80 border-2 border-gray-800 shadow-2xl">
+          <Card className="bg-transparent">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -219,14 +219,14 @@ export function TeamsTab(props: TeamsTabProps) {
                   {teams.map((team: Team) => (
                     <div
                       key={team.id}
-                      className="flex items-center justify-between p-4 border border-gray-800 rounded-lg bg-gray-950/70 hover:bg-emerald-900/30 transition-colors"
+                      className="flex items-center justify-between p-4 border border-gray-800 rounded-lg bg-emerald-700/50"
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-purple-900 rounded-full flex items-center justify-center text-white font-bold">
                           {team.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2 text-emerald-100">
+                          <h3 className="font-semibold flex items-center gap-2 text-yellow-600">
                             {team.name}
                             {team.ownerId === settings.ownerId && (
                               <Crown className="h-4 w-4 text-yellow-400" />

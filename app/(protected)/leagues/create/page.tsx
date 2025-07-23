@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import PageTitle from "@/components/PageTitle";
 import Link from "next/link";
 import { useUser } from "@/stores/userStore";
+import { Plus } from "lucide-react";
 
 const DEFAULTS = {
   name: "",
@@ -460,9 +461,15 @@ export default function CreateLeaguePage() {
                   type="submit"
                   disabled={loading}
                   size="lg"
-                  className="bg-emerald-900"
+                  className="bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl hover:bg-emerald-800/80 transition-transform"
                 >
-                  {loading ? "Creating..." : "Create League"}
+                  {loading ? (
+                    "Creating..."
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      Create League <Plus />
+                    </span>
+                  )}
                 </Button>
               </div>
             </form>
