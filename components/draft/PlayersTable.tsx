@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { usePlayers, usePlayersSearch } from "@/stores/playersStore";
+import { usePlayers, usePlayersSearch, Player } from "@/stores/playersStore";
 import { useDraftedPlayersAuto } from "@/stores/draftedPlayersStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Loader2, X } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PlayersTableProps {
   leagueId: string;
@@ -19,10 +26,21 @@ interface PlayersTableProps {
 
 const PAGE_SIZE = 50;
 
+const POSITION_OPTIONS = [
+  { value: "ALL", label: "All" },
+  { value: "QB", label: "QB" },
+  { value: "RB", label: "RB" },
+  { value: "WR", label: "WR" },
+  { value: "TE", label: "TE" },
+  { value: "K", label: "K" },
+  { value: "D/ST", label: "D/ST" },
+];
+
 const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [position, setPosition] = useState("ALL");
 
   const { players, pagination, loading, error, fetchPlayersPage } = usePlayers(
     currentPage,
@@ -49,15 +67,26 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
     error: searchError,
   } = usePlayersSearch(debouncedSearch);
 
-  // Filter out drafted players from search or paginated list
+  // Filter by position and drafted status
+  const filterByPosition = (player: Player) => {
+    if (position === "ALL") return true;
+    if (position === "D/ST") return player.position === "D/ST";
+    return player.position === position;
+  };
+
+  // Filter out drafted players and by position
   const availablePlayers = useMemo(() => {
     if (debouncedSearch) {
       return searchedPlayers.filter(
-        (player) => !draftedPlayerIds.includes(player.id)
+        (player) =>
+          !draftedPlayerIds.includes(player.id) && filterByPosition(player)
       );
     }
-    return players.filter((player) => !draftedPlayerIds.includes(player.id));
-  }, [debouncedSearch, searchedPlayers, players, draftedPlayerIds]);
+    return players.filter(
+      (player) =>
+        !draftedPlayerIds.includes(player.id) && filterByPosition(player)
+    );
+  }, [debouncedSearch, searchedPlayers, players, draftedPlayerIds, position]);
 
   useEffect(() => {
     fetchPlayersPage();
@@ -95,37 +124,61 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
 
   return (
     <div>
-      <div className="mb-4 flex justify-between items-center">
-        <div className="relative w-80">
-          <Input
-            type="text"
-            placeholder="Search players by name..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-10"
-            autoComplete="off"
-            id="players-search-input"
-          />
-          {search && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => {
-                setSearch("");
-                setTimeout(() => {
-                  const input = document.getElementById("players-search-input");
-                  if (input) (input as HTMLInputElement).focus();
-                }, 0);
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="relative w-80">
+            <Input
+              type="text"
+              placeholder="Search players by name..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200 hover:text-emerald-400 focus:outline-none"
-              tabIndex={0}
+              className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-10"
+              autoComplete="off"
+              id="players-search-input"
+            />
+            {search && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setSearch("");
+                  setTimeout(() => {
+                    const input = document.getElementById(
+                      "players-search-input"
+                    );
+                    if (input) (input as HTMLInputElement).focus();
+                  }, 0);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200 hover:text-emerald-400 focus:outline-none"
+                tabIndex={0}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="w-40">
+            <Select
+              value={position}
+              onValueChange={(val) => {
+                setPosition(val);
+                setCurrentPage(1);
+              }}
             >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+              <SelectTrigger className="w-full bg-gray-900/80 border-gray-700 text-emerald-100">
+                <SelectValue placeholder="Filter by position" />
+              </SelectTrigger>
+              <SelectContent>
+                {POSITION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
       <Table className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 shadow-md">
