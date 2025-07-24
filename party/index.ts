@@ -121,11 +121,18 @@ class PartyRoom implements Party.Server {
 
       switch (message.type) {
         case "init":
-          this.state = message.data;
-          console.log("init", this.state);
-          this.room.broadcast(
-            JSON.stringify({ type: "stateUpdate", data: this.state })
-          );
+          // Only allow init if the state is still the default/empty state
+          if (
+            !this.state.draftStarted &&
+            !this.state.nominatedPlayer &&
+            Object.keys(this.state.teams).length === 0
+          ) {
+            this.state = message.data;
+            this.room.broadcast(
+              JSON.stringify({ type: "stateUpdate", data: this.state })
+            );
+          }
+          // Otherwise, ignore the client's init message
           break;
         case "startDraft":
           this.state = {
