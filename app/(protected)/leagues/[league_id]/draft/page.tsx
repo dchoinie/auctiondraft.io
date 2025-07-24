@@ -118,7 +118,7 @@ export default function DraftPage() {
             currentNominatorTeamId:
               teams.find((team: Team) => team.draftOrder === 1)?.id || null,
             nominatedPlayer: null,
-            startingBidAmount: 1,
+            startingBidAmount: 0,
             currentBid: null,
             bidTimer: league?.settings.timerEnabled ?? 0,
             bidTimerExpiresAt: null,
