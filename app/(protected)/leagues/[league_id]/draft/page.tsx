@@ -18,6 +18,8 @@ import { DraftRoomState, TeamDraftState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
 import AdminControls from "@/components/draft/AdminControls";
 import TeamTracker from "@/components/draft/TeamTracker";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import Rosters from "@/components/draft/Rosters";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -45,7 +47,7 @@ export default function DraftPage() {
   const [hasInitialized, setHasInitialized] = useState(false);
   const playersStore = usePlayersStore();
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-
+  const [activeTab, setActiveTab] = useState("draft");
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
   const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
@@ -240,6 +242,10 @@ export default function DraftPage() {
     }
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
+
   if (isLoadingData)
     return (
       <div className="flex justify-center items-center h-screen text-white">
@@ -269,20 +275,37 @@ export default function DraftPage() {
 
   return (
     <>
-      <div className="mb-6">
+      <div>
         <AdminControls
           draftState={draftState as DraftRoomState}
           handleStartDraft={handleStartDraft}
           handlePauseDraft={handlePauseDraft}
         />
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <TeamTracker
-          draftState={draftState as DraftRoomState}
-          teams={teams as Team[]}
-          onlineUserIds={onlineUserIds}
-        />
-        <div className="col-span-2 border border-red-50">Players table</div>
+      <div className="mb-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <div className="flex justify-center my-6">
+            <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300">
+              <TabsTrigger value="draft">Draft</TabsTrigger>
+              <TabsTrigger value="rosters">Rosters</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="draft">
+            <div className="grid grid-cols-3 gap-3">
+              <TeamTracker
+                draftState={draftState as DraftRoomState}
+                teams={teams as Team[]}
+                onlineUserIds={onlineUserIds}
+              />
+              <div className="col-span-2 border border-red-50">
+                Players table
+              </div>
+            </div>
+          </TabsContent>
+          <TabsContent value="rosters">
+            <Rosters />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );

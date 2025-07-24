@@ -72,8 +72,12 @@ export default function AdminControls({
     >
       <div className="absolute top-4 right-4">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild className="text-gray-50 border-none">
-            <Button variant="ghost" size="icon">
+          <DropdownMenuTrigger asChild className="text-gray-50">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            >
               <Settings size={22} />
             </Button>
           </DropdownMenuTrigger>
