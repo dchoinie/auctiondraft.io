@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react";
 import { DraftRoomState, TeamDraftState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
 import AdminControls from "@/components/draft/AdminControls";
+import TeamTracker from "@/components/draft/TeamTracker";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -43,6 +44,7 @@ export default function DraftPage() {
   const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const playersStore = usePlayersStore();
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
@@ -120,6 +122,12 @@ export default function DraftPage() {
         }
         if (message.type === "draftPaused" && message.data) {
           setDraftState(league_id as string, message.data);
+        }
+        if (
+          message.type === "connectedUsers" &&
+          Array.isArray(message.userIds)
+        ) {
+          setOnlineUserIds(message.userIds);
         }
       });
     }
@@ -260,12 +268,22 @@ export default function DraftPage() {
   console.log({ draftState });
 
   return (
-    <div>
-      <AdminControls
-        draftState={draftState as DraftRoomState}
-        handleStartDraft={handleStartDraft}
-        handlePauseDraft={handlePauseDraft}
-      />
-    </div>
+    <>
+      <div className="mb-6">
+        <AdminControls
+          draftState={draftState as DraftRoomState}
+          handleStartDraft={handleStartDraft}
+          handlePauseDraft={handlePauseDraft}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <TeamTracker
+          draftState={draftState as DraftRoomState}
+          teams={teams as Team[]}
+          onlineUserIds={onlineUserIds}
+        />
+        <div className="col-span-2 border border-red-50">Players table</div>
+      </div>
+    </>
   );
 }

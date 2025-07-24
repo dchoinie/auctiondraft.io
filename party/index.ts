@@ -78,6 +78,9 @@ class PartyRoom implements Party.Server {
     teams: {},
   };
 
+  // Track connected user IDs (owner IDs)
+  connectedUserIds = new Set<string>();
+
   constructor(readonly room: Party.Room) {}
 
   onRequest(request: Party.Request) {
@@ -86,8 +89,21 @@ class PartyRoom implements Party.Server {
 
   onConnect(conn: Party.Connection, { request }: Party.ConnectionContext) {
     const userId = request.headers.get("X-User-ID");
+    if (userId) {
+      this.connectedUserIds.add(userId);
+      this.broadcastUserList();
+    }
+
     conn.send(JSON.stringify({ type: "welcome", userId }));
     conn.send(JSON.stringify({ type: "init", data: this.state }));
+
+    // Clean up on disconnect
+    conn.addEventListener("close", () => {
+      if (userId) {
+        this.connectedUserIds.delete(userId);
+        this.broadcastUserList();
+      }
+    });
 
     conn.addEventListener("message", (event) => {
       let rawData = event.data;
@@ -127,6 +143,15 @@ class PartyRoom implements Party.Server {
           break;
       }
     });
+  }
+
+  broadcastUserList() {
+    this.room.broadcast(
+      JSON.stringify({
+        type: "connectedUsers",
+        userIds: Array.from(this.connectedUserIds),
+      })
+    );
   }
 }
 
