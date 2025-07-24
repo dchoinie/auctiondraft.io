@@ -73,15 +73,18 @@ export default function DraftPage() {
     teamsLoading || leaguesLoading || userLoading || keepersLoading;
   const isLoadingData =
     teamsLoading || leaguesLoading || userLoading || keepersLoading;
-  const totalRosterSpots =
-    (league?.settings.qbSlots ?? 0) +
-    (league?.settings.rbSlots ?? 0) +
-    (league?.settings.wrSlots ?? 0) +
-    (league?.settings.teSlots ?? 0) +
-    (league?.settings.flexSlots ?? 0) +
-    (league?.settings.dstSlots ?? 0) +
-    (league?.settings.kSlots ?? 0) +
-    (league?.settings.benchSlots ?? 0);
+
+  // Only calculate totalRosterSpots when we have the league settings
+  const totalRosterSpots = league?.settings
+    ? (league.settings.qbSlots || 0) +
+      (league.settings.rbSlots || 0) +
+      (league.settings.wrSlots || 0) +
+      (league.settings.teSlots || 0) +
+      (league.settings.flexSlots || 0) +
+      (league.settings.dstSlots || 0) +
+      (league.settings.kSlots || 0) +
+      (league.settings.benchSlots || 0)
+    : 0;
 
   console.log(draftedPlayers);
 
@@ -121,25 +124,42 @@ export default function DraftPage() {
       });
     }
     connectPartySocket();
+  }, [league_id, getToken, setDraftState]);
+
+  // Check if all data is loaded and ready
+  const isAllDataReady = React.useMemo(() => {
+    // Check if all required data is loaded
+    const basicDataReady =
+      teams.length > 0 && // teams must be loaded for a valid draft
+      league?.settings && // ensure we have league settings
+      totalRosterSpots > 0 && // ensure we have a valid roster size
+      !teamsLoading && // ensure teams are not still loading
+      !leaguesLoading && // ensure leagues are not still loading
+      !keepersLoading; // ensure keepers are not still loading
+
+    if (!basicDataReady) return false;
+
+    // Check if all drafted and keeper players have their data loaded
+    const allPlayerIds = allDraftedAndKeeperPlayerIds;
+    const allPlayersLoaded = allPlayerIds.every(
+      (playerId) => getPlayerById(playerId) !== undefined
+    );
+
+    return allPlayersLoaded;
   }, [
-    league_id,
-    getToken,
-    // Remove draftState from this effect's deps
-    teams,
-    keepers,
-    draftedPlayers,
+    teams.length,
+    league?.settings,
     totalRosterSpots,
-    playerCache,
-    setDraftState,
+    teamsLoading,
+    leaguesLoading,
+    keepersLoading,
+    allDraftedAndKeeperPlayerIds,
+    getPlayerById,
   ]);
 
-  // Send init only when all data is loaded and draftState is ready
+  // Send init message only once when all data is loaded and stable
   useEffect(() => {
-    if (
-      !hasInitialized &&
-      partySocket &&
-      teams.length > 0 // teams must be loaded for a valid draft
-    ) {
+    if (!hasInitialized && partySocket && isAllDataReady) {
       // Build the draft state locally (same logic as in your message handler)
       const keeperCostByTeam: Record<string, number> = {};
       (keepers || []).forEach((keeper) => {
@@ -197,15 +217,7 @@ export default function DraftPage() {
       partySocket.send(JSON.stringify({ type: "init", data: newDraftState }));
       setHasInitialized(true);
     }
-  }, [
-    partySocket,
-    teams,
-    keepers,
-    draftedPlayers,
-    totalRosterSpots,
-    playersStore,
-    hasInitialized,
-  ]);
+  }, [hasInitialized, partySocket, isAllDataReady]);
 
   // Handler for Start Draft button
   const handleStartDraft = () => {
