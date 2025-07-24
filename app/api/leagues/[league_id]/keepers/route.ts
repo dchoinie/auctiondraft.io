@@ -8,7 +8,8 @@ export async function POST(
   { params }: { params: { league_id: string } }
 ) {
   try {
-    const { team_id, league_id, player_id, amount } = await req.json();
+    const { league_id } = await params;
+    const { team_id, player_id, amount } = await req.json();
     if (!team_id || !league_id || !player_id || !amount) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -46,7 +47,7 @@ export async function GET(
   { params }: { params: { league_id: string } }
 ) {
   try {
-    const league_id = params.league_id;
+    const { league_id } = await params;
     // Get all keepers for this league, join player and team info
     const results = await db
       .select()

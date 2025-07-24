@@ -16,6 +16,7 @@ import { usePlayersStore } from "@/stores/playersStore";
 import { Loader2 } from "lucide-react";
 import { DraftRoomState, TeamDraftState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
+import AdminControls from "@/components/draft/AdminControls";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -69,8 +70,7 @@ export default function DraftPage() {
   }, [allDraftedAndKeeperPlayerIds, getPlayerById, fetchPlayerById]);
 
   const league = leagues.find((league: League) => league.id === league_id);
-  const isDataLoadingError =
-    teamsLoading || leaguesLoading || userLoading || keepersLoading;
+  const isDataError = teamsError || leaguesError || userError || keepersError;
   const isLoadingData =
     teamsLoading || leaguesLoading || userLoading || keepersLoading;
 
@@ -86,20 +86,19 @@ export default function DraftPage() {
       (league.settings.benchSlots || 0)
     : 0;
 
-  console.log(draftedPlayers);
-
   // Connect PartySocket and set up listeners
   useEffect(() => {
     async function connectPartySocket() {
       const token = await getToken();
+      console.log("token", token);
       const socket = new PartySocket({
         host: "localhost:1999",
+        party: "draft",
         room: league_id as string,
         query: { token },
       });
       setPartySocket(socket);
 
-      socket.send("Hello everyone");
       socket.addEventListener("message", (e) => {
         let rawData = e.data;
         if (rawData instanceof ArrayBuffer) {
@@ -113,12 +112,13 @@ export default function DraftPage() {
             setDraftState(league_id as string, message.data);
           }
         }
-        // Listen for a real-time state update (e.g., after 'startDraft')
         if (message.type === "stateUpdate" && message.data) {
           setDraftState(league_id as string, message.data);
         }
-        // Optionally, handle a specific 'draftStarted' event
         if (message.type === "draftStarted" && message.data) {
+          setDraftState(league_id as string, message.data);
+        }
+        if (message.type === "draftPaused" && message.data) {
           setDraftState(league_id as string, message.data);
         }
       });
@@ -219,20 +219,26 @@ export default function DraftPage() {
     }
   }, [hasInitialized, partySocket, isAllDataReady]);
 
-  // Handler for Start Draft button
-  const handleStartDraft = () => {
+  const handleStartDraft = (): void => {
     if (partySocket) {
+      console.log("sending startDraft");
       partySocket.send(JSON.stringify({ type: "startDraft" }));
+    }
+  };
+
+  const handlePauseDraft = (): void => {
+    if (partySocket) {
+      partySocket.send(JSON.stringify({ type: "pauseDraft" }));
     }
   };
 
   if (isLoadingData)
     return (
       <div className="flex justify-center items-center h-screen text-white">
-        <Loader2 className="animate-spin mr-2" /> Loading data...
+        <Loader2 className="animate-spin mr-2" /> Setting up draft...
       </div>
     );
-  if (isDataLoadingError)
+  if (isDataError)
     return (
       <div>
         Error:{" "}
@@ -251,23 +257,15 @@ export default function DraftPage() {
       </div>
     );
 
+  console.log({ draftState });
+
   return (
     <div>
-      {/* Start Draft Button */}
-      <div className="mb-4">
-        <button
-          className="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800"
-          onClick={handleStartDraft}
-          disabled={draftState?.draftStarted}
-        >
-          Start Draft
-        </button>
-      </div>
-      {draftState ? (
-        <pre className="text-white">{JSON.stringify(draftState, null, 2)}</pre>
-      ) : (
-        <p className="text-white">Waiting for server state...</p>
-      )}
+      <AdminControls
+        draftState={draftState as DraftRoomState}
+        handleStartDraft={handleStartDraft}
+        handlePauseDraft={handlePauseDraft}
+      />
     </div>
   );
 }

@@ -45,28 +45,6 @@ export type DraftRoomState = {
   teams: Record<string, TeamDraftState>;
 };
 
-function createTeamDraftState(
-  teamId: string,
-  startingBudget: number,
-  totalRosterSpots: number,
-  keepers: PlayerDrafted[]
-): TeamDraftState {
-  const keeperCost = keepers.reduce((sum, p) => sum + p.cost, 0);
-  const remainingBudget = startingBudget - keeperCost;
-  const remainingRosterSpots = totalRosterSpots - keepers.length;
-  const maxBid = remainingBudget - (remainingRosterSpots - 1);
-
-  return {
-    teamId,
-    startingBudget,
-    totalRosterSpots,
-    remainingBudget,
-    remainingRosterSpots,
-    playersDrafted: keepers,
-    maxBid,
-  };
-}
-
 class PartyRoom implements Party.Server {
   static async onBeforeConnect(request: Party.Request, lobby: Party.Lobby) {
     try {
@@ -133,6 +111,15 @@ class PartyRoom implements Party.Server {
           };
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
+          );
+          break;
+        case "pauseDraft":
+          this.state = {
+            ...this.state,
+            draftStarted: false,
+          };
+          this.room.broadcast(
+            JSON.stringify({ type: "draftPaused", data: this.state })
           );
           break;
         default:
