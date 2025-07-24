@@ -43,6 +43,12 @@ export type DraftRoomState = {
   nominationOrder: string[];
   currentNominationIndex: number;
   teams: Record<string, TeamDraftState>;
+  // New: Track the last 10 bids
+  bidHistory: Array<{
+    amount: number;
+    teamId: string;
+    timestamp: string;
+  }>;
 };
 
 class PartyRoom implements Party.Server {
@@ -76,6 +82,7 @@ class PartyRoom implements Party.Server {
     nominationOrder: [],
     currentNominationIndex: 0,
     teams: {},
+    bidHistory: [], // New: initialize as empty array
   };
 
   // Track connected user IDs (owner IDs)
@@ -138,6 +145,57 @@ class PartyRoom implements Party.Server {
             JSON.stringify({ type: "draftPaused", data: this.state })
           );
           break;
+        case "nominatePlayer": {
+          // message.data: { teamId, amount, player: { id, firstName, lastName, team, position } }
+          const { teamId, amount, player } = message.data;
+          this.state = {
+            ...this.state,
+            nominatedPlayer: {
+              id: player.id,
+              name: player.firstName + " " + player.lastName,
+              team: player.team,
+              position: player.position,
+            },
+            currentBid: {
+              amount,
+              teamId,
+            },
+            bidHistory: [], // Clear bid history on new nomination
+            auctionPhase: "idle",
+          };
+          this.room.broadcast(
+            JSON.stringify({ type: "stateUpdate", data: this.state })
+          );
+          break;
+        }
+        case "bid": {
+          // message.data: { teamId, amount }
+          const { teamId, amount } = message.data;
+          // Only allow if amount is higher than currentBid (or minBid)
+          const minBid = this.state.currentBid?.amount
+            ? this.state.currentBid.amount + 1
+            : 1;
+          if (amount < minBid) {
+            // Ignore invalid bid
+            break;
+          }
+          // Add to bidHistory (keep last 10)
+          const newBid = {
+            amount,
+            teamId,
+            timestamp: new Date().toISOString(),
+          };
+          const newBidHistory = [...this.state.bidHistory, newBid].slice(-10);
+          this.state = {
+            ...this.state,
+            currentBid: { amount, teamId },
+            bidHistory: newBidHistory,
+          };
+          this.room.broadcast(
+            JSON.stringify({ type: "stateUpdate", data: this.state })
+          );
+          break;
+        }
         default:
           conn.send(JSON.stringify({ echo: message }));
           break;

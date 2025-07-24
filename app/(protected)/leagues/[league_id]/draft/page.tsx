@@ -288,6 +288,8 @@ export default function DraftPage() {
         <AuctionStage
           draftState={draftState as DraftRoomState}
           teams={teams as Team[]}
+          partySocket={partySocket}
+          user={user}
         />
       </div>
       <div className="my-6">
@@ -306,7 +308,13 @@ export default function DraftPage() {
                 onlineUserIds={onlineUserIds}
               />
               <div className="col-span-2">
-                <PlayersTable leagueId={league_id as string} />
+                <PlayersTable
+                  leagueId={league_id as string}
+                  partySocket={partySocket}
+                  user={user}
+                  teams={teams as Team[]}
+                  draftState={draftState as DraftRoomState}
+                />
               </div>
             </div>
           </TabsContent>

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Minus, Plus } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -19,9 +19,15 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import PartySocket from "partysocket";
+import { Team } from "@/stores/teamStore";
 
 interface PlayersTableProps {
   leagueId: string;
+  partySocket: PartySocket | null;
+  user: { id: string } | null;
+  teams: Team[];
+  draftState: import("@/party").DraftRoomState | null;
 }
 
 const PAGE_SIZE = 50;
@@ -36,7 +42,86 @@ const POSITION_OPTIONS = [
   { value: "D/ST", label: "D/ST" },
 ];
 
-const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
+const PlayerRow = React.memo(function PlayerRow({
+  player,
+  partySocket,
+  user,
+  userTeam,
+  maxBid,
+}: {
+  player: Player;
+  partySocket: PartySocket | null;
+  user: { id: string } | null;
+  userTeam: Team | null;
+  maxBid: number;
+}) {
+  const minAmount = 1;
+  const [amount, setAmount] = useState(minAmount);
+
+  return (
+    <TableRow key={player.id}>
+      <TableCell>{player.firstName}</TableCell>
+      <TableCell>{player.lastName}</TableCell>
+      <TableCell>{player.position}</TableCell>
+      <TableCell>{player.team || "FA"}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            onClick={() => setAmount((prev) => Math.max(minAmount, prev - 1))}
+            disabled={amount <= minAmount}
+          >
+            <Minus className="w-4 h-4 text-emerald-100" />
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md"
+            disabled={!partySocket || !user || !userTeam}
+            onClick={() => {
+              if (!partySocket || !user || !userTeam) return;
+              partySocket.send(
+                JSON.stringify({
+                  type: "nominatePlayer",
+                  data: {
+                    teamId: userTeam.id,
+                    amount,
+                    player: {
+                      id: player.id,
+                      firstName: player.firstName,
+                      lastName: player.lastName,
+                      team: player.team,
+                      position: player.position,
+                    },
+                  },
+                })
+              );
+            }}
+          >
+            Nominate for ${amount}
+          </Button>
+          <Button
+            size="sm"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            onClick={() => setAmount((prev) => prev + 1)}
+            disabled={amount >= maxBid}
+          >
+            <Plus className="w-4 h-4 text-emerald-100" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+const PlayersTable: React.FC<PlayersTableProps> = ({
+  leagueId,
+  partySocket,
+  user,
+  teams,
+  draftState,
+}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -47,6 +132,19 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
     PAGE_SIZE
   );
   const draftedPlayers = useDraftedPlayersAuto(leagueId);
+
+  // Find the current user's team for this league
+  const userTeam = React.useMemo(() => {
+    if (!user) return null;
+    return teams.find((t) => t.ownerId === user.id) || null;
+  }, [teams, user]);
+
+  // Get maxBid for the current user's team from draftState
+  const maxBid = React.useMemo(() => {
+    if (!userTeam || !draftState) return 1;
+    const teamState = draftState.teams[userTeam.id];
+    return teamState?.maxBid ?? 1;
+  }, [userTeam, draftState]);
 
   // Debounce search input
   useEffect(() => {
@@ -192,23 +290,18 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {availablePlayers.map((player) => (
-            <TableRow key={player.id}>
-              <TableCell>{player.firstName}</TableCell>
-              <TableCell>{player.lastName}</TableCell>
-              <TableCell>{player.position}</TableCell>
-              <TableCell>{player.team || "FA"}</TableCell>
-              <TableCell>
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md"
-                >
-                  Nominate
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {availablePlayers.map((player) => {
+            return (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                partySocket={partySocket}
+                user={user}
+                userTeam={userTeam}
+                maxBid={maxBid}
+              />
+            );
+          })}
         </TableBody>
       </Table>
       {/* Pagination Controls (only show if not searching) */}

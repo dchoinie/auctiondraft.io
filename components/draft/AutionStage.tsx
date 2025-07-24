@@ -4,10 +4,13 @@ import { Team } from "@/stores/teamStore";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import PartySocket from "partysocket";
 
 interface AuctionStageProps {
   draftState: DraftRoomState | null;
   teams: Team[];
+  partySocket: PartySocket | null;
+  user: { id: string } | null;
 }
 
 // Mocked bid history for now
@@ -19,23 +22,51 @@ const mockBidHistory = [
   { amount: 20, teamName: "Team Epsilon", timestamp: "2024-05-01 12:00:50" },
 ];
 
-export default function AuctionStage({ draftState, teams }: AuctionStageProps) {
+export default function AuctionStage({
+  draftState,
+  teams,
+  partySocket,
+  user,
+}: AuctionStageProps) {
+  // Destructure all used properties from draftState
+  const { nominatedPlayer, currentBid } = draftState || {};
+
   // Find the team name for the current highest bid
   let highestBidTeamName = "-";
-  const minBid = draftState?.currentBid?.amount
-    ? draftState.currentBid.amount + 1
-    : 1;
+  const minBid = currentBid?.amount ? currentBid.amount + 1 : 1;
   const [bidAmount, setBidAmount] = useState(minBid);
 
   // Keep bidAmount in sync with minBid if nominated player or currentBid changes
   React.useEffect(() => {
     setBidAmount(minBid);
-  }, [minBid, draftState?.nominatedPlayer?.id]);
+  }, [minBid, nominatedPlayer?.id]);
 
-  if (draftState?.currentBid?.teamId) {
-    const team = teams.find((t) => t.id === draftState.currentBid?.teamId);
+  if (currentBid?.teamId) {
+    const team = teams.find((t) => t.id === currentBid.teamId);
     highestBidTeamName = team?.name || "-";
   }
+
+  // Find the current user's team
+  const userTeam = React.useMemo(() => {
+    if (!user) return null;
+    return teams.find((t) => t.ownerId === user.id) || null;
+  }, [teams, user]);
+
+  // Determine if the bid button should be enabled
+  const canBid = !!(
+    partySocket &&
+    user &&
+    userTeam &&
+    nominatedPlayer &&
+    bidAmount >= minBid
+  );
+
+  // Use actual bid history from draftState
+  const bidHistory = draftState?.bidHistory || [];
+
+  // Helper to get team name by id
+  const getTeamName = (teamId: string) =>
+    teams.find((t) => t.id === teamId)?.name || "-";
 
   return (
     <div className="mb-8 w-full p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
@@ -45,12 +76,11 @@ export default function AuctionStage({ draftState, teams }: AuctionStageProps) {
           <div className="text-2xl font-semibold text-emerald-300 mb-1">
             Nominated Player
           </div>
-          {draftState?.nominatedPlayer ? (
+          {nominatedPlayer ? (
             <div className="text-3xl md:text-4xl text-yellow-100 font-extrabold drop-shadow-lg">
-              {draftState.nominatedPlayer.name}{" "}
+              {nominatedPlayer.name}{" "}
               <span className="text-yellow-400 text-xl md:text-2xl font-semibold">
-                ({draftState.nominatedPlayer.team} -{" "}
-                {draftState.nominatedPlayer.position})
+                ({nominatedPlayer.team} - {nominatedPlayer.position})
               </span>
             </div>
           ) : (
@@ -64,9 +94,9 @@ export default function AuctionStage({ draftState, teams }: AuctionStageProps) {
           <div className="text-2xl font-semibold text-emerald-300 mb-1">
             Current Highest Bid
           </div>
-          {draftState?.currentBid ? (
+          {currentBid ? (
             <div className="text-4xl md:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
-              ${draftState.currentBid.amount}
+              ${currentBid.amount}
               <span className="ml-3 text-yellow-400 text-xl md:text-2xl font-semibold">
                 by {highestBidTeamName}
               </span>
@@ -89,7 +119,19 @@ export default function AuctionStage({ draftState, teams }: AuctionStageProps) {
           </Button>
           <Button
             className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-8 py-3 text-lg"
-            disabled
+            disabled={!canBid}
+            onClick={() => {
+              if (!canBid) return;
+              partySocket.send(
+                JSON.stringify({
+                  type: "bid",
+                  data: {
+                    teamId: userTeam.id,
+                    amount: bidAmount,
+                  },
+                })
+              );
+            }}
           >
             Bid ${bidAmount}
           </Button>
@@ -104,36 +146,46 @@ export default function AuctionStage({ draftState, teams }: AuctionStageProps) {
       </div>
       {/* Bid History */}
       <div className="mb-6">
-        <div className="text-base font-semibold text-emerald-300 mb-2">
-          Bid History
+        <div className="text-base font-semibold text-yellow-200 mb-2">
+          Bid History (Last 5)
         </div>
-        <div className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 rounded-lg p-2 md:p-3">
-          {mockBidHistory.length === 0 ? (
+        <div className="bg-yellow-950/60 rounded-lg p-2 md:p-3">
+          {bidHistory.length === 0 ? (
             <div className="text-yellow-300 italic text-sm">No bids yet.</div>
           ) : (
             <ul className="divide-y divide-yellow-800">
-              {mockBidHistory.map((bid, idx) => {
-                // Format timestamp to only show time (HH:mm:ss)
-                let timeOnly = bid.timestamp;
-                try {
-                  const dateObj = new Date(bid.timestamp);
-                  timeOnly = dateObj.toLocaleTimeString([], { hour12: false });
-                } catch {}
-                return (
-                  <li
-                    key={idx}
-                    className="py-0.5 flex justify-between text-yellow-100 text-xs md:text-sm"
-                  >
-                    <span>
-                      <span className="font-mono font-bold">${bid.amount}</span>{" "}
-                      by <span className="font-semibold">{bid.teamName}</span>
-                    </span>
-                    <span className="text-yellow-400 font-mono">
-                      {timeOnly}
-                    </span>
-                  </li>
-                );
-              })}
+              {bidHistory
+                .slice(-5)
+                .reverse()
+                .map((bid, idx) => {
+                  // Format timestamp to only show time (HH:mm:ss)
+                  let timeOnly = bid.timestamp;
+                  try {
+                    const dateObj = new Date(bid.timestamp);
+                    timeOnly = dateObj.toLocaleTimeString([], {
+                      hour12: false,
+                    });
+                  } catch {}
+                  return (
+                    <li
+                      key={idx}
+                      className="py-0.5 flex justify-between text-yellow-100 text-xs md:text-sm"
+                    >
+                      <span>
+                        <span className="font-mono font-bold">
+                          ${bid.amount}
+                        </span>{" "}
+                        by{" "}
+                        <span className="font-semibold">
+                          {getTeamName(bid.teamId)}
+                        </span>
+                      </span>
+                      <span className="text-yellow-400 font-mono">
+                        {timeOnly}
+                      </span>
+                    </li>
+                  );
+                })}
             </ul>
           )}
         </div>
