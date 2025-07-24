@@ -27,6 +27,7 @@ interface PlayersPageData {
 interface PlayersState {
   // State
   pagesCache: Record<number, PlayersPageData>; // page -> data
+  playerCache: Record<string, Player>; // id -> Player
   loading: boolean;
   error: string | null;
   lastFetch: number | null; // Global last fetch timestamp
@@ -35,7 +36,9 @@ interface PlayersState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   fetchPlayers: (page: number, limit?: number) => Promise<void>;
+  fetchPlayerById: (id: string) => Promise<void>;
   getPlayersPage: (page: number) => PlayersPageData | null;
+  getPlayerById: (id: string) => Player | undefined;
   clearCache: () => void;
   isPageCached: (page: number, maxAge?: number) => boolean;
 }
@@ -48,6 +51,7 @@ export const usePlayersStore = create<PlayersState>()(
     (set, get) => ({
       // Initial state
       pagesCache: {},
+      playerCache: {},
       loading: false,
       error: null,
       lastFetch: null,
@@ -99,12 +103,45 @@ export const usePlayersStore = create<PlayersState>()(
         }
       },
 
+      fetchPlayerById: async (id: string) => {
+        const state = get();
+        if (state.playerCache[id]) {
+          return;
+        }
+        try {
+          set({ loading: true, error: null });
+          const response = await fetch(`/api/players/${id}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch player by id");
+          }
+          const data = await response.json();
+          set((state) => ({
+            playerCache: {
+              ...state.playerCache,
+              [id]: data.player,
+            },
+            loading: false,
+          }));
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "An error occurred",
+            loading: false,
+          });
+        }
+      },
+
       getPlayersPage: (page: number) => {
         const state = get();
         return state.pagesCache[page] || null;
       },
 
-      clearCache: () => set({ pagesCache: {}, lastFetch: null }),
+      getPlayerById: (id: string) => {
+        const state = get();
+        return state.playerCache[id];
+      },
+
+      clearCache: () =>
+        set({ pagesCache: {}, playerCache: {}, lastFetch: null }),
 
       isPageCached: (page: number, maxAge = CACHE_DURATION) => {
         const state = get();

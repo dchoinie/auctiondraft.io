@@ -12,6 +12,7 @@ import {
   DraftedPlayer,
   useDraftedPlayersAuto,
 } from "@/stores/draftedPlayersStore";
+import { usePlayersStore } from "@/stores/playersStore";
 import { Loader2 } from "lucide-react";
 import Controls from "@/components/draft/Controls";
 import { DraftRoomState, TeamDraftState } from "@/party";
@@ -37,6 +38,32 @@ export default function DraftPage() {
   } = useLeagueKeepers(league_id as string);
   const draftedPlayers = useDraftedPlayersAuto(league_id as string);
   const [draftState, setDraftState] = useState<DraftRoomState | null>(null);
+  const playersStore = usePlayersStore();
+
+  // Use stable selectors for Zustand store methods
+  const getPlayerById = usePlayersStore((state) => state.getPlayerById);
+  const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
+  const playerCache = usePlayersStore((state) => state.playerCache);
+
+  // Helper to get all unique playerIds from draftedPlayers and keepers
+  const allDraftedAndKeeperPlayerIds = React.useMemo(() => {
+    const draftedIds = draftedPlayers.map((p) => p.playerId);
+    const keeperIds = (keepers || []).map((k) => k.playerId);
+    return Array.from(new Set([...draftedIds, ...keeperIds]));
+  }, [draftedPlayers, keepers]);
+
+  // Fetch player data for all drafted/keeper playerIds if not already cached
+  useEffect(() => {
+    async function fetchMissingPlayers() {
+      const missingIds = allDraftedAndKeeperPlayerIds.filter(
+        (id) => !getPlayerById(id)
+      );
+      await Promise.all(missingIds.map((id) => fetchPlayerById(id)));
+    }
+    if (allDraftedAndKeeperPlayerIds.length > 0) {
+      fetchMissingPlayers();
+    }
+  }, [allDraftedAndKeeperPlayerIds, getPlayerById, fetchPlayerById]);
 
   const league = leagues.find((league: League) => league.id === league_id);
   const isDataLoadingError =
@@ -116,11 +143,15 @@ export default function DraftPage() {
                   remainingRosterSpots,
                   playersDrafted: draftedPlayers
                     .filter((p: DraftedPlayer) => p.teamId === team.id)
-                    .map((p: DraftedPlayer) => ({
-                      playerId: p.playerId,
-                      name: p.playerFirstName + " " + p.playerLastName,
-                      cost: p.draftPrice,
-                    })),
+                    .map((p: DraftedPlayer) => {
+                      const player = playersStore.getPlayerById(p.playerId);
+                      return {
+                        playerId: p.playerId,
+                        name: p.playerFirstName + " " + p.playerLastName,
+                        cost: p.draftPrice,
+                        position: player?.position ?? null,
+                      };
+                    }),
                   maxBid: remainingBudget - (remainingRosterSpots - 1),
                 };
                 return acc;
@@ -132,7 +163,15 @@ export default function DraftPage() {
       });
     }
     connectPartySocket();
-  }, [league_id, getToken, draftedPlayers, teams, keepers, totalRosterSpots]);
+  }, [
+    league_id,
+    getToken,
+    draftedPlayers,
+    teams,
+    keepers,
+    totalRosterSpots,
+    playerCache,
+  ]);
 
   if (isLoadingData)
     return (
