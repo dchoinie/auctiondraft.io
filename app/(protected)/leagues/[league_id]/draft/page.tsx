@@ -21,6 +21,7 @@ import TeamTracker from "@/components/draft/TeamTracker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
+import AuctionStage from "@/components/draft/AutionStage";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -283,7 +284,13 @@ export default function DraftPage() {
           handlePauseDraft={handlePauseDraft}
         />
       </div>
-      <div className="mb-6">
+      <div className="my-6">
+        <AuctionStage
+          draftState={draftState as DraftRoomState}
+          teams={teams as Team[]}
+        />
+      </div>
+      <div className="my-6">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <div className="flex justify-center my-6">
             <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300">

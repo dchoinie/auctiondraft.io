@@ -181,7 +181,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ leagueId }) => {
           </div>
         </div>
       </div>
-      <Table className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 shadow-md">
+      <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md">
         <TableHeader>
           <TableRow>
             <TableHead className="text-gray-50">First Name</TableHead>
