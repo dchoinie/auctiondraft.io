@@ -20,6 +20,7 @@ import AdminControls from "@/components/draft/AdminControls";
 import TeamTracker from "@/components/draft/TeamTracker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Rosters from "@/components/draft/Rosters";
+import PlayersTable from "@/components/draft/PlayersTable";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -291,14 +292,14 @@ export default function DraftPage() {
             </TabsList>
           </div>
           <TabsContent value="draft">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-12">
               <TeamTracker
                 draftState={draftState as DraftRoomState}
                 teams={teams as Team[]}
                 onlineUserIds={onlineUserIds}
               />
-              <div className="col-span-2 border border-red-50">
-                Players table
+              <div className="col-span-2">
+                <PlayersTable leagueId={league_id as string} />
               </div>
             </div>
           </TabsContent>

@@ -10,10 +10,18 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = (page - 1) * limit;
 
-    // Get total count of players
+    const search = searchParams.get("search")?.trim() || "";
+
+    let whereClause = undefined;
+    if (search) {
+      whereClause = sql`LOWER(${nflPlayers.firstName}) LIKE LOWER('%' || ${search} || '%') OR LOWER(${nflPlayers.lastName}) LIKE LOWER('%' || ${search} || '%')`;
+    }
+
+    // Get total count with search filter
     const totalCountResult = await db
       .select({ count: sql<number>`count(*)` })
-      .from(nflPlayers);
+      .from(nflPlayers)
+      .where(whereClause ? whereClause : undefined);
     const totalCount = totalCountResult[0].count;
 
     // Get paginated players, sorted by search_rank with players on teams first
@@ -27,6 +35,7 @@ export async function GET(request: NextRequest) {
         searchRank: nflPlayers.searchRank,
       })
       .from(nflPlayers)
+      .where(whereClause ? whereClause : undefined)
       .orderBy(
         // Players on teams first, then players without teams
         sql`CASE 

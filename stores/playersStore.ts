@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import React from "react"; // Added for usePlayersSearch hook
 
 export interface Player {
   id: string;
@@ -184,4 +185,37 @@ export const usePlayers = (page: number = 1, limit: number = DEFAULT_LIMIT) => {
     fetchPlayersPage,
     clearCache: store.clearCache,
   };
+};
+
+// Fetch players by search query (across all pages, up to a limit)
+export const usePlayersSearch = (search: string, limit: number = 200) => {
+  const [results, setResults] = React.useState<Player[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!search) {
+      setResults([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    fetch(`/api/players?search=${encodeURIComponent(search)}&limit=${limit}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to search players");
+        return res.json();
+      })
+      .then((data) => {
+        setResults(data.players || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Unknown error");
+        setLoading(false);
+      });
+  }, [search, limit]);
+
+  return { players: results, loading, error };
 };
