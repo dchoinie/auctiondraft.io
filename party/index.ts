@@ -113,15 +113,32 @@ class PartyRoom implements Party.Server {
 
     conn.addEventListener("message", (event) => {
       let rawData = event.data;
-
       if (rawData instanceof ArrayBuffer) {
-        rawData = new TextDecoder().decode(rawData); // Convert buffer to string
+        rawData = new TextDecoder().decode(rawData);
       }
-
       const message = JSON.parse(rawData as string);
 
-      // Now you're safe to use message
-      conn.send(JSON.stringify({ echo: message }));
+      switch (message.type) {
+        case "init":
+          this.state = message.data;
+          console.log("init", this.state);
+          this.room.broadcast(
+            JSON.stringify({ type: "stateUpdate", data: this.state })
+          );
+          break;
+        case "startDraft":
+          this.state = {
+            ...this.state,
+            draftStarted: true,
+          };
+          this.room.broadcast(
+            JSON.stringify({ type: "stateUpdate", data: this.state })
+          );
+          break;
+        default:
+          conn.send(JSON.stringify({ echo: message }));
+          break;
+      }
     });
   }
 }

@@ -107,8 +107,6 @@ export async function GET(req: NextRequest) {
       },
     }));
 
-    console.log("Found leagues:", formattedLeagues);
-
     return NextResponse.json({
       success: true,
       leagues: formattedLeagues,
