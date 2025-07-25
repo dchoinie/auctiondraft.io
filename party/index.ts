@@ -121,12 +121,8 @@ class PartyRoom implements Party.Server {
 
       switch (message.type) {
         case "init":
-          // Only allow init if the state is still the default/empty state
-          if (
-            !this.state.draftStarted &&
-            !this.state.nominatedPlayer &&
-            Object.keys(this.state.teams).length === 0
-          ) {
+          // Only allow init if the state is still the default/empty state (draft not started, no nomination yet)
+          if (!this.state.draftStarted && !this.state.nominatedPlayer) {
             this.state = message.data;
             this.room.broadcast(
               JSON.stringify({ type: "stateUpdate", data: this.state })

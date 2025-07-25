@@ -1,6 +1,7 @@
 import { DraftRoomState } from "@/party";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface Team {
   id: string;
@@ -21,7 +22,13 @@ export default function TeamTracker({
   teams,
   onlineUserIds,
 }: TeamTrackerProps) {
-  if (!draftState) return null;
+  if (!draftState) {
+    return (
+      <div className="flex justify-center items-center h-full text-emerald-200">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

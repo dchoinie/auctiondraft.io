@@ -38,31 +38,7 @@ export default function AdminControls({
   handlePauseDraft,
 }: AdminControlsProps) {
   const [controlsVisible, setControlsVisible] = React.useState(true);
-  if (!draftState) {
-    return (
-      <Card className="backdrop-blur-md bg-emerald-900/60 border-emerald-400 shadow-xl p-6 rounded-xl w-full mx-auto relative">
-        <div className="absolute top-4 right-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="text-gray-50" size={22} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setControlsVisible((v) => !v)}>
-                {controlsVisible ? "Hide controls" : "Show admin controls"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <h2 className="text-2xl font-bold text-emerald-300 mb-1">
-          Admin Controls
-        </h2>
-        <p className="text-emerald-100 text-sm mb-4">Loading draft state...</p>
-      </Card>
-    );
-  }
-  const { draftStarted } = draftState;
+  const { draftStarted } = draftState || {};
   return (
     <Card
       className={cn(

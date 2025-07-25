@@ -50,6 +50,8 @@ export default function DraftPage() {
   const playersStore = usePlayersStore();
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("draft");
+  const [awaitingInitConfirmation, setAwaitingInitConfirmation] =
+    useState(false);
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
   const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
@@ -96,7 +98,6 @@ export default function DraftPage() {
   useEffect(() => {
     async function connectPartySocket() {
       const token = await getToken();
-      console.log("token", token);
       const socket = new PartySocket({
         host: "localhost:1999",
         party: "draft",
@@ -112,11 +113,8 @@ export default function DraftPage() {
         }
         const message = JSON.parse(rawData as string);
 
-        if (message.type === "init") {
-          // Only set state if it's not the empty default
-          if (message.data && Object.keys(message.data.teams).length > 0) {
-            setDraftState(league_id as string, message.data);
-          }
+        if (message.type === "init" && message.data) {
+          setDraftState(league_id as string, message.data);
         }
         if (message.type === "stateUpdate" && message.data) {
           setDraftState(league_id as string, message.data);
@@ -133,10 +131,22 @@ export default function DraftPage() {
         ) {
           setOnlineUserIds(message.userIds);
         }
+        // Awaiting init confirmation: send startDraft after state is hydrated
+        if (
+          awaitingInitConfirmation &&
+          (message.type === "stateUpdate" || message.type === "init") &&
+          message.data &&
+          message.data.teams &&
+          Object.keys(message.data.teams).length > 0
+        ) {
+          socket.send(JSON.stringify({ type: "startDraft" }));
+          setAwaitingInitConfirmation(false);
+        }
       });
     }
     connectPartySocket();
-  }, [league_id, getToken, setDraftState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league_id, getToken, setDraftState, awaitingInitConfirmation]);
 
   // Check if all data is loaded and ready
   const isAllDataReady = React.useMemo(() => {
@@ -169,72 +179,68 @@ export default function DraftPage() {
     getPlayerById,
   ]);
 
-  // Send init message only once when all data is loaded and stable
-  useEffect(() => {
-    if (!hasInitialized && partySocket && isAllDataReady) {
-      // Build the draft state locally (same logic as in your message handler)
-      const keeperCostByTeam: Record<string, number> = {};
-      (keepers || []).forEach((keeper) => {
-        keeperCostByTeam[keeper.teamId] =
-          (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
-      });
+  // Store the draft state to send on start
+  const buildInitialDraftState = () => {
+    const keeperCostByTeam: Record<string, number> = {};
+    (keepers || []).forEach((keeper) => {
+      keeperCostByTeam[keeper.teamId] =
+        (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
+    });
+    return {
+      draftStarted: false,
+      currentNominatorTeamId:
+        teams.find((team: Team) => team.draftOrder === 1)?.id || null,
+      nominatedPlayer: null,
+      startingBidAmount: 0,
+      currentBid: null,
+      bidTimer: league?.settings.timerEnabled ?? 0,
+      bidTimerExpiresAt: null,
+      auctionPhase: "idle" as const,
+      nominationOrder: teams
+        .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
+        .map((team: Team) => team.id),
+      currentNominationIndex: 0,
+      teams: teams.reduce(
+        (acc, team) => {
+          const keeperCost = keeperCostByTeam[team.id] || 0;
+          const draftedCount = draftedPlayers.filter(
+            (p: DraftedPlayer) => p.teamId === team.id
+          ).length;
+          const remainingBudget = team.budget - keeperCost;
+          const remainingRosterSpots = totalRosterSpots - draftedCount;
+          acc[team.id] = {
+            teamId: team.id,
+            startingBudget: team.budget,
+            totalRosterSpots: totalRosterSpots,
+            remainingBudget,
+            remainingRosterSpots,
+            playersDrafted: draftedPlayers
+              .filter((p: DraftedPlayer) => p.teamId === team.id)
+              .map((p: DraftedPlayer) => {
+                const player = playersStore.getPlayerById(p.playerId);
+                return {
+                  playerId: p.playerId,
+                  name: p.playerFirstName + " " + p.playerLastName,
+                  cost: p.draftPrice,
+                  position: player?.position ?? null,
+                };
+              }),
+            maxBid: remainingBudget - (remainingRosterSpots - 1),
+          };
+          return acc;
+        },
+        {} as Record<string, TeamDraftState>
+      ),
+    };
+  };
 
-      const newDraftState = {
-        draftStarted: false,
-        currentNominatorTeamId:
-          teams.find((team: Team) => team.draftOrder === 1)?.id || null,
-        nominatedPlayer: null,
-        startingBidAmount: 0,
-        currentBid: null,
-        bidTimer: league?.settings.timerEnabled ?? 0,
-        bidTimerExpiresAt: null,
-        auctionPhase: "idle" as const,
-        nominationOrder: teams
-          .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
-          .map((team: Team) => team.id),
-        currentNominationIndex: 0,
-        teams: teams.reduce(
-          (acc, team) => {
-            const keeperCost = keeperCostByTeam[team.id] || 0;
-            const draftedCount = draftedPlayers.filter(
-              (p: DraftedPlayer) => p.teamId === team.id
-            ).length;
-            const remainingBudget = team.budget - keeperCost;
-            const remainingRosterSpots = totalRosterSpots - draftedCount;
-            acc[team.id] = {
-              teamId: team.id,
-              startingBudget: team.budget,
-              totalRosterSpots: totalRosterSpots,
-              remainingBudget,
-              remainingRosterSpots,
-              playersDrafted: draftedPlayers
-                .filter((p: DraftedPlayer) => p.teamId === team.id)
-                .map((p: DraftedPlayer) => {
-                  const player = playersStore.getPlayerById(p.playerId);
-                  return {
-                    playerId: p.playerId,
-                    name: p.playerFirstName + " " + p.playerLastName,
-                    cost: p.draftPrice,
-                    position: player?.position ?? null,
-                  };
-                }),
-              maxBid: remainingBudget - (remainingRosterSpots - 1),
-            };
-            return acc;
-          },
-          {} as Record<string, TeamDraftState>
-        ),
-      };
-
+  // Only send 'init' when Start Draft is clicked
+  const handleStartDraft = (): void => {
+    if (partySocket && isAllDataReady) {
+      const newDraftState = buildInitialDraftState();
+      setAwaitingInitConfirmation(true);
       partySocket.send(JSON.stringify({ type: "init", data: newDraftState }));
       setHasInitialized(true);
-    }
-  }, [hasInitialized, partySocket, isAllDataReady]);
-
-  const handleStartDraft = (): void => {
-    if (partySocket) {
-      console.log("sending startDraft");
-      partySocket.send(JSON.stringify({ type: "startDraft" }));
     }
   };
 
@@ -247,6 +253,28 @@ export default function DraftPage() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
   };
+
+  // Show waiting message if draft hasn't started
+  if (!draftState?.draftStarted) {
+    return (
+      <>
+        <AdminControls
+          draftState={draftState as DraftRoomState}
+          handleStartDraft={handleStartDraft}
+          handlePauseDraft={handlePauseDraft}
+        />
+        <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
+          <div className="text-2xl font-bold mb-4">
+            Waiting for draft to start...
+          </div>
+          <Loader2 className="animate-spin w-8 h-8 mb-2" />
+          <div className="text-sm">
+            The draft will begin once the admin clicks Start Draft.
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (isLoadingData)
     return (
@@ -262,7 +290,6 @@ export default function DraftPage() {
           .map((err) => {
             if (!err) return null;
             if (typeof err === "string") return err;
-            // If it's an object (e.g., Record<string, string | null>), join its values
             if (typeof err === "object") {
               return Object.values(err).filter(Boolean).join(", ");
             }
@@ -272,8 +299,6 @@ export default function DraftPage() {
           .join(" | ")}
       </div>
     );
-
-  console.log({ draftState });
 
   return (
     <>
