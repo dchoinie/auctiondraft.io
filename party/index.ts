@@ -1,10 +1,7 @@
 import type * as Party from "partykit/server";
-import { createClerkClient } from "@clerk/backend";
-
-const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY,
-  publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-});
+import { db } from "@/lib/db";
+import { draftStateHistory, draftedPlayers, keepers } from "@/app/schema";
+import { eq } from "drizzle-orm";
 
 // Types for team-level state
 export type PlayerDrafted = {
@@ -53,21 +50,15 @@ export type DraftRoomState = {
 
 class PartyRoom implements Party.Server {
   static async onBeforeConnect(request: Party.Request, lobby: Party.Lobby) {
-    try {
-      const token = new URL(request.url).searchParams.get("token") ?? "";
-      if (!token) throw new Error("No token provided");
-      const authRequest = new Request("http://localhost", {
-        headers: { Authorization: token },
-      });
-      const { isAuthenticated, toAuth } =
-        await clerkClient.authenticateRequest(authRequest);
-      if (!isAuthenticated) throw new Error("Invalid token");
-      const auth = toAuth();
-      request.headers.set("X-User-ID", auth.userId);
-      return request;
-    } catch (e) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    console.log("PartyKit: onBeforeConnect called - NO AUTH");
+    // Allow all connections without authentication
+    return request;
+  }
+
+  static async onBeforeRequest(request: Party.Request) {
+    console.log("PartyKit: onBeforeRequest called - NO AUTH");
+    // Allow all HTTP requests without authentication
+    return request;
   }
 
   state: DraftRoomState = {
@@ -82,37 +73,152 @@ class PartyRoom implements Party.Server {
     nominationOrder: [],
     currentNominationIndex: 0,
     teams: {},
-    bidHistory: [], // New: initialize as empty array
+    bidHistory: [],
   };
+  hydrated = false;
+  resetAllowed = false;
 
   // Track connected user IDs (owner IDs)
   connectedUserIds = new Set<string>();
 
+  countdownTimeout: NodeJS.Timeout | null = null;
+  countdownPhase: "goingOnce" | "goingTwice" | "sold" | null = null;
+
+  startAuctionCountdown() {
+    if (this.countdownTimeout) {
+      console.log("Countdown already running, ignoring trigger.");
+      return;
+    }
+    this.state = { ...this.state, auctionPhase: "goingOnce" };
+    this.room.broadcast(
+      JSON.stringify({ type: "stateUpdate", data: this.state })
+    );
+    this.countdownPhase = "goingOnce";
+    console.log("Auction phase: goingOnce");
+
+    this.countdownTimeout = setTimeout(() => {
+      this.state = { ...this.state, auctionPhase: "goingTwice" };
+      this.room.broadcast(
+        JSON.stringify({ type: "stateUpdate", data: this.state })
+      );
+      this.countdownPhase = "goingTwice";
+      console.log("Auction phase: goingTwice");
+
+      this.countdownTimeout = setTimeout(async () => {
+        this.state = { ...this.state, auctionPhase: "sold" };
+        this.room.broadcast(
+          JSON.stringify({ type: "stateUpdate", data: this.state })
+        );
+        this.countdownPhase = "sold";
+        this.countdownTimeout = null;
+        console.log("Auction phase: sold");
+        await this.handleSoldPhase();
+      }, 4000);
+    }, 4000);
+  }
+
+  clearCountdown() {
+    if (this.countdownTimeout) {
+      clearTimeout(this.countdownTimeout);
+      this.countdownTimeout = null;
+      this.countdownPhase = null;
+      console.log("Countdown cleared.");
+    }
+  }
+
+  async handleSoldPhase() {
+    // --- SOLD PHASE LOGIC ---
+    console.log("PartyKit: Sold phase - skipping API call for testing");
+    // Advance nomination
+    const nextNominationIndex =
+      (this.state.currentNominationIndex + 1) %
+      (this.state.nominationOrder.length || 1);
+    const nextNominatorTeamId =
+      this.state.nominationOrder[nextNominationIndex] || null;
+    this.state = {
+      ...this.state,
+      nominatedPlayer: null,
+      currentBid: null,
+      auctionPhase: "idle",
+      currentNominationIndex: nextNominationIndex,
+      currentNominatorTeamId: nextNominatorTeamId,
+      bidHistory: [],
+    };
+    this.room.broadcast(
+      JSON.stringify({ type: "stateUpdate", data: this.state })
+    );
+  }
+
+  async hydrateStateFromDB() {
+    const leagueId = this.room.id;
+    const latest = await db.query.draftStateHistory.findFirst({
+      where: (row, { eq }) => eq(row.leagueId, leagueId),
+      orderBy: (row, { desc }) => desc(row.createdAt),
+    });
+    if (latest) {
+      this.state = latest.draftState as DraftRoomState;
+      this.hydrated = true;
+      this.resetAllowed = false;
+    } else {
+      this.hydrated = false;
+      this.resetAllowed = true;
+    }
+  }
+  async saveSnapshot(eventType: string, eventData: unknown) {
+    await db.insert(draftStateHistory).values({
+      leagueId: this.room.id,
+      draftState: this.state,
+      eventType,
+      eventData,
+    });
+  }
+
   constructor(readonly room: Party.Room) {}
 
   onRequest(request: Party.Request) {
+    console.log("PartyKit: onRequest called for URL:", request.url);
     return new Response("PartyKit HTTP endpoint is running!", { status: 200 });
   }
 
-  onConnect(conn: Party.Connection, { request }: Party.ConnectionContext) {
-    const userId = request.headers.get("X-User-ID");
-    if (userId) {
-      this.connectedUserIds.add(userId);
-      this.broadcastUserList();
-    }
+  async onConnect(
+    conn: Party.Connection,
+    { request }: Party.ConnectionContext
+  ) {
+    console.log("PartyKit: onConnect called - NO AUTH");
+    try {
+      // Skip database hydration for now to test connection
+      console.log("PartyKit: Skipping DB hydration for testing");
+      this.hydrated = true;
+      this.resetAllowed = true;
 
-    conn.send(JSON.stringify({ type: "welcome", userId }));
-    conn.send(JSON.stringify({ type: "init", data: this.state }));
+      // Generate a simple connection ID for tracking
+      const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      this.connectedUserIds.add(connectionId);
+      this.broadcastUserList();
+      console.log("PartyKit: Connection added:", connectionId);
+
+      console.log("PartyKit: Sending welcome message...");
+      conn.send(JSON.stringify({ type: "welcome", connectionId }));
+      console.log("PartyKit: Sending init message...");
+      conn.send(JSON.stringify({ type: "init", data: this.state }));
+      console.log("PartyKit: Connection established successfully");
+    } catch (error) {
+      console.error("PartyKit: Error in onConnect:", error);
+    }
 
     // Clean up on disconnect
     conn.addEventListener("close", () => {
-      if (userId) {
-        this.connectedUserIds.delete(userId);
+      const connectionId = Array.from(this.connectedUserIds).find((id) =>
+        id.startsWith("conn_")
+      );
+      if (connectionId) {
+        this.connectedUserIds.delete(connectionId);
         this.broadcastUserList();
+        console.log("PartyKit: Connection removed:", connectionId);
       }
     });
 
-    conn.addEventListener("message", (event) => {
+    conn.addEventListener("message", async (event) => {
       let rawData = event.data;
       if (rawData instanceof ArrayBuffer) {
         rawData = new TextDecoder().decode(rawData);
@@ -121,20 +227,45 @@ class PartyRoom implements Party.Server {
 
       switch (message.type) {
         case "init":
-          // Only allow init if the state is still the default/empty state (draft not started, no nomination yet)
-          if (!this.state.draftStarted && !this.state.nominatedPlayer) {
-            this.state = message.data;
+          if (this.resetAllowed) {
+            this.state = { ...message.data, draftStarted: true };
+            // Skip database save for testing
+            this.resetAllowed = false;
             this.room.broadcast(
               JSON.stringify({ type: "stateUpdate", data: this.state })
             );
           }
           // Otherwise, ignore the client's init message
           break;
+        case "resetDraft":
+          // Skip database operations for testing
+          console.log(
+            "PartyKit: Reset draft requested (DB operations skipped)"
+          );
+          this.state = {
+            draftStarted: false,
+            currentNominatorTeamId: null,
+            nominatedPlayer: null,
+            startingBidAmount: 0,
+            currentBid: null,
+            bidTimer: null,
+            bidTimerExpiresAt: null,
+            auctionPhase: "idle",
+            nominationOrder: [],
+            currentNominationIndex: 0,
+            teams: {},
+            bidHistory: [],
+          };
+          this.resetAllowed = true;
+          // Skip database save for testing
+          this.room.broadcast(JSON.stringify({ type: "draftReset" }));
+          break;
         case "startDraft":
           this.state = {
             ...this.state,
             draftStarted: true,
           };
+          // Skip database save for testing
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
           );
@@ -144,12 +275,14 @@ class PartyRoom implements Party.Server {
             ...this.state,
             draftStarted: false,
           };
+          // Skip database save for testing
           this.room.broadcast(
             JSON.stringify({ type: "draftPaused", data: this.state })
           );
           break;
         case "nominatePlayer": {
           // message.data: { teamId, amount, player: { id, firstName, lastName, team, position } }
+          this.clearCountdown();
           const { teamId, amount, player } = message.data;
           this.state = {
             ...this.state,
@@ -166,12 +299,28 @@ class PartyRoom implements Party.Server {
             bidHistory: [], // Clear bid history on new nomination
             auctionPhase: "idle",
           };
+          // Skip database save for testing
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
           );
           break;
         }
+        case "triggerCountdown": {
+          // Only allow if auctionPhase is idle and a player is nominated
+          if (
+            this.state.auctionPhase === "idle" &&
+            this.state.nominatedPlayer
+          ) {
+            this.clearCountdown();
+            this.startAuctionCountdown();
+            // Skip database save for testing
+          }
+          break;
+        }
         case "bid": {
+          // Cancel countdown if a bid is placed
+          this.clearCountdown();
+          this.state = { ...this.state, auctionPhase: "idle" };
           // message.data: { teamId, amount }
           const { teamId, amount } = message.data;
           // Only allow if amount is higher than currentBid (or minBid)
@@ -194,6 +343,7 @@ class PartyRoom implements Party.Server {
             currentBid: { amount, teamId },
             bidHistory: newBidHistory,
           };
+          // Skip database save for testing
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
           );

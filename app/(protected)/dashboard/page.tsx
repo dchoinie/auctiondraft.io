@@ -70,18 +70,6 @@ export default function Dashboard() {
   const [invLoading, setInvLoading] = useState(false);
   const [invError, setInvError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setInvLoading(true);
-    fetch("/api/invitations")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setInvitations(data.invitations || []);
-        else setInvError(data.error || "Failed to fetch invitations");
-      })
-      .catch(() => setInvError("Failed to fetch invitations"))
-      .finally(() => setInvLoading(false));
-  }, []);
-
   // Payment history (scaffolded fetch)
   const [payments, setPayments] = useState<Payment[]>([]);
   const [payLoading, setPayLoading] = useState(false);

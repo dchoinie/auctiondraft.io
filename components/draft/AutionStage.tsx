@@ -68,6 +68,12 @@ export default function AuctionStage({
   const getTeamName = (teamId: string) =>
     teams.find((t) => t.id === teamId)?.name || "-";
 
+  // Determine if countdown can be triggered
+  const canTriggerCountdown =
+    partySocket &&
+    draftState?.nominatedPlayer &&
+    draftState.auctionPhase === "idle";
+
   return (
     <div className="mb-8 w-full p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
       {/* Nominated Player */}
@@ -194,7 +200,11 @@ export default function AuctionStage({
       <div className="flex justify-center">
         <Button
           className="bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md font-bold px-8 py-3 text-lg"
-          disabled
+          disabled={!canTriggerCountdown}
+          onClick={() => {
+            if (!canTriggerCountdown) return;
+            partySocket.send(JSON.stringify({ type: "triggerCountdown" }));
+          }}
         >
           Trigger Auction Countdown
         </Button>

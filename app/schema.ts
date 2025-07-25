@@ -5,6 +5,7 @@ import {
   integer,
   timestamp,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const userProfiles = pgTable("user_profiles", {
@@ -114,10 +115,20 @@ export const leagueInvitations = pgTable("league_invitations", {
 
 export const apiUpdates = pgTable("api_updates", {
   id: uuid("id").primaryKey().defaultRandom(),
-  endpoint: text("endpoint").notNull(), // "sleeper_nfl_players"
+  endpoint: text("endpoint").notNull(),
   lastUpdated: timestamp("last_updated", { withTimezone: true }).defaultNow(),
-  playerCount: integer("player_count"), // How many players were updated
-  status: text("status").notNull(), // "success", "failed"
-  errorMessage: text("error_message"), // Store error details if failed
+  playerCount: integer("player_count"),
+  status: text("status").notNull(),
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const draftStateHistory = pgTable("draft_state_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  leagueId: uuid("league_id").references(() => leagues.id),
+  draftState: jsonb("draft_state").notNull(),
+  eventType: text("event_type").notNull(),
+  eventData: jsonb("event_data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

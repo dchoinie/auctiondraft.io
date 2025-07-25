@@ -18,27 +18,31 @@ import {
 } from "../ui/dropdown-menu";
 import React from "react";
 import { cn } from "@/lib/utils";
-
-// admin tools
-// start draft
-// pause draft
-// manually assign player
-// undo last pick
-// manually assign nomination
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+} from "../ui/dialog";
 
 interface AdminControlsProps {
   draftState: DraftRoomState | null;
   handleStartDraft: () => void;
   handlePauseDraft: () => void;
+  handleResetDraft: () => void;
 }
 
 export default function AdminControls({
   draftState,
   handleStartDraft,
   handlePauseDraft,
+  handleResetDraft,
 }: AdminControlsProps) {
   const [controlsVisible, setControlsVisible] = React.useState(true);
   const { draftStarted } = draftState || {};
+  const [showResetDialog, setShowResetDialog] = React.useState(false);
   return (
     <Card
       className={cn(
@@ -76,31 +80,67 @@ export default function AdminControls({
             Manage the draft session and make manual adjustments as needed.
           </p>
           <Separator className="mb-4 bg-emerald-700/60" />
-          <div className="grid grid-cols-4 gap-4 tracking-widest">
+          <div className="grid grid-cols-5 gap-3 tracking-wide">
             <Button
               onClick={() =>
                 draftStarted ? handlePauseDraft() : handleStartDraft()
               }
-              className="flex items-center gap-2 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl font-semibold text-emerald-100"
+              className="flex items-center gap-2 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl font-semibold text-emerald-100 whitespace-normal"
             >
               {draftStarted ? <Pause size={18} /> : <Play size={18} />}
               {draftStarted ? "Pause Draft" : "Start Draft"}
             </Button>
-            <Button className="flex items-center gap-2 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl font-semibold text-blue-100">
+            <Button className="flex items-center gap-2 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl font-semibold text-blue-100 whitespace-normal">
               <Undo2 size={18} />
               Undo Last Pick
             </Button>
-            <Button className="flex items-center gap-2 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl font-semibold text-gray-100">
+            <Button className="flex items-center gap-2 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl font-semibold text-gray-100 whitespace-normal">
               <UserPlus size={18} />
               Manually Assign Player
             </Button>
-            <Button className="flex items-center gap-2 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl font-semibold text-yellow-100">
+            <Button className="flex items-center gap-2 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl font-semibold text-yellow-100 whitespace-normal">
               <UserCircle2 size={18} />
               Set Nominator
+            </Button>
+            <Button
+              onClick={() => setShowResetDialog(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md hover:shadow-xl font-semibold text-red-100 whitespace-normal"
+            >
+              Reset Draft
             </Button>
           </div>
         </>
       )}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Draft?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reset the draft? <br />
+              <span className="text-red-600 font-semibold">
+                This cannot be undone.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setShowResetDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowResetDialog(false);
+                handleResetDraft();
+              }}
+            >
+              Yes, Reset Draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

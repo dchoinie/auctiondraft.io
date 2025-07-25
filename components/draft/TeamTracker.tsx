@@ -1,7 +1,6 @@
 import { DraftRoomState } from "@/party";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 interface Team {
   id: string;
@@ -22,17 +21,10 @@ export default function TeamTracker({
   teams,
   onlineUserIds,
 }: TeamTrackerProps) {
-  if (!draftState) {
-    return (
-      <div className="flex justify-center items-center h-full text-emerald-200">
-        <Loader2 className="w-4 h-4 animate-spin" />
-      </div>
-    );
-  }
-
+  if (!draftState) return null;
   return (
     <div className="flex flex-col gap-4">
-      {teams.map((team) => {
+      {teams.map((team: Team) => {
         const teamState = draftState.teams[team.id];
         const isTurn = draftState.currentNominatorTeamId === team.id;
         const isOnline = onlineUserIds.includes(team.ownerId);

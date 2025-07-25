@@ -22,6 +22,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
 import AuctionStage from "@/components/draft/AutionStage";
+import Countdown from "@/components/draft/Countdown";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -46,7 +47,6 @@ export default function DraftPage() {
   const draftState = useDraftState(league_id as string);
   const setDraftState = useDraftStateStore((state) => state.setDraftState);
   const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
-  const [hasInitialized, setHasInitialized] = useState(false);
   const playersStore = usePlayersStore();
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("draft");
@@ -55,7 +55,6 @@ export default function DraftPage() {
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
   const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
-  const playerCache = usePlayersStore((state) => state.playerCache);
 
   // Helper to get all unique playerIds from draftedPlayers and keepers
   const allDraftedAndKeeperPlayerIds = React.useMemo(() => {
@@ -97,56 +96,68 @@ export default function DraftPage() {
   // Connect PartySocket and set up listeners
   useEffect(() => {
     async function connectPartySocket() {
-      const token = await getToken();
+      console.log("Client: Connecting to PartyKit without authentication");
       const socket = new PartySocket({
         host: "localhost:1999",
         party: "draft",
         room: league_id as string,
-        query: { token },
       });
+      console.log("Client: PartySocket created for room:", league_id);
       setPartySocket(socket);
 
-      socket.addEventListener("message", (e) => {
-        let rawData = e.data;
-        if (rawData instanceof ArrayBuffer) {
-          rawData = new TextDecoder().decode(rawData);
-        }
-        const message = JSON.parse(rawData as string);
-
-        if (message.type === "init" && message.data) {
-          setDraftState(league_id as string, message.data);
-        }
-        if (message.type === "stateUpdate" && message.data) {
-          setDraftState(league_id as string, message.data);
-        }
-        if (message.type === "draftStarted" && message.data) {
-          setDraftState(league_id as string, message.data);
-        }
-        if (message.type === "draftPaused" && message.data) {
-          setDraftState(league_id as string, message.data);
-        }
-        if (
-          message.type === "connectedUsers" &&
-          Array.isArray(message.userIds)
-        ) {
-          setOnlineUserIds(message.userIds);
-        }
-        // Awaiting init confirmation: send startDraft after state is hydrated
-        if (
-          awaitingInitConfirmation &&
-          (message.type === "stateUpdate" || message.type === "init") &&
-          message.data &&
-          message.data.teams &&
-          Object.keys(message.data.teams).length > 0
-        ) {
-          socket.send(JSON.stringify({ type: "startDraft" }));
-          setAwaitingInitConfirmation(false);
-        }
-      });
+      return socket;
     }
     connectPartySocket();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [league_id, getToken, setDraftState, awaitingInitConfirmation]);
+  }, [league_id]);
+
+  // Set up message listeners separately to avoid stale closures
+  useEffect(() => {
+    if (!partySocket) return;
+
+    const handleMessage = (e: MessageEvent) => {
+      let rawData = e.data;
+      if (rawData instanceof ArrayBuffer) {
+        rawData = new TextDecoder().decode(rawData);
+      }
+      const message = JSON.parse(rawData as string);
+
+      if (message.type === "init" && message.data) {
+        setDraftState(league_id as string, message.data);
+      }
+      if (message.type === "stateUpdate" && message.data) {
+        setDraftState(league_id as string, message.data);
+      }
+      if (message.type === "draftStarted" && message.data) {
+        setDraftState(league_id as string, message.data);
+      }
+      if (message.type === "draftPaused" && message.data) {
+        setDraftState(league_id as string, message.data);
+      }
+      if (message.type === "connectedUsers" && Array.isArray(message.userIds)) {
+        setOnlineUserIds(message.userIds);
+      }
+      // Awaiting init confirmation: send startDraft after state is hydrated
+      if (
+        awaitingInitConfirmation &&
+        (message.type === "stateUpdate" || message.type === "init") &&
+        message.data &&
+        message.data.teams &&
+        Object.keys(message.data.teams).length > 0
+      ) {
+        partySocket.send(JSON.stringify({ type: "startDraft" }));
+        setAwaitingInitConfirmation(false);
+      }
+    };
+
+    partySocket.addEventListener("message", handleMessage);
+    return () => partySocket.removeEventListener("message", handleMessage);
+  }, [
+    partySocket,
+    league_id,
+    setDraftState,
+    awaitingInitConfirmation,
+    setAwaitingInitConfirmation,
+  ]);
 
   // Check if all data is loaded and ready
   const isAllDataReady = React.useMemo(() => {
@@ -236,11 +247,10 @@ export default function DraftPage() {
 
   // Only send 'init' when Start Draft is clicked
   const handleStartDraft = (): void => {
-    if (partySocket && isAllDataReady) {
+    if (partySocket) {
       const newDraftState = buildInitialDraftState();
       setAwaitingInitConfirmation(true);
       partySocket.send(JSON.stringify({ type: "init", data: newDraftState }));
-      setHasInitialized(true);
     }
   };
 
@@ -254,15 +264,46 @@ export default function DraftPage() {
     setActiveTab(tab);
   };
 
+  // Determine if current user is admin (league owner)
+  const isAdmin = !!(user && league && user.id === league.ownerId);
+
+  // Handler to send resetDraft event
+  const handleResetDraft = () => {
+    if (partySocket) {
+      console.log("sending resetDraft");
+      partySocket.send(JSON.stringify({ type: "resetDraft" }));
+    }
+  };
+
+  // Listen for draftReset event to clear local draft state
+  useEffect(() => {
+    if (!partySocket) return;
+    const handler = (e: MessageEvent) => {
+      let rawData = e.data;
+      if (rawData instanceof ArrayBuffer) {
+        rawData = new TextDecoder().decode(rawData);
+      }
+      const message = JSON.parse(rawData as string);
+      if (message.type === "draftReset") {
+        setDraftState(league_id as string, null);
+      }
+    };
+    partySocket.addEventListener("message", handler);
+    return () => partySocket.removeEventListener("message", handler);
+  }, [partySocket, league_id, setDraftState]);
+
   // Show waiting message if draft hasn't started
   if (!draftState?.draftStarted) {
     return (
       <>
-        <AdminControls
-          draftState={draftState as DraftRoomState}
-          handleStartDraft={handleStartDraft}
-          handlePauseDraft={handlePauseDraft}
-        />
+        {isAdmin && (
+          <AdminControls
+            draftState={draftState as DraftRoomState}
+            handleStartDraft={handleStartDraft}
+            handlePauseDraft={handlePauseDraft}
+            handleResetDraft={handleResetDraft}
+          />
+        )}
         <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
           <div className="text-2xl font-bold mb-4">
             Waiting for draft to start...
@@ -303,12 +344,17 @@ export default function DraftPage() {
   return (
     <>
       <div>
-        <AdminControls
-          draftState={draftState as DraftRoomState}
-          handleStartDraft={handleStartDraft}
-          handlePauseDraft={handlePauseDraft}
-        />
+        {isAdmin && (
+          <AdminControls
+            draftState={draftState as DraftRoomState}
+            handleStartDraft={handleStartDraft}
+            handlePauseDraft={handlePauseDraft}
+            handleResetDraft={handleResetDraft}
+          />
+        )}
       </div>
+      {/* Countdown popup overlay */}
+      <Countdown auctionPhase={draftState?.auctionPhase || "idle"} />
       <div className="my-6">
         <AuctionStage
           draftState={draftState as DraftRoomState}
