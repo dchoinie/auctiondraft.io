@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import PartySocket from "partysocket";
 import { useAuth } from "@clerk/nextjs";
@@ -29,6 +29,14 @@ import RoundCounter from "@/components/draft/RoundCounter";
 
 export default function DraftPage() {
   const { league_id } = useParams();
+  const { getToken } = useAuth();
+  const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("draft");
+  const [awaitingInitConfirmation, setAwaitingInitConfirmation] =
+    useState(false);
+
+  // db selectors
   const {
     teams,
     loading: teamsLoading,
@@ -40,19 +48,11 @@ export default function DraftPage() {
     loading: leaguesLoading,
     error: leaguesError,
   } = useLeagueMembership();
-  const { getToken } = useAuth();
   const {
     keepers,
     loading: keepersLoading,
     error: keepersError,
   } = useLeagueKeepers(league_id as string);
-  const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [shouldStopRetrying, setShouldStopRetrying] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<
-    "disconnected" | "connecting" | "connected" | "error"
-  >("disconnected");
   const draftedPlayers = useDraftedPlayersAuto(league_id as string);
   const draftState = useDraftState(league_id as string);
   const setDraftState = useDraftStateStore((state) => state.setDraftState);
@@ -65,16 +65,12 @@ export default function DraftPage() {
   });
 
   const playersStore = usePlayersStore();
-  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("draft");
-  const [awaitingInitConfirmation, setAwaitingInitConfirmation] =
-    useState(false);
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
   const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
 
   // Helper to get all unique playerIds from draftedPlayers and keepers
-  const allDraftedAndKeeperPlayerIds = React.useMemo(() => {
+  const allDraftedAndKeeperPlayerIds = useMemo(() => {
     const draftedIds = draftedPlayers.map((p) => p.playerId);
     const keeperIds = (keepers || []).map((k) => k.playerId);
     return Array.from(new Set([...draftedIds, ...keeperIds]));
@@ -115,40 +111,8 @@ export default function DraftPage() {
     let socket: PartySocket | null = null;
 
     async function connectPartySocket() {
-      if (isConnecting || shouldStopRetrying) return;
-
-      // Stop retrying after 3 attempts
-      if (connectionAttempts >= 3) {
-        console.error("Max connection attempts reached, stopping retries");
-        setShouldStopRetrying(true);
-        setConnectionStatus("error");
-        return;
-      }
-
-      setIsConnecting(true);
-      setConnectionStatus("connecting");
-      setConnectionAttempts((prev) => prev + 1);
-
       try {
         const token = await getToken();
-        if (!token) {
-          console.error("No token available for PartyKit connection");
-          setIsConnecting(false);
-          setShouldStopRetrying(true);
-          setConnectionStatus("error");
-          return;
-        }
-        console.log(
-          "Connecting to PartyKit with token:",
-          token.substring(0, 20) + "..."
-        );
-
-        console.log("Creating PartySocket with config:", {
-          host: "localhost:1999",
-          party: "draft",
-          room: league_id,
-          hasToken: !!token,
-        });
 
         socket = new PartySocket({
           host: "localhost:1999",
@@ -157,46 +121,12 @@ export default function DraftPage() {
           query: { token },
         });
 
-        // Add connection error handling
-        socket.addEventListener("error", (error) => {
-          console.error("PartySocket connection error:", error);
-          if (socket) {
-            console.error("PartySocket error details:", {
-              readyState: socket.readyState,
-              url: socket.url,
-              protocol: socket.protocol,
-              extensions: socket.extensions,
-            });
-          }
-
-          // Try to get more error information
-          console.error("Error event type:", error.type);
-          console.error("Error event target:", error.target);
-
-          setIsConnecting(false);
-          setConnectionStatus("error");
-        });
-
         socket.addEventListener("close", (event) => {
-          console.log("PartySocket connection closed:", {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-            readyState: socket?.readyState,
-          });
-          console.log("Setting connection status to 'disconnected'");
           setPartySocket(null);
-          setIsConnecting(false);
-          setConnectionStatus("disconnected");
         });
 
         socket.addEventListener("open", () => {
-          console.log("PartySocket connection opened successfully");
-          console.log("Socket readyState:", socket?.readyState);
-          console.log("Setting connection status to 'connected'");
           setPartySocket(socket);
-          setIsConnecting(false);
-          setConnectionStatus("connected");
         });
 
         // Set up message listener
@@ -210,17 +140,11 @@ export default function DraftPage() {
             const message = JSON.parse(rawData as string);
 
             if (message.type === "authError") {
-              console.error("PartyKit authentication error:", message.error);
-              setConnectionStatus("error");
               socket?.close();
               return;
             }
 
             if (message.type === "welcome") {
-              console.log(
-                "PartyKit: Welcome message received, connectionId:",
-                message.connectionId
-              );
             }
 
             if (message.type === "stateUpdate" && message.data) {
@@ -280,8 +204,6 @@ export default function DraftPage() {
         });
       } catch (error) {
         console.error("Error connecting to PartyKit:", error);
-        setIsConnecting(false);
-        setConnectionStatus("error");
       }
     }
 
@@ -290,36 +212,11 @@ export default function DraftPage() {
     // Cleanup function
     return () => {
       if (socket) {
-        console.log("Cleaning up PartySocket connection");
         socket.close();
         setPartySocket(null);
       }
-      setIsConnecting(false);
     };
   }, [league_id]); // Only depend on league_id to prevent re-runs
-
-  // Reset connection state when league_id changes
-  useEffect(() => {
-    setConnectionAttempts(0);
-    setShouldStopRetrying(false);
-    setIsConnecting(false);
-    setConnectionStatus("disconnected");
-  }, [league_id]);
-
-  // Periodic connection health check
-  useEffect(() => {
-    if (!partySocket || connectionStatus !== "connected") return;
-
-    const healthCheck = setInterval(() => {
-      if (partySocket && partySocket.readyState !== WebSocket.OPEN) {
-        console.log("WebSocket connection lost, updating status");
-        setConnectionStatus("disconnected");
-        setPartySocket(null);
-      }
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(healthCheck);
-  }, [partySocket, connectionStatus]);
 
   // Store the draft state to send on start
   const buildInitialDraftState = () => {
@@ -418,32 +315,6 @@ export default function DraftPage() {
     }
   };
 
-  // Show connection error if max attempts reached
-  if (shouldStopRetrying && connectionStatus === "error") {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen text-red-400">
-        <div className="text-2xl font-bold mb-4">Connection Failed</div>
-        <div className="text-sm mb-4 text-center">
-          Unable to connect to the draft room after {connectionAttempts}{" "}
-          attempts.
-          <br />
-          Please check that the PartyKit server is running and try again.
-        </div>
-        <button
-          onClick={() => {
-            setShouldStopRetrying(false);
-            setConnectionAttempts(0);
-            setIsConnecting(false);
-            setConnectionStatus("disconnected");
-          }}
-          className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-        >
-          Retry Connection
-        </button>
-      </div>
-    );
-  }
-
   // Show waiting message if draft hasn't started
   if (!draftState?.draftStarted) {
     return (
@@ -461,29 +332,6 @@ export default function DraftPage() {
           <div className="text-2xl font-bold mb-4">
             Waiting for draft to start...
           </div>
-          {connectionStatus === "connecting" ? (
-            <>
-              <Loader2 className="animate-spin w-8 h-8 mb-2" />
-              <div className="text-sm">
-                Connecting to draft room... (Attempt {connectionAttempts}/3)
-              </div>
-            </>
-          ) : connectionStatus === "connected" ? (
-            <>
-              <div className="w-8 h-8 mb-2 bg-green-500 rounded-full" />
-              <div className="text-sm">Connected to draft room</div>
-            </>
-          ) : connectionStatus === "error" ? (
-            <>
-              <div className="w-8 h-8 mb-2 bg-red-500 rounded-full" />
-              <div className="text-sm">Connection failed</div>
-            </>
-          ) : (
-            <>
-              <div className="w-8 h-8 mb-2 bg-gray-500 rounded-full" />
-              <div className="text-sm">Disconnected</div>
-            </>
-          )}
           <div className="text-sm mt-4">
             The draft will begin once the admin clicks Start Draft.
           </div>
@@ -529,38 +377,6 @@ export default function DraftPage() {
               handleResumeDraft={handleResumeDraft}
             />
           )}
-        </div>
-        <div className="flex items-center space-x-2 text-sm">
-          <div
-            className={`w-3 h-3 rounded-full ${
-              connectionStatus === "connected"
-                ? "bg-green-500"
-                : connectionStatus === "connecting"
-                  ? "bg-yellow-500"
-                  : connectionStatus === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
-            }`}
-          />
-          <span
-            className={
-              connectionStatus === "connected"
-                ? "text-green-400"
-                : connectionStatus === "connecting"
-                  ? "text-yellow-400"
-                  : connectionStatus === "error"
-                    ? "text-red-400"
-                    : "text-gray-400"
-            }
-          >
-            {connectionStatus === "connected"
-              ? "Connected"
-              : connectionStatus === "connecting"
-                ? "Connecting..."
-                : connectionStatus === "error"
-                  ? "Error"
-                  : "Disconnected"}
-          </span>
         </div>
       </div>
       {/* Countdown popup overlay */}
