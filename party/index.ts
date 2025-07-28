@@ -77,13 +77,13 @@ class PartyRoom implements Party.Server {
   };
   resetAllowed = true; // Allow reset by default since we're not hydrating from DB
 
-  // Track connected user IDs (owner IDs)
+  // Track connected user IDs (actual user IDs from Clerk)
   connectedUserIds = new Set<string>();
 
   // Track authenticated users and their roles
   authenticatedUsers = new Map<string, { userId: string; isOwner: boolean }>();
 
-  // Track connection objects to their IDs
+  // Track connection objects to their user IDs
   connectionToId = new WeakMap<Party.Connection, string>();
 
   countdownTimeout: NodeJS.Timeout | null = null;
@@ -300,17 +300,17 @@ class PartyRoom implements Party.Server {
       // TODO: Implement proper league ownership check
       const isOwner = true;
 
-      // Generate connection ID and store user info
-      const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      this.connectedUserIds.add(connectionId);
-      this.authenticatedUsers.set(connectionId, {
-        userId: authResult.userId!,
+      // Use the actual user ID for tracking
+      const userId = authResult.userId!;
+      this.connectedUserIds.add(userId);
+      this.authenticatedUsers.set(userId, {
+        userId: userId,
         isOwner: isOwner,
       });
-      this.connectionToId.set(conn, connectionId);
+      this.connectionToId.set(conn, userId);
 
       // Send welcome message
-      conn.send(JSON.stringify({ type: "welcome", connectionId }));
+      conn.send(JSON.stringify({ type: "welcome", userId }));
 
       // Send initial state
       conn.send(JSON.stringify({ type: "init", data: this.state }));
@@ -352,10 +352,10 @@ class PartyRoom implements Party.Server {
 
     // Clean up on disconnect
     conn.addEventListener("close", () => {
-      const connectionId = this.connectionToId.get(conn);
-      if (connectionId) {
-        this.connectedUserIds.delete(connectionId);
-        this.authenticatedUsers.delete(connectionId);
+      const userId = this.connectionToId.get(conn);
+      if (userId) {
+        this.connectedUserIds.delete(userId);
+        this.authenticatedUsers.delete(userId);
         this.connectionToId.delete(conn);
         this.broadcastUserList();
       }
@@ -368,13 +368,13 @@ class PartyRoom implements Party.Server {
       }
       const message = JSON.parse(rawData as string);
 
-      // Get connection ID for authorization checks
-      const connectionId = this.connectionToId.get(conn);
+      // Get user ID for authorization checks
+      const userId = this.connectionToId.get(conn);
 
       switch (message.type) {
         case "init":
           console.log("PartyKit: Received init message", {
-            connectionId,
+            userId,
             message,
           });
           // Init message is now only used for initial state setup, not starting the draft
@@ -399,7 +399,7 @@ class PartyRoom implements Party.Server {
           break;
         case "resetDraft":
           // Check if user is authorized (league owner)
-          if (!connectionId || !this.isUserAuthorized(connectionId)) {
+          if (!userId || !this.isUserAuthorized(userId)) {
             console.log("PartyKit: Unauthorized resetDraft attempt");
             break;
           }
@@ -435,7 +435,7 @@ class PartyRoom implements Party.Server {
           break;
         case "startDraft":
           // Check if user is authorized (league owner)
-          if (!connectionId || !this.isUserAuthorized(connectionId)) {
+          if (!userId || !this.isUserAuthorized(userId)) {
             console.log("PartyKit: Unauthorized startDraft attempt");
             break;
           }
@@ -458,7 +458,7 @@ class PartyRoom implements Party.Server {
           break;
         case "pauseDraft":
           // Check if user is authorized (league owner)
-          if (!connectionId || !this.isUserAuthorized(connectionId)) {
+          if (!userId || !this.isUserAuthorized(userId)) {
             console.log("PartyKit: Unauthorized pauseDraft attempt");
             break;
           }
@@ -480,7 +480,7 @@ class PartyRoom implements Party.Server {
           break;
         case "resumeDraft":
           // Check if user is authorized (league owner)
-          if (!connectionId || !this.isUserAuthorized(connectionId)) {
+          if (!userId || !this.isUserAuthorized(userId)) {
             console.log("PartyKit: Unauthorized resumeDraft attempt");
             break;
           }
@@ -605,11 +605,11 @@ class PartyRoom implements Party.Server {
   }
 
   // Helper method to check if a user is authorized for admin actions
-  isUserAuthorized(connectionId: string): boolean {
-    const userInfo = this.authenticatedUsers.get(connectionId);
+  isUserAuthorized(userId: string): boolean {
+    const userInfo = this.authenticatedUsers.get(userId);
     const isAuthorized = userInfo?.isOwner || false;
     console.log("Authorization check:", {
-      connectionId,
+      userId,
       userInfo,
       isAuthorized,
     });
@@ -617,10 +617,14 @@ class PartyRoom implements Party.Server {
   }
 
   broadcastUserList() {
+    // Extract actual user IDs from authenticated users
+    const userIds = Array.from(this.authenticatedUsers.values()).map(
+      (user) => user.userId
+    );
     this.room.broadcast(
       JSON.stringify({
         type: "connectedUsers",
-        userIds: Array.from(this.connectedUserIds),
+        userIds: userIds,
       })
     );
   }
