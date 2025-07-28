@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, withRetry } from "./db";
 import { userProfiles } from "@/app/schema";
 import { eq } from "drizzle-orm";
 
@@ -19,56 +19,60 @@ export async function syncClerkUserToDatabase(clerkUser: ClerkWebhookUser) {
   const firstName = clerkUser.first_name || null;
   const lastName = clerkUser.last_name || null;
 
-  // Check if user already exists in database
-  const existingUser = await db
-    .select()
-    .from(userProfiles)
-    .where(eq(userProfiles.id, userId))
-    .limit(1);
+  return withRetry(async () => {
+    // Check if user already exists in database
+    const existingUser = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.id, userId))
+      .limit(1);
 
-  const userData = {
-    id: userId,
-    email,
-    firstName,
-    lastName,
-    updatedAt: new Date(),
-  };
+    const userData = {
+      id: userId,
+      email,
+      firstName,
+      lastName,
+      updatedAt: new Date(),
+    };
 
-  try {
-    if (existingUser.length === 0) {
-      // Create new user
-      await db.insert(userProfiles).values({
-        ...userData,
-        createdAt: new Date(),
-      });
-    } else {
-      // Update existing user
-      await db
-        .update(userProfiles)
-        .set(userData)
-        .where(eq(userProfiles.id, userId));
+    try {
+      if (existingUser.length === 0) {
+        // Create new user
+        await db.insert(userProfiles).values({
+          ...userData,
+          createdAt: new Date(),
+        });
+      } else {
+        // Update existing user
+        await db
+          .update(userProfiles)
+          .set(userData)
+          .where(eq(userProfiles.id, userId));
+      }
+    } catch (error) {
+      // If insert fails due to duplicate key, try update instead
+      if (error instanceof Error && error.message.includes("duplicate key")) {
+        await db
+          .update(userProfiles)
+          .set(userData)
+          .where(eq(userProfiles.id, userId));
+      } else {
+        throw error;
+      }
     }
-  } catch (error) {
-    // If insert fails due to duplicate key, try update instead
-    if (error instanceof Error && error.message.includes("duplicate key")) {
-      await db
-        .update(userProfiles)
-        .set(userData)
-        .where(eq(userProfiles.id, userId));
-    } else {
-      throw error;
-    }
-  }
 
-  return userData;
+    return userData;
+  });
 }
 
 export async function getUserFromDatabase(userId: string) {
-  const user = await db
-    .select()
-    .from(userProfiles)
-    .where(eq(userProfiles.id, userId))
-    .limit(1);
+  return withRetry(async () => {
+    const user = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.id, userId))
+      .limit(1);
 
-  return user[0] || null;
+    return user[0] || null;
+  });
 }

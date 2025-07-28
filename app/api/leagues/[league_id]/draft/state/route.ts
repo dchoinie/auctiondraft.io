@@ -79,6 +79,35 @@ export async function POST(
         ]);
         break;
 
+      case "convertKeepersToDrafted":
+        // Convert keepers to drafted players
+        if (data.keepers && Array.isArray(data.keepers)) {
+          for (const keeper of data.keepers) {
+            // Check if player is already drafted
+            const existingDraft = await db
+              .select()
+              .from(draftedPlayers)
+              .where(
+                and(
+                  eq(draftedPlayers.leagueId, leagueId),
+                  eq(draftedPlayers.playerId, keeper.playerId)
+                )
+              )
+              .limit(1);
+
+            if (existingDraft.length === 0) {
+              // Add keeper as drafted player
+              await db.insert(draftedPlayers).values({
+                leagueId,
+                teamId: keeper.teamId,
+                playerId: keeper.playerId,
+                draftPrice: keeper.keeperPrice || 0,
+              });
+            }
+          }
+        }
+        break;
+
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

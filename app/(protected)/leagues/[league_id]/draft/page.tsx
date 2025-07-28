@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 import { DraftRoomState, TeamDraftState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
 import { useDraftDatabase } from "@/hooks/use-draft-database";
+import { useDraftHydration } from "@/hooks/use-draft-hydration";
 import AdminControls from "@/components/draft/AdminControls";
 import TeamTracker from "@/components/draft/TeamTracker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -33,8 +34,6 @@ export default function DraftPage() {
   const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("draft");
-  const [awaitingInitConfirmation, setAwaitingInitConfirmation] =
-    useState(false);
 
   // db selectors
   const {
@@ -64,6 +63,13 @@ export default function DraftPage() {
     draftState,
   });
 
+  // Handle draft state hydration with league-specific data
+  const { isHydrated } = useDraftHydration({
+    leagueId: league_id as string,
+    partySocket,
+    draftState,
+  });
+
   const playersStore = usePlayersStore();
   // Use stable selectors for Zustand store methods
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
@@ -76,35 +82,46 @@ export default function DraftPage() {
     return Array.from(new Set([...draftedIds, ...keeperIds]));
   }, [draftedPlayers, keepers]);
 
-  // Fetch player data for all drafted/keeper playerIds if not already cached
+  // Only fetch player data when draft starts and we need it for hydration
   useEffect(() => {
-    async function fetchMissingPlayers() {
-      const missingIds = allDraftedAndKeeperPlayerIds.filter(
-        (id) => !getPlayerById(id)
-      );
-      await Promise.all(missingIds.map((id) => fetchPlayerById(id)));
-    }
-    if (allDraftedAndKeeperPlayerIds.length > 0) {
+    // Only fetch players if draft has started and we have keepers/drafted players
+    if (draftState?.draftStarted && allDraftedAndKeeperPlayerIds.length > 0) {
+      async function fetchMissingPlayers() {
+        const missingIds = allDraftedAndKeeperPlayerIds.filter(
+          (id) => !getPlayerById(id)
+        );
+
+        if (missingIds.length > 0) {
+          console.log(
+            `Draft started - fetching ${missingIds.length} missing players for hydration:`,
+            missingIds
+          );
+
+          // Fetch players one by one to handle errors gracefully
+          for (const id of missingIds) {
+            try {
+              await fetchPlayerById(id);
+            } catch (error) {
+              console.warn(`Failed to fetch player ${id}:`, error);
+              // Continue with other players
+            }
+          }
+        }
+      }
+
       fetchMissingPlayers();
     }
-  }, [allDraftedAndKeeperPlayerIds, getPlayerById, fetchPlayerById]);
+  }, [
+    draftState?.draftStarted,
+    allDraftedAndKeeperPlayerIds,
+    getPlayerById,
+    fetchPlayerById,
+  ]);
 
   const league = leagues.find((league: League) => league.id === league_id);
   const isDataError = teamsError || leaguesError || userError || keepersError;
   const isLoadingData =
     teamsLoading || leaguesLoading || userLoading || keepersLoading;
-
-  // Only calculate totalRosterSpots when we have the league settings
-  const totalRosterSpots = league?.settings
-    ? (league.settings.qbSlots || 0) +
-      (league.settings.rbSlots || 0) +
-      (league.settings.wrSlots || 0) +
-      (league.settings.teSlots || 0) +
-      (league.settings.flexSlots || 0) +
-      (league.settings.dstSlots || 0) +
-      (league.settings.kSlots || 0) +
-      (league.settings.benchSlots || 0)
-    : 0;
 
   // Connect PartySocket and set up listeners
   useEffect(() => {
@@ -186,18 +203,6 @@ export default function DraftPage() {
                 .getState()
                 .fetchDraftedPlayers(league_id as string);
             }
-
-            // Awaiting init confirmation: send startDraft after state is hydrated
-            if (
-              awaitingInitConfirmation &&
-              (message.type === "stateUpdate" || message.type === "init") &&
-              message.data &&
-              message.data.teams &&
-              Object.keys(message.data.teams).length > 0
-            ) {
-              socket?.send(JSON.stringify({ type: "startDraft" }));
-              setAwaitingInitConfirmation(false);
-            }
           } catch (error) {
             console.error("Error parsing PartyKit message:", error);
           }
@@ -218,74 +223,20 @@ export default function DraftPage() {
     };
   }, [league_id]); // Only depend on league_id to prevent re-runs
 
-  // Store the draft state to send on start
-  const buildInitialDraftState = () => {
-    const keeperCostByTeam: Record<string, number> = {};
-    (keepers || []).forEach((keeper) => {
-      keeperCostByTeam[keeper.teamId] =
-        (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
-    });
-    return {
-      draftStarted: false,
-      currentNominatorTeamId:
-        teams.find((team: Team) => team.draftOrder === 1)?.id || null,
-      nominatedPlayer: null,
-      startingBidAmount: 0,
-      currentBid: null,
-      bidTimer: league?.settings.timerEnabled ?? 0,
-      timerDuration: league?.settings.timerDuration ?? 4,
-      autoStartTimer: league?.settings.timerEnabled ?? false,
-      currentRound: 1,
-      currentPick: 1,
-      totalPicks: 0,
-      draftPaused: false,
-      bidTimerExpiresAt: null,
-      auctionPhase: "idle" as const,
-      nominationOrder: teams
-        .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
-        .map((team: Team) => team.id),
-      currentNominationIndex: 0,
-      draftType: (league?.settings.draftType as "snake" | "linear") || "linear",
-      teams: teams.reduce(
-        (acc, team) => {
-          const keeperCost = keeperCostByTeam[team.id] || 0;
-          const draftedCount = draftedPlayers.filter(
-            (p: DraftedPlayer) => p.teamId === team.id
-          ).length;
-          const remainingBudget = team.budget - keeperCost;
-          const remainingRosterSpots = totalRosterSpots - draftedCount;
-          acc[team.id] = {
-            teamId: team.id,
-            startingBudget: team.budget,
-            totalRosterSpots: totalRosterSpots,
-            remainingBudget,
-            remainingRosterSpots,
-            playersDrafted: draftedPlayers
-              .filter((p: DraftedPlayer) => p.teamId === team.id)
-              .map((p: DraftedPlayer) => {
-                const player = playersStore.getPlayerById(p.playerId);
-                return {
-                  playerId: p.playerId,
-                  name: p.playerFirstName + " " + p.playerLastName,
-                  cost: p.draftPrice,
-                  position: player?.position ?? null,
-                };
-              }),
-            maxBid: remainingBudget - (remainingRosterSpots - 1),
-          };
-          return acc;
-        },
-        {} as Record<string, TeamDraftState>
-      ),
-    };
-  };
+  // Send 'startDraft' when Start Draft is clicked
+  const handleStartDraft = async (): Promise<void> => {
+    console.log("Start Draft button clicked");
 
-  // Only send 'init' when Start Draft is clicked
-  const handleStartDraft = (): void => {
-    if (partySocket) {
-      const newDraftState = buildInitialDraftState();
-      setAwaitingInitConfirmation(true);
-      partySocket.send(JSON.stringify({ type: "init", data: newDraftState }));
+    if (!partySocket) {
+      console.error("PartySocket not connected");
+      return;
+    }
+
+    try {
+      console.log("Sending startDraft message to PartyKit");
+      partySocket.send(JSON.stringify({ type: "startDraft" }));
+    } catch (error) {
+      console.error("Error starting draft:", error);
     }
   };
 
@@ -315,8 +266,15 @@ export default function DraftPage() {
     }
   };
 
-  // Show waiting message if draft hasn't started
-  if (!draftState?.draftStarted) {
+  // Debug logging for draft state
+  console.log("Draft page state:", {
+    draftStarted: draftState?.draftStarted,
+    isHydrated,
+    hasDraftState: !!draftState,
+  });
+
+  // Show waiting message if draft hasn't started or hydration isn't complete
+  if (!draftState?.draftStarted || !isHydrated) {
     return (
       <>
         {isAdmin && (
@@ -330,10 +288,14 @@ export default function DraftPage() {
         )}
         <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
           <div className="text-2xl font-bold mb-4">
-            Waiting for draft to start...
+            {!draftState?.draftStarted
+              ? "Waiting for draft to start..."
+              : "Setting up draft room..."}
           </div>
           <div className="text-sm mt-4">
-            The draft will begin once the admin clicks Start Draft.
+            {!draftState?.draftStarted
+              ? "The draft will begin once the admin clicks Start Draft."
+              : "Loading league data and preparing draft room..."}
           </div>
         </div>
       </>

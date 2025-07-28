@@ -113,17 +113,29 @@ export const usePlayersStore = create<PlayersState>()(
           set({ loading: true, error: null });
           const response = await fetch(`/api/players/${id}`);
           if (!response.ok) {
-            throw new Error("Failed to fetch player by id");
+            if (response.status === 404) {
+              console.warn(`Player ${id} not found in database`);
+              // Don't throw error for 404, just log it
+              set({ loading: false });
+              return;
+            }
+            throw new Error(`Failed to fetch player by id: ${response.status}`);
           }
           const data = await response.json();
-          set((state) => ({
-            playerCache: {
-              ...state.playerCache,
-              [id]: data.player,
-            },
-            loading: false,
-          }));
+          if (data.player) {
+            set((state) => ({
+              playerCache: {
+                ...state.playerCache,
+                [id]: data.player,
+              },
+              loading: false,
+            }));
+          } else {
+            console.warn(`No player data returned for ${id}`);
+            set({ loading: false });
+          }
         } catch (error) {
+          console.error(`Error fetching player ${id}:`, error);
           set({
             error: error instanceof Error ? error.message : "An error occurred",
             loading: false,

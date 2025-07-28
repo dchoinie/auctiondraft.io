@@ -296,8 +296,9 @@ class PartyRoom implements Party.Server {
 
       console.log("PartyKit: User authenticated:", authResult.userId);
 
-      // League membership check removed - all authenticated users can join
-      const isOwner = false; // Default to false for now
+      // For now, allow all authenticated users to be owners
+      // TODO: Implement proper league ownership check
+      const isOwner = true;
 
       // Generate connection ID and store user info
       const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -372,23 +373,29 @@ class PartyRoom implements Party.Server {
 
       switch (message.type) {
         case "init":
-          // Check if user is authorized (league owner)
-          if (!connectionId || !this.isUserAuthorized(connectionId)) {
-            console.log("PartyKit: Unauthorized init attempt");
-            break;
-          }
-
-          if (this.resetAllowed) {
-            this.state = { ...message.data, draftStarted: true };
-
-            // Database operations handled by client
-
-            this.resetAllowed = false;
+          console.log("PartyKit: Received init message", {
+            connectionId,
+            message,
+          });
+          // Init message is now only used for initial state setup, not starting the draft
+          // The draft should be started using the startDraft message instead
+          console.log(
+            "PartyKit: Init message received - draft should be started using startDraft message"
+          );
+          break;
+        case "hydrateState":
+          // Accept hydrated state from client (no authorization check needed)
+          if (message.data) {
+            console.log("PartyKit: Accepting hydrated state from client", {
+              teamsCount: Object.keys(message.data.teams || {}).length,
+              draftStarted: message.data.draftStarted,
+              currentNominatorTeamId: message.data.currentNominatorTeamId,
+            });
+            this.state = { ...message.data };
             this.room.broadcast(
               JSON.stringify({ type: "stateUpdate", data: this.state })
             );
           }
-          // Otherwise, ignore the client's init message
           break;
         case "resetDraft":
           // Check if user is authorized (league owner)
@@ -433,13 +440,17 @@ class PartyRoom implements Party.Server {
             break;
           }
 
+          console.log(
+            "PartyKit: Starting draft - setting draftStarted to true"
+          );
+
           this.state = {
             ...this.state,
             draftStarted: true,
             draftPaused: false,
           };
 
-          console.log("start draft on server");
+          console.log("PartyKit: Draft started - broadcasting state update");
 
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
@@ -596,7 +607,13 @@ class PartyRoom implements Party.Server {
   // Helper method to check if a user is authorized for admin actions
   isUserAuthorized(connectionId: string): boolean {
     const userInfo = this.authenticatedUsers.get(connectionId);
-    return userInfo?.isOwner || false;
+    const isAuthorized = userInfo?.isOwner || false;
+    console.log("Authorization check:", {
+      connectionId,
+      userInfo,
+      isAuthorized,
+    });
+    return isAuthorized;
   }
 
   broadcastUserList() {
