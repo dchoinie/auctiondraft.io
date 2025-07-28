@@ -46,14 +46,13 @@ export default function SoundManager({
 
       switch (auctionPhase) {
         case "goingOnce":
-          message = `Going once for ${nominatedPlayer?.name || "this player"}`;
+          message = "Going once";
           break;
         case "goingTwice":
-          message = `Going twice for ${nominatedPlayer?.name || "this player"}`;
+          message = "Going twice";
           break;
         case "sold":
-          const winningTeam = teams.find((t) => t.id === currentBid?.teamId);
-          message = `Sold! ${nominatedPlayer?.name || "Player"} to ${winningTeam?.name || "team"} for $${currentBid?.amount || 0}`;
+          message = "Sold";
           break;
         default:
           return;

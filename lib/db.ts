@@ -2,9 +2,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../app/schema";
 
-// Use the pooling connection string instead of non-pooling
-const connectionString =
-  process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING!;
+// Use the same connection string as Drizzle config for consistency
+const connectionString = process.env.POSTGRES_URL_NON_POOLING!;
 
 // Create the connection with proper pooling configuration
 const client = postgres(connectionString, {

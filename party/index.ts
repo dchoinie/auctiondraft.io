@@ -88,14 +88,15 @@ class PartyRoom implements Party.Server {
 
   countdownTimeout: NodeJS.Timeout | null = null;
   countdownPhase: "goingOnce" | "goingTwice" | "sold" | null = null;
+  leagueTimerTimeout: NodeJS.Timeout | null = null;
 
   startAuctionCountdown() {
     if (this.countdownTimeout) {
       return;
     }
 
-    // Get timer duration from league settings (default to 4 seconds if not set)
-    const timerDuration = this.state.timerDuration || 4;
+    // Auction countdown is always 4 seconds per phase
+    const auctionCountdownDuration = 4;
 
     this.state = { ...this.state, auctionPhase: "goingOnce" };
     this.room.broadcast(
@@ -118,8 +119,48 @@ class PartyRoom implements Party.Server {
         this.countdownPhase = "sold";
         this.countdownTimeout = null;
         await this.handleSoldPhase();
-      }, timerDuration * 1000);
-    }, timerDuration * 1000);
+      }, auctionCountdownDuration * 1000);
+    }, auctionCountdownDuration * 1000);
+  }
+
+  startLeagueTimer() {
+    // Clear any existing league timer
+    if (this.leagueTimerTimeout) {
+      clearTimeout(this.leagueTimerTimeout);
+    }
+
+    // Get league timer duration (default to 60 seconds)
+    const leagueTimerDuration = this.state.timerDuration || 60;
+
+    // Set bid timer to league duration
+    this.state = {
+      ...this.state,
+      bidTimer: leagueTimerDuration,
+      bidTimerExpiresAt: Date.now() + leagueTimerDuration * 1000,
+    };
+
+    this.room.broadcast(
+      JSON.stringify({ type: "stateUpdate", data: this.state })
+    );
+
+    // Start the league timer
+    this.leagueTimerTimeout = setTimeout(() => {
+      // League timer expired, start auction countdown
+      this.startAuctionCountdown();
+    }, leagueTimerDuration * 1000);
+  }
+
+  clearLeagueTimer() {
+    if (this.leagueTimerTimeout) {
+      clearTimeout(this.leagueTimerTimeout);
+      this.leagueTimerTimeout = null;
+    }
+
+    this.state = {
+      ...this.state,
+      bidTimer: null,
+      bidTimerExpiresAt: null,
+    };
   }
 
   clearCountdown() {
@@ -323,33 +364,6 @@ class PartyRoom implements Party.Server {
       conn.close();
     }
 
-    // try {
-    //   // Generate a simple connection ID for tracking
-    //   const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    //   this.connectedUserIds.add(connectionId);
-
-    //   // Send welcome message immediately
-    //   conn.send(JSON.stringify({ type: "welcome", connectionId }));
-
-    //   // Try database hydration in background, don't block connection
-    //   this.hydrateStateFromDB().catch((error) => {
-    //     console.error("PartyKit: Error in hydrateStateFromDB:", error);
-    //     // Continue with default state if database hydration fails
-    //   }).finally(() => {
-    //     // Send initial state after hydration attempt (success or failure)
-    //     try {
-    //       conn.send(JSON.stringify({ type: "init", data: this.state }));
-    //       this.broadcastUserList();
-    //     } catch (error) {
-    //       console.error("PartyKit: Error sending init data:", error);
-    //     }
-    //   });
-
-    // } catch (error) {
-    //   console.error("PartyKit: Error in onConnect:", error);
-    //   // Don't let connection errors break the connection
-    // }
-
     // Clean up on disconnect
     conn.addEventListener("close", () => {
       const userId = this.connectionToId.get(conn);
@@ -387,6 +401,20 @@ class PartyRoom implements Party.Server {
           // Accept hydrated state from client (no authorization check needed)
           if (message.data) {
             console.log("PartyKit: Accepting hydrated state from client", {
+              teamsCount: Object.keys(message.data.teams || {}).length,
+              draftStarted: message.data.draftStarted,
+              currentNominatorTeamId: message.data.currentNominatorTeamId,
+            });
+            this.state = { ...message.data };
+            this.room.broadcast(
+              JSON.stringify({ type: "stateUpdate", data: this.state })
+            );
+          }
+          break;
+        case "restoreState":
+          // Accept restored state from database (no authorization check needed)
+          if (message.data) {
+            console.log("PartyKit: Restoring state from database", {
               teamsCount: Object.keys(message.data.teams || {}).length,
               draftStarted: message.data.draftStarted,
               currentNominatorTeamId: message.data.currentNominatorTeamId,
@@ -521,15 +549,13 @@ class PartyRoom implements Party.Server {
             auctionPhase: "idle",
           };
 
-          // Database operations handled by client
-
           this.room.broadcast(
             JSON.stringify({ type: "stateUpdate", data: this.state })
           );
 
-          // Auto-start timer if enabled
+          // Auto-start league timer if enabled
           if (this.state.autoStartTimer) {
-            this.startAuctionCountdown();
+            this.startLeagueTimer();
           }
           break;
         }
@@ -545,6 +571,7 @@ class PartyRoom implements Party.Server {
             this.state.nominatedPlayer
           ) {
             this.clearCountdown();
+            this.clearLeagueTimer();
             this.startAuctionCountdown();
 
             // Database operations handled by client
@@ -557,9 +584,9 @@ class PartyRoom implements Party.Server {
             break; // Ignore bid if draft is paused
           }
 
-          // Cancel countdown if a bid is placed
+          // Cancel auction countdown if a bid is placed
           this.clearCountdown();
-          this.state = { ...this.state, auctionPhase: "idle" };
+
           // message.data: { teamId, amount }
           const { teamId, amount } = message.data;
 
@@ -577,6 +604,7 @@ class PartyRoom implements Party.Server {
             // Ignore bid if team doesn't have enough budget or roster spots
             break;
           }
+
           // Add to bidHistory (keep last 10)
           const newBid = {
             amount,
@@ -584,11 +612,40 @@ class PartyRoom implements Party.Server {
             timestamp: new Date().toISOString(),
           };
           const newBidHistory = [...this.state.bidHistory, newBid].slice(-10);
+
           this.state = {
             ...this.state,
             currentBid: { amount, teamId },
             bidHistory: newBidHistory,
+            auctionPhase: "idle",
           };
+
+          // Handle timer logic based on current phase
+          if (
+            this.countdownPhase === "goingOnce" ||
+            this.countdownPhase === "goingTwice"
+          ) {
+            // Bid came in during auction countdown - reset to 10 seconds before starting auction countdown again
+            this.clearLeagueTimer();
+            this.state = {
+              ...this.state,
+              bidTimer: 10,
+              bidTimerExpiresAt: Date.now() + 10 * 1000,
+            };
+
+            this.room.broadcast(
+              JSON.stringify({ type: "stateUpdate", data: this.state })
+            );
+
+            // Start 10-second timer before auction countdown
+            this.leagueTimerTimeout = setTimeout(() => {
+              this.startAuctionCountdown();
+            }, 10 * 1000);
+          } else {
+            // Normal bid during idle phase - restart league timer
+            this.clearLeagueTimer();
+            this.startLeagueTimer();
+          }
 
           // Database operations handled by client
 

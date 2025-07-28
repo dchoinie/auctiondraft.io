@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import PartySocket from "partysocket";
 import SoundManager from "./SoundManager";
+import LeagueTimer from "./LeagueTimer";
 
 interface AuctionStageProps {
   draftState: DraftRoomState | null;
@@ -30,7 +31,16 @@ export default function AuctionStage({
   user,
 }: AuctionStageProps) {
   // Destructure all used properties from draftState
-  const { nominatedPlayer, currentBid } = draftState || {};
+  const {
+    nominatedPlayer,
+    currentBid,
+    bidTimer,
+    bidTimerExpiresAt,
+    auctionPhase,
+    currentRound,
+    currentPick,
+    totalPicks,
+  } = draftState || {};
 
   // Find the team name for the current highest bid
   let highestBidTeamName = "-";
@@ -86,6 +96,20 @@ export default function AuctionStage({
           teams={teams}
         />
       </div>
+
+      {/* Round and Pick Info */}
+      <div className="flex justify-center mb-4">
+        <div className="text-xl font-semibold text-emerald-300">
+          Round {currentRound || 1} • Pick {currentPick || 1}
+        </div>
+      </div>
+
+      {/* League Timer */}
+      <LeagueTimer
+        bidTimer={bidTimer}
+        bidTimerExpiresAt={bidTimerExpiresAt}
+        auctionPhase={auctionPhase || "idle"}
+      />
 
       {/* Nominated Player */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">

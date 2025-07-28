@@ -19,7 +19,7 @@ const phaseColors: Record<string, string> = {
 
 export default function Countdown({
   auctionPhase,
-  timerDuration = 4,
+  timerDuration = 4, // Fixed 4 seconds for auction countdown
 }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
@@ -65,9 +65,6 @@ export default function Countdown({
       >
         <div className="text-center">
           <div>{phaseText[auctionPhase] || ""}</div>
-          {timeLeft !== null && auctionPhase !== "sold" && (
-            <div className="text-2xl mt-2 font-mono">{timeLeft}s</div>
-          )}
         </div>
       </div>
     </div>

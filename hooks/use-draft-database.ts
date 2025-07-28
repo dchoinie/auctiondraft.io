@@ -37,6 +37,29 @@ export function useDraftDatabase({
 
           case "stateUpdate":
             if (message.data && draftState) {
+              // Save state update to database for persistence
+              try {
+                await fetch(`/api/leagues/${leagueId}/draft/state`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "saveSnapshot",
+                    data: {
+                      draftState: message.data,
+                      eventType: "stateUpdate",
+                      eventData: {
+                        auctionPhase: message.data.auctionPhase,
+                        nominatedPlayer:
+                          message.data.nominatedPlayer?.id || null,
+                        currentBid: message.data.currentBid,
+                      },
+                    },
+                  }),
+                });
+              } catch (error) {
+                console.error("Error saving state update to database:", error);
+              }
+
               // Check if a player was just sold (auction phase changed from active to idle)
               const previousAuctionPhase = draftState.auctionPhase;
               const currentAuctionPhase = message.data.auctionPhase;

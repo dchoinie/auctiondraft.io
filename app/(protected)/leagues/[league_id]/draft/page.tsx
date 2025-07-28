@@ -26,7 +26,6 @@ import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
 import AuctionStage from "@/components/draft/AutionStage";
 import Countdown from "@/components/draft/Countdown";
-import RoundCounter from "@/components/draft/RoundCounter";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -147,7 +146,7 @@ export default function DraftPage() {
         });
 
         // Set up message listener
-        socket.addEventListener("message", (e) => {
+        socket.addEventListener("message", async (e) => {
           let rawData = e.data;
           if (rawData instanceof ArrayBuffer) {
             rawData = new TextDecoder().decode(rawData);
@@ -169,6 +168,28 @@ export default function DraftPage() {
             }
             if (message.type === "draftStarted" && message.data) {
               setDraftState(league_id as string, message.data);
+
+              // Save the started draft state to database
+              try {
+                await fetch(`/api/leagues/${league_id}/draft/state`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "saveSnapshot",
+                    data: {
+                      draftState: message.data,
+                      eventType: "draftStarted",
+                      eventData: { startedBy: user?.id },
+                    },
+                  }),
+                });
+                console.log("Draft started - state saved to database");
+              } catch (error) {
+                console.error(
+                  "Error saving draft started state to database:",
+                  error
+                );
+              }
             }
             if (message.type === "draftPaused" && message.data) {
               setDraftState(league_id as string, message.data);
@@ -235,6 +256,9 @@ export default function DraftPage() {
     try {
       console.log("Sending startDraft message to PartyKit");
       partySocket.send(JSON.stringify({ type: "startDraft" }));
+
+      // Note: The draft state will be saved to database when PartyKit sends the stateUpdate message
+      // This ensures we save the actual updated state from PartyKit
     } catch (error) {
       console.error("Error starting draft:", error);
     }
@@ -260,9 +284,50 @@ export default function DraftPage() {
   const isAdmin = !!(user && league && user.id === league.ownerId);
 
   // Handler to send resetDraft event
-  const handleResetDraft = () => {
+  const handleResetDraft = async () => {
     if (partySocket) {
       partySocket.send(JSON.stringify({ type: "resetDraft" }));
+
+      // Save initial draft state to database after reset
+      try {
+        const initialDraftState = {
+          draftStarted: false,
+          draftPaused: false,
+          currentNominatorTeamId: null,
+          nominatedPlayer: null,
+          startingBidAmount: 0,
+          currentBid: null,
+          bidTimer: null,
+          bidTimerExpiresAt: null,
+          auctionPhase: "idle" as const,
+          nominationOrder: [],
+          currentNominationIndex: 0,
+          draftType: "linear" as const,
+          timerDuration: 4,
+          autoStartTimer: false,
+          currentRound: 1,
+          currentPick: 1,
+          totalPicks: 0,
+          teams: {},
+          bidHistory: [],
+        };
+
+        await fetch(`/api/leagues/${league_id}/draft/state`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "saveSnapshot",
+            data: {
+              draftState: initialDraftState,
+              eventType: "draftReset",
+              eventData: { resetBy: user?.id },
+            },
+          }),
+        });
+        console.log("Draft state reset to initial state in database");
+      } catch (error) {
+        console.error("Error resetting draft state in database:", error);
+      }
     }
   };
 
@@ -297,6 +362,16 @@ export default function DraftPage() {
               ? "The draft will begin once the admin clicks Start Draft."
               : "Loading league data and preparing draft room..."}
           </div>
+          {league?.isDraftStarted && !draftState?.draftStarted && (
+            <div className="text-sm mt-2 text-yellow-300">
+              Draft was previously started. Attempting to restore state...
+            </div>
+          )}
+          {draftState && !draftState.draftStarted && (
+            <div className="text-sm mt-2 text-blue-300">
+              Draft is ready to start. Click &ldquo;Start Draft&rdquo; to begin.
+            </div>
+          )}
         </div>
       </>
     );
@@ -344,20 +419,8 @@ export default function DraftPage() {
       {/* Countdown popup overlay */}
       <Countdown
         auctionPhase={draftState?.auctionPhase || "idle"}
-        timerDuration={draftState?.timerDuration || 4}
+        timerDuration={4} // Fixed 4 seconds for auction countdown
       />
-
-      {/* Round Counter */}
-      {draftState?.draftStarted && (
-        <div className="mb-6">
-          <RoundCounter
-            currentRound={draftState.currentRound || 1}
-            currentPick={draftState.currentPick || 1}
-            totalPicks={draftState.totalPicks || 0}
-            totalTeams={teams.length}
-          />
-        </div>
-      )}
 
       <div className="my-6">
         <AuctionStage

@@ -126,7 +126,7 @@ export const apiUpdates = pgTable("api_updates", {
 export const draftStateHistory = pgTable("draft_state_history", {
   id: uuid("id").primaryKey().defaultRandom(),
   leagueId: uuid("league_id").references(() => leagues.id),
-  draftState: jsonb("draft_state").notNull(),
+  draftState: jsonb("draft_state").notNull(), // Always store a valid draft state
   eventType: text("event_type").notNull(),
   eventData: jsonb("event_data").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

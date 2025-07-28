@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 import { db } from "@/lib/db";
-import { draftStateHistory, draftedPlayers, keepers } from "@/app/schema";
+import {
+  draftStateHistory,
+  draftedPlayers,
+  keepers,
+  leagues,
+} from "@/app/schema";
 import { eq, notInArray, and } from "drizzle-orm";
 
 export async function POST(
@@ -25,6 +30,19 @@ export async function POST(
           eventType: data.eventType,
           eventData: data.eventData,
         });
+
+        // Update league isDraftStarted flag based on event type
+        if (data.eventType === "draftStarted") {
+          await db
+            .update(leagues)
+            .set({ isDraftStarted: 1 })
+            .where(eq(leagues.id, leagueId));
+        } else if (data.eventType === "draftReset") {
+          await db
+            .update(leagues)
+            .set({ isDraftStarted: 0 })
+            .where(eq(leagues.id, leagueId));
+        }
         break;
 
       case "addDraftedPlayer":
@@ -134,9 +152,10 @@ export async function GET(
 
     const leagueId = params.league_id;
 
-    // Get the latest draft state
+    // Get the latest draft state (including reset states)
     const latest = await db.query.draftStateHistory.findFirst({
-      where: (row, { eq }) => eq(row.leagueId, leagueId),
+      where: (row, { eq, isNotNull }) =>
+        eq(row.leagueId, leagueId) && isNotNull(row.draftState),
       orderBy: (row, { desc }) => desc(row.createdAt),
     });
 

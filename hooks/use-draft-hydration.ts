@@ -24,6 +24,37 @@ export function useDraftHydration({
   // Return hydration status for the client to use
   const isHydrated = hasHydrated.current && draftState?.draftStarted;
 
+  // Load draft state from database when entering the draft room
+  useEffect(() => {
+    async function loadDraftStateFromDB() {
+      if (!partySocket || draftState) return; // Load if no draft state exists
+
+      try {
+        console.log("Loading draft state from database...");
+        const response = await fetch(`/api/leagues/${leagueId}/draft/state`);
+        if (response.ok) {
+          const { draftState: savedDraftState } = await response.json();
+          if (savedDraftState) {
+            console.log("Found saved draft state, restoring...", {
+              draftStarted: savedDraftState.draftStarted,
+              eventType: savedDraftState.eventType,
+            });
+            setDraftState(leagueId, savedDraftState);
+
+            // Send the restored state to PartyKit
+            partySocket.send(
+              JSON.stringify({ type: "restoreState", data: savedDraftState })
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error loading draft state from database:", error);
+      }
+    }
+
+    loadDraftStateFromDB();
+  }, [leagueId, partySocket, draftState, setDraftState]);
+
   // Get all the data we need for hydration
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
   const { leagues, loading: leaguesLoading } = useLeagueMembership();
@@ -119,6 +150,19 @@ export function useDraftHydration({
         {} as Record<string, TeamDraftState>
       );
 
+      // Calculate total picks made during the draft (excluding keepers)
+      // Get keeper player IDs to exclude them from draft pick count
+      const keeperPlayerIds = new Set((keepers || []).map((k) => k.playerId));
+
+      // Filter out keeper players from drafted players to get actual draft picks
+      const actualDraftPicks = draftedPlayers.filter(
+        (dp) => !keeperPlayerIds.has(dp.playerId)
+      );
+      const totalDraftPicks = actualDraftPicks.length;
+      const totalTeams = teams.length;
+      const currentRound = Math.floor(totalDraftPicks / totalTeams) + 1;
+      const currentPick = (totalDraftPicks % totalTeams) + 1;
+
       // Build the hydrated draft state
       const hydratedDraftState: DraftRoomState = {
         ...draftState,
@@ -129,8 +173,11 @@ export function useDraftHydration({
           .map((team: Team) => team.id),
         draftType:
           (league.settings.draftType as "snake" | "linear") || "linear",
-        timerDuration: league.settings.timerDuration ?? 4,
+        timerDuration: league.settings.timerDuration ?? 60,
         autoStartTimer: league.settings.timerEnabled === 1,
+        currentRound: currentRound,
+        currentPick: currentPick,
+        totalPicks: totalDraftPicks,
         teams: hydratedTeams,
       };
 
