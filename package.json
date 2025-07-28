@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev --turbopack\" \"npx partykit dev\"",
+    "dev": "next dev --turbopack",
+    "dev:partykit": "npx partykit dev --port 1999",
+    "dev:all": "concurrently \"next dev\" \"npx partykit dev --port 1999\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

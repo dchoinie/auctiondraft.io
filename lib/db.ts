@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "@/app/schema";
+import * as schema from "../app/schema";
 
 const connectionString = process.env.POSTGRES_URL_NON_POOLING!;
 

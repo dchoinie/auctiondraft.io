@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import PartySocket from "partysocket";
+import SoundManager from "./SoundManager";
 
 interface AuctionStageProps {
   draftState: DraftRoomState | null;
@@ -76,6 +77,16 @@ export default function AuctionStage({
 
   return (
     <div className="mb-8 w-full p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
+      {/* Sound Manager */}
+      <div className="flex justify-end mb-4">
+        <SoundManager
+          auctionPhase={draftState?.auctionPhase || "idle"}
+          nominatedPlayer={nominatedPlayer || null}
+          currentBid={currentBid || null}
+          teams={teams}
+        />
+      </div>
+
       {/* Nominated Player */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex-1">

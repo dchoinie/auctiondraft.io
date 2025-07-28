@@ -31,6 +31,7 @@ interface AdminControlsProps {
   draftState: DraftRoomState | null;
   handleStartDraft: () => void;
   handlePauseDraft: () => void;
+  handleResumeDraft: () => void;
   handleResetDraft: () => void;
 }
 
@@ -38,10 +39,11 @@ export default function AdminControls({
   draftState,
   handleStartDraft,
   handlePauseDraft,
+  handleResumeDraft,
   handleResetDraft,
 }: AdminControlsProps) {
   const [controlsVisible, setControlsVisible] = React.useState(true);
-  const { draftStarted } = draftState || {};
+  const { draftStarted, draftPaused } = draftState || {};
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   return (
     <Card
@@ -82,13 +84,33 @@ export default function AdminControls({
           <Separator className="mb-4 bg-emerald-700/60" />
           <div className="grid grid-cols-5 gap-3 tracking-wide">
             <Button
-              onClick={() =>
-                draftStarted ? handlePauseDraft() : handleStartDraft()
-              }
+              onClick={() => {
+                if (!draftStarted) {
+                  handleStartDraft();
+                } else if (draftPaused) {
+                  handleResumeDraft();
+                } else {
+                  handlePauseDraft();
+                }
+              }}
               className="flex items-center gap-2 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl font-semibold text-emerald-100 whitespace-normal"
             >
-              {draftStarted ? <Pause size={18} /> : <Play size={18} />}
-              {draftStarted ? "Pause Draft" : "Start Draft"}
+              {!draftStarted ? (
+                <>
+                  <Play size={18} />
+                  Start Draft
+                </>
+              ) : draftPaused ? (
+                <>
+                  <Play size={18} />
+                  Resume Draft
+                </>
+              ) : (
+                <>
+                  <Pause size={18} />
+                  Pause Draft
+                </>
+              )}
             </Button>
             <Button className="flex items-center gap-2 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl font-semibold text-blue-100 whitespace-normal">
               <Undo2 size={18} />
