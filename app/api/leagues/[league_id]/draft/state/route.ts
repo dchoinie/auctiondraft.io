@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const { action, data } = await request.json();
-    const leagueId = await params.league_id;
+    const leagueId = (await params).league_id;
 
     switch (action) {
       case "saveSnapshot":
@@ -196,7 +196,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const leagueId = params.league_id;
+    const leagueId = await params.league_id;
 
     // Get the latest draft state (including reset states)
     const latest = await db.query.draftStateHistory.findFirst({

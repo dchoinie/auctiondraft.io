@@ -3,9 +3,8 @@ import { DraftRoomState } from "@/party";
 import { Team } from "@/stores/teamStore";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Volume2, VolumeX } from "lucide-react";
 import PartySocket from "partysocket";
-import SoundManager from "./SoundManager";
 import LeagueTimer from "./LeagueTimer";
 
 interface AuctionStageProps {
@@ -15,22 +14,12 @@ interface AuctionStageProps {
   user: { id: string } | null;
 }
 
-// Mocked bid history for now
-const mockBidHistory = [
-  { amount: 32, teamName: "Team Alpha", timestamp: "2024-05-01 12:01:10" },
-  { amount: 30, teamName: "Team Beta", timestamp: "2024-05-01 12:01:05" },
-  { amount: 28, teamName: "Team Gamma", timestamp: "2024-05-01 12:01:00" },
-  { amount: 25, teamName: "Team Delta", timestamp: "2024-05-01 12:00:55" },
-  { amount: 20, teamName: "Team Epsilon", timestamp: "2024-05-01 12:00:50" },
-];
-
 export default function AuctionStage({
   draftState,
   teams,
   partySocket,
   user,
 }: AuctionStageProps) {
-  // Destructure all used properties from draftState
   const {
     nominatedPlayer,
     currentBid,
@@ -39,13 +28,13 @@ export default function AuctionStage({
     auctionPhase,
     currentRound,
     currentPick,
-    totalPicks,
   } = draftState || {};
 
   // Find the team name for the current highest bid
   let highestBidTeamName = "-";
   const minBid = currentBid?.amount ? currentBid.amount + 1 : 1;
   const [bidAmount, setBidAmount] = useState(minBid);
+  const [isSpeechMuted, setIsSpeechMuted] = useState(false);
 
   // Keep bidAmount in sync with minBid if nominated player or currentBid changes
   React.useEffect(() => {
@@ -85,16 +74,30 @@ export default function AuctionStage({
     draftState?.nominatedPlayer &&
     draftState.auctionPhase === "idle";
 
+  const toggleSpeech = () => {
+    setIsSpeechMuted(!isSpeechMuted);
+    // No need to send to party since this is a per-user preference
+  };
+
   return (
     <div className="mb-8 w-full p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
-      {/* Sound Manager */}
+      {/* Volume Control */}
       <div className="flex justify-end mb-4">
-        <SoundManager
-          auctionPhase={draftState?.auctionPhase || "idle"}
-          nominatedPlayer={nominatedPlayer || null}
-          currentBid={currentBid || null}
-          teams={teams}
-        />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSpeech}
+          className={`p-2 rounded-full ${
+            !isSpeechMuted
+              ? "bg-green-900/60 text-green-300 border-green-400"
+              : "bg-gray-900/60 text-gray-400 border-gray-600"
+          } border`}
+          title={
+            isSpeechMuted ? "Enable auction voice" : "Disable auction voice"
+          }
+        >
+          {isSpeechMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </Button>
       </div>
 
       {/* Round and Pick Info */}
@@ -106,8 +109,8 @@ export default function AuctionStage({
 
       {/* League Timer */}
       <LeagueTimer
-        bidTimer={bidTimer}
-        bidTimerExpiresAt={bidTimerExpiresAt}
+        bidTimer={bidTimer || null}
+        bidTimerExpiresAt={bidTimerExpiresAt || null}
         auctionPhase={auctionPhase || "idle"}
       />
 

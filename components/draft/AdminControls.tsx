@@ -48,7 +48,7 @@ export default function AdminControls({
   return (
     <Card
       className={cn(
-        "backdrop-blur-md bg-emerald-900/60 border-emerald-400 shadow-xl p-6 rounded-xl w-full mx-auto relative",
+        "backdrop-blur-md bg-emerald-900/60 border-emerald-400 shadow-xl p-6 rounded-xl w-full mx-auto relative border",
         !controlsVisible && "bg-transparent border-none shadow-none"
       )}
     >

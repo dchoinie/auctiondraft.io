@@ -19,7 +19,7 @@ import TeamTracker from "@/components/draft/TeamTracker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
-import AuctionStage from "@/components/draft/AutionStage";
+import AuctionStage from "@/components/draft/AuctionStage";
 import Countdown from "@/components/draft/Countdown";
 import {
   PageContent,
