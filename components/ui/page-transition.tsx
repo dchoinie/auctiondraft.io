@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Transition } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 
@@ -23,7 +23,7 @@ const pageVariants = {
   },
 };
 
-const pageTransition = {
+const pageTransition: Transition = {
   type: "tween",
   ease: "easeInOut",
   duration: 0.2,
@@ -33,7 +33,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
 
   return (
-    <div className="bg-gradient-to-r from-emerald-900 to-gray-900 min-h-screen">
+    <div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={pathname}

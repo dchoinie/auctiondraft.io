@@ -22,10 +22,29 @@ export default function TeamTracker({
   onlineUserIds,
 }: TeamTrackerProps) {
   if (!draftState) return null;
+
+  // Debug logging
+  console.log("TeamTracker - draftState:", {
+    draftPhase: draftState.draftPhase,
+    teamsCount: Object.keys(draftState.teams || {}).length,
+    teams: draftState.teams,
+  });
+
   return (
     <div className="flex flex-col gap-4">
       {teams.map((team: Team) => {
         const teamState = draftState.teams[team.id];
+
+        // Debug logging for each team
+        console.log(`TeamTracker - team ${team.name}:`, {
+          teamId: team.id,
+          teamState: teamState,
+          hasTeamState: !!teamState,
+          remainingBudget: teamState?.remainingBudget,
+          remainingRosterSpots: teamState?.remainingRosterSpots,
+          maxBid: teamState?.maxBid,
+        });
+
         const isTurn = draftState.currentNominatorTeamId === team.id;
         const isOnline = onlineUserIds.includes(team.ownerId);
         return (
@@ -74,6 +93,12 @@ export default function TeamTracker({
                   <div className="font-mono text-yellow-300">
                     ${teamState.maxBid}
                   </div>
+                </div>
+              )}
+              {!teamState && (
+                <div className="flex flex-col gap-1 text-right min-w-[120px]">
+                  <div className="text-xs text-gray-400">No Team Data</div>
+                  <div className="text-xs text-red-300">Not Loaded</div>
                 </div>
               )}
             </CardContent>

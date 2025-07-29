@@ -98,7 +98,20 @@ class PartyRoom implements Party.Server {
     updates: Partial<DraftRoomState>,
     broadcastType: "stateUpdate" | "draftPaused" | "draftReset" = "stateUpdate"
   ) {
+    console.log("PartyKit: updateState called", {
+      updates,
+      broadcastType,
+      currentTeamsCount: Object.keys(this.state.teams || {}).length,
+      currentTeams: this.state.teams,
+    });
+
     this.state = { ...this.state, ...updates };
+
+    console.log("PartyKit: updateState completed", {
+      newTeamsCount: Object.keys(this.state.teams || {}).length,
+      newTeams: this.state.teams,
+    });
+
     this.room.broadcast(
       JSON.stringify({ type: broadcastType, data: this.state })
     );
@@ -572,11 +585,22 @@ class PartyRoom implements Party.Server {
             break;
           }
 
-          console.log("PartyKit: Starting draft - setting draftPhase to live");
+          console.log("PartyKit: Starting draft - setting draftPhase to live", {
+            currentTeamsCount: Object.keys(this.state.teams || {}).length,
+            currentTeams: this.state.teams,
+            currentState: this.state,
+          });
 
+          // Preserve all existing state data, only update the draft phase
           this.updateState({
             draftPhase: "live", // Transition to live phase
           });
+
+          console.log("PartyKit: Draft started - state after update", {
+            teamsCount: Object.keys(this.state.teams || {}).length,
+            teams: this.state.teams,
+          });
+
           this.hasLoadedFromDB = true;
           break;
         case "pauseDraft":

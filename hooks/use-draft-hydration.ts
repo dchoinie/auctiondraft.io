@@ -30,13 +30,9 @@ export function useDraftHydration({
 
   // Helper function to validate draft state completeness
   const isDraftStateComplete = (state: DraftRoomState): boolean => {
-    return (
-      state.draftPhase === "live" &&
-      state.teams &&
-      Object.keys(state.teams).length > 0 &&
-      state.nominationOrder &&
-      state.nominationOrder.length > 0
-    );
+    // For hydration purposes, we only need the draft to be live
+    // Teams and nomination order will be populated by hydration
+    return state.draftPhase === "live";
   };
 
   // Load draft state from database when entering the draft room
@@ -92,176 +88,210 @@ export function useDraftHydration({
   const league = leagues.find((league: League) => league.id === leagueId);
 
   useEffect(() => {
-    // Debug logging
-    console.log("Hydration check:", {
-      hasHydrated: hasHydrated.current,
-      hasDraftState: !!draftState,
-      draftPhase: draftState?.draftPhase,
+    console.log("Hydration useEffect triggered", {
       teamsLoading,
       leaguesLoading,
       keepersLoading,
+      hasPartySocket: !!partySocket,
+      hasDraftState: !!draftState,
       teamsCount: teams.length,
       hasLeague: !!league,
-      hasPartySocket: !!partySocket,
+      hasHydrated: hasHydrated.current,
     });
 
-    // Only hydrate if we have all the data and haven't hydrated yet
+    // Only proceed if we have all required data and a PartyKit connection
     if (
-      !hasHydrated.current &&
-      draftState &&
-      draftState.draftPhase === "live" &&
-      !teamsLoading &&
-      !leaguesLoading &&
-      !keepersLoading &&
-      teams.length > 0 &&
-      league &&
-      partySocket
+      teamsLoading ||
+      leaguesLoading ||
+      keepersLoading ||
+      !partySocket ||
+      !draftState ||
+      !teams.length ||
+      !league
     ) {
-      // Validate that we have a complete draft state before proceeding
-      if (!isDraftStateComplete(draftState)) {
-        console.log("PartyKit: Draft state incomplete, skipping hydration", {
-          hasTeams:
-            !!draftState.teams && Object.keys(draftState.teams).length > 0,
-          hasNominationOrder:
-            !!draftState.nominationOrder &&
-            draftState.nominationOrder.length > 0,
-          draftPhase: draftState.draftPhase,
-        });
-        return;
-      }
-
-      // Calculate total roster spots
-      const totalRosterSpots =
-        (league.settings.qbSlots || 0) +
-        (league.settings.rbSlots || 0) +
-        (league.settings.wrSlots || 0) +
-        (league.settings.teSlots || 0) +
-        (league.settings.flexSlots || 0) +
-        (league.settings.dstSlots || 0) +
-        (league.settings.kSlots || 0) +
-        (league.settings.benchSlots || 0);
-
-      console.log("Hydrating draft state with league-specific data", {
-        teamsCount: teams.length,
-        keepersCount: keepers?.length || 0,
-        draftedPlayersCount: draftedPlayers.length,
-        totalRosterSpots,
-      });
-
-      // Calculate keeper costs by team
-      const keeperCostByTeam: Record<string, number> = {};
-      (keepers || []).forEach((keeper) => {
-        keeperCostByTeam[keeper.teamId] =
-          (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
-      });
-
-      // Build hydrated teams state
-      const hydratedTeams: Record<string, TeamDraftState> = teams.reduce(
-        (acc, team) => {
-          const keeperCost = keeperCostByTeam[team.id] || 0;
-          const draftedCount = draftedPlayers.filter(
-            (p) => p.teamId === team.id
-          ).length;
-          const remainingBudget = team.budget - keeperCost;
-          const remainingRosterSpots = totalRosterSpots - draftedCount;
-
-          acc[team.id] = {
-            teamId: team.id,
-            startingBudget: team.budget,
-            totalRosterSpots: totalRosterSpots,
-            remainingBudget,
-            remainingRosterSpots,
-            playersDrafted: draftedPlayers
-              .filter((p) => p.teamId === team.id)
-              .map((p) => {
-                // Use the data we already have from the database instead of fetching
-                return {
-                  playerId: p.playerId,
-                  name: p.playerFirstName + " " + p.playerLastName,
-                  cost: p.draftPrice,
-                  position: p.playerPosition || null,
-                };
-              })
-              .filter((p) => p.playerId), // Filter out any invalid players
-            maxBid: Math.max(1, remainingBudget - (remainingRosterSpots - 1)),
-          };
-          return acc;
-        },
-        {} as Record<string, TeamDraftState>
-      );
-
-      // Calculate total picks made during the draft (excluding keepers)
-      // Get keeper player IDs to exclude them from draft pick count
-      const keeperPlayerIds = new Set((keepers || []).map((k) => k.playerId));
-
-      // Filter out keeper players from drafted players to get actual draft picks
-      const actualDraftPicks = draftedPlayers.filter(
-        (dp) => !keeperPlayerIds.has(dp.playerId)
-      );
-      const totalDraftPicks = actualDraftPicks.length;
-      const totalTeams = teams.length;
-      const currentRound = Math.floor(totalDraftPicks / totalTeams) + 1;
-      const currentPick = (totalDraftPicks % totalTeams) + 1;
-
-      // Build nomination order based on team draft order
-      const nominationOrder = teams
-        .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
-        .map((team: Team) => team.id);
-
-      // Calculate the correct current nominator team ID based on currentNominationIndex
-      const currentNominatorTeamId =
-        nominationOrder[draftState.currentNominationIndex] || null;
-
-      // Calculate snake draft direction for debugging
-      const currentRoundFromIndex = Math.floor(
-        draftState.currentNominationIndex / totalTeams
-      );
-      const isReverseRound = currentRoundFromIndex % 2 === 1;
-      const positionInRound = draftState.currentNominationIndex % totalTeams;
-
-      console.log("Hydration - nomination details:", {
-        currentNominationIndex: draftState.currentNominationIndex,
-        nominationOrder,
-        currentNominatorTeamId,
-        totalTeams,
-        currentRound,
-        currentPick,
-        draftType: draftState.draftType,
-        currentRoundFromIndex,
-        isReverseRound,
-        positionInRound,
-        snakeDirection: isReverseRound ? "reverse" : "forward",
-      });
-
-      // Build the hydrated draft state
-      const hydratedDraftState: DraftRoomState = {
-        ...draftState,
-        currentNominatorTeamId,
-        nominationOrder,
-        draftType:
-          (league.settings.draftType as "snake" | "linear") || "linear",
-        timerDuration: league.settings.timerDuration ?? 60,
-        autoStartTimer: league.settings.timerEnabled === 1,
-        currentRound: currentRound,
-        currentPick: currentPick,
-        totalPicks: totalDraftPicks,
-        teams: hydratedTeams,
-      };
-
-      // Update local state
-      setDraftState(leagueId, hydratedDraftState);
-
-      // Send hydrated state back to PartyKit
-      console.log("Sending hydrated state to PartyKit");
-      partySocket.send(
-        JSON.stringify({ type: "hydrateState", data: hydratedDraftState })
-      );
-
-      hasHydrated.current = true;
       console.log(
-        "Draft state hydration complete - draft room should now be visible"
+        "Hydration useEffect - missing required data, returning early"
       );
+      return;
     }
+
+    // Check if we've already hydrated for this draft state
+    if (hasHydrated.current) {
+      // Check if teams data is actually present
+      const hasTeamsData =
+        draftState.teams && Object.keys(draftState.teams).length > 0;
+      if (hasTeamsData) {
+        console.log("PartyKit: Already hydrated with teams data, skipping");
+        return;
+      } else {
+        console.log(
+          "PartyKit: Already hydrated but no teams data found, re-hydrating"
+        );
+        hasHydrated.current = false;
+      }
+    }
+
+    // Validate that we have a complete draft state before proceeding
+    if (!isDraftStateComplete(draftState)) {
+      console.log("PartyKit: Draft state incomplete, skipping hydration", {
+        hasTeams:
+          !!draftState.teams && Object.keys(draftState.teams).length > 0,
+        hasNominationOrder:
+          !!draftState.nominationOrder && draftState.nominationOrder.length > 0,
+        draftPhase: draftState.draftPhase,
+      });
+      return;
+    }
+
+    // Calculate total roster spots
+    const totalRosterSpots =
+      (league.settings.qbSlots || 0) +
+      (league.settings.rbSlots || 0) +
+      (league.settings.wrSlots || 0) +
+      (league.settings.teSlots || 0) +
+      (league.settings.flexSlots || 0) +
+      (league.settings.dstSlots || 0) +
+      (league.settings.kSlots || 0) +
+      (league.settings.benchSlots || 0);
+
+    console.log("Hydrating draft state with league-specific data", {
+      teamsCount: teams.length,
+      keepersCount: keepers?.length || 0,
+      draftedPlayersCount: draftedPlayers.length,
+      totalRosterSpots,
+      draftPhase: draftState.draftPhase,
+    });
+
+    // Calculate keeper costs by team
+    const keeperCostByTeam: Record<string, number> = {};
+    (keepers || []).forEach((keeper) => {
+      keeperCostByTeam[keeper.teamId] =
+        (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
+    });
+
+    // Build hydrated teams state
+    const hydratedTeams: Record<string, TeamDraftState> = teams.reduce(
+      (acc, team) => {
+        const keeperCost = keeperCostByTeam[team.id] || 0;
+        const draftedCount = draftedPlayers.filter(
+          (p) => p.teamId === team.id
+        ).length;
+        const remainingBudget = team.budget - keeperCost;
+        const remainingRosterSpots = totalRosterSpots - draftedCount;
+
+        const teamState = {
+          teamId: team.id,
+          startingBudget: team.budget,
+          totalRosterSpots: totalRosterSpots,
+          remainingBudget,
+          remainingRosterSpots,
+          playersDrafted: draftedPlayers
+            .filter((p) => p.teamId === team.id)
+            .map((p) => {
+              // Use the data we already have from the database instead of fetching
+              return {
+                playerId: p.playerId,
+                name: p.playerFirstName + " " + p.playerLastName,
+                cost: p.draftPrice,
+                position: p.playerPosition || null,
+              };
+            })
+            .filter((p) => p.playerId), // Filter out any invalid players
+          maxBid: Math.max(1, remainingBudget - (remainingRosterSpots - 1)),
+        };
+
+        console.log(`Hydration - team ${team.name}:`, {
+          teamId: team.id,
+          budget: team.budget,
+          keeperCost,
+          draftedCount,
+          remainingBudget,
+          remainingRosterSpots,
+          maxBid: teamState.maxBid,
+        });
+
+        acc[team.id] = teamState;
+        return acc;
+      },
+      {} as Record<string, TeamDraftState>
+    );
+
+    console.log("Hydration - final hydrated teams:", {
+      teamsCount: Object.keys(hydratedTeams).length,
+      teamIds: Object.keys(hydratedTeams),
+      sampleTeam: Object.values(hydratedTeams)[0],
+    });
+
+    // Calculate total picks made during the draft (excluding keepers)
+    // Get keeper player IDs to exclude them from draft pick count
+    const keeperPlayerIds = new Set((keepers || []).map((k) => k.playerId));
+
+    // Filter out keeper players from drafted players to get actual draft picks
+    const actualDraftPicks = draftedPlayers.filter(
+      (dp) => !keeperPlayerIds.has(dp.playerId)
+    );
+    const totalDraftPicks = actualDraftPicks.length;
+    const totalTeams = teams.length;
+    const currentRound = Math.floor(totalDraftPicks / totalTeams) + 1;
+    const currentPick = (totalDraftPicks % totalTeams) + 1;
+
+    // Build nomination order based on team draft order
+    const nominationOrder = teams
+      .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
+      .map((team: Team) => team.id);
+
+    // Calculate the correct current nominator team ID based on currentNominationIndex
+    const currentNominatorTeamId =
+      nominationOrder[draftState.currentNominationIndex] || null;
+
+    // Calculate snake draft direction for debugging
+    const currentRoundFromIndex = Math.floor(
+      draftState.currentNominationIndex / totalTeams
+    );
+    const isReverseRound = currentRoundFromIndex % 2 === 1;
+    const positionInRound = draftState.currentNominationIndex % totalTeams;
+
+    console.log("Hydration - nomination details:", {
+      currentNominationIndex: draftState.currentNominationIndex,
+      nominationOrder,
+      currentNominatorTeamId,
+      totalTeams,
+      currentRound,
+      currentPick,
+      draftType: draftState.draftType,
+      currentRoundFromIndex,
+      isReverseRound,
+      positionInRound,
+      snakeDirection: isReverseRound ? "reverse" : "forward",
+    });
+
+    // Build the hydrated draft state
+    const hydratedDraftState: DraftRoomState = {
+      ...draftState,
+      currentNominatorTeamId,
+      nominationOrder,
+      draftType: (league.settings.draftType as "snake" | "linear") || "linear",
+      timerDuration: league.settings.timerDuration ?? 60,
+      autoStartTimer: league.settings.timerEnabled === 1,
+      currentRound: currentRound,
+      currentPick: currentPick,
+      totalPicks: totalDraftPicks,
+      teams: hydratedTeams,
+    };
+
+    // Update local state
+    setDraftState(leagueId, hydratedDraftState);
+
+    // Send hydrated state back to PartyKit
+    console.log("Sending hydrated state to PartyKit");
+    partySocket.send(
+      JSON.stringify({ type: "hydrateState", data: hydratedDraftState })
+    );
+
+    hasHydrated.current = true;
+    console.log(
+      "Draft state hydration complete - draft room should now be visible"
+    );
   }, [
     leagueId,
     draftState,
@@ -276,12 +306,12 @@ export function useDraftHydration({
     setDraftState,
   ]);
 
-  // Reset hydration flag when draft state is reset
+  // Reset hydration flag when draft state is reset or when draft phase changes
   useEffect(() => {
     if (!draftState || draftState.draftPhase !== "live") {
       hasHydrated.current = false;
     }
-  }, [draftState]);
+  }, [draftState?.draftPhase]);
 
   return { isHydrated, hasHydratedRef: hasHydrated.current };
 }
