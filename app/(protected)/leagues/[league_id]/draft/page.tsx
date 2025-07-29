@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import PartySocket from "partysocket";
 import { useAuth } from "@clerk/nextjs";
@@ -35,6 +35,7 @@ export default function DraftPage() {
   const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("draft");
+  const lastProcessedStateRef = useRef<string | null>(null);
 
   // db selectors
   const {
@@ -118,6 +119,24 @@ export default function DraftPage() {
             }
 
             if (message.type === "stateUpdate" && message.data) {
+              // Create a hash of the state to detect duplicates
+              const stateHash = JSON.stringify({
+                auctionPhase: message.data.auctionPhase,
+                nominatedPlayer: message.data.nominatedPlayer?.id,
+                currentBid: message.data.currentBid,
+                currentRound: message.data.currentRound,
+                currentPick: message.data.currentPick,
+                totalPicks: message.data.totalPicks,
+                soldPlayer: message.data.soldPlayer,
+              });
+
+              // Skip if this is a duplicate state update
+              if (lastProcessedStateRef.current === stateHash) {
+                console.log("Skipping duplicate state update");
+                return;
+              }
+
+              lastProcessedStateRef.current = stateHash;
               setDraftState(league_id as string, message.data);
             }
 
@@ -177,7 +196,8 @@ export default function DraftPage() {
               message.data &&
               !message.data.nominatedPlayer &&
               message.data.auctionPhase === "idle" &&
-              draftState?.nominatedPlayer // Only refresh if there was a nominated player before
+              draftState?.nominatedPlayer && // Only refresh if there was a nominated player before
+              message.data.soldPlayer // Only refresh if there's sold player data
             ) {
               // Refresh drafted players from database
               useDraftedPlayersStore

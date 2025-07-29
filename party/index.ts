@@ -53,6 +53,11 @@ export type DraftRoomState = {
     teamId: string;
     timestamp: string;
   }>;
+  soldPlayer?: {
+    playerId: string;
+    teamId: string;
+    price: number;
+  };
 };
 
 class PartyRoom implements Party.Server {
@@ -179,23 +184,14 @@ class PartyRoom implements Party.Server {
     const auctionCountdownDuration = 4;
 
     this.updateState({ auctionPhase: "goingOnce" });
-    this.room.broadcast(
-      JSON.stringify({ type: "stateUpdate", data: this.state })
-    );
     this.countdownPhase = "goingOnce";
 
     this.countdownTimeout = setTimeout(() => {
       this.updateState({ auctionPhase: "goingTwice" });
-      this.room.broadcast(
-        JSON.stringify({ type: "stateUpdate", data: this.state })
-      );
       this.countdownPhase = "goingTwice";
 
       this.countdownTimeout = setTimeout(async () => {
         this.updateState({ auctionPhase: "sold" });
-        this.room.broadcast(
-          JSON.stringify({ type: "stateUpdate", data: this.state })
-        );
         this.countdownPhase = "sold";
         this.countdownTimeout = null;
         await this.handleSoldPhase();
@@ -222,10 +218,6 @@ class PartyRoom implements Party.Server {
       bidTimer: leagueTimerDuration,
       bidTimerExpiresAt: Date.now() + leagueTimerDuration * 1000,
     });
-
-    this.room.broadcast(
-      JSON.stringify({ type: "stateUpdate", data: this.state })
-    );
 
     // Start the league timer
     this.leagueTimerTimeout = setTimeout(() => {
@@ -255,6 +247,12 @@ class PartyRoom implements Party.Server {
   }
 
   async handleSoldPhase() {
+    console.log("PartyKit: handleSoldPhase called", {
+      nominatedPlayer: this.state.nominatedPlayer,
+      currentBid: this.state.currentBid,
+      auctionPhase: this.state.auctionPhase,
+    });
+
     // --- SOLD PHASE LOGIC ---
 
     // Capture player data before clearing it
@@ -263,6 +261,11 @@ class PartyRoom implements Party.Server {
 
     // Update team state in memory if there's a nominated player and winning bid
     if (soldPlayer && winningBid) {
+      console.log("PartyKit: Updating team after acquisition", {
+        teamId: winningBid.teamId,
+        price: winningBid.amount,
+        playerId: soldPlayer.id,
+      });
       this.updateTeamAfterAcquisition(winningBid.teamId, winningBid.amount);
     }
 
@@ -307,8 +310,7 @@ class PartyRoom implements Party.Server {
     const newPick = (newTotalPicks % totalTeams) + 1;
 
     // Prepare the state update with sold player data if applicable
-    const stateUpdateData = {
-      ...this.state,
+    const stateUpdateData: Partial<DraftRoomState> = {
       nominatedPlayer: null,
       currentBid: null,
       auctionPhase: "idle" as const,
@@ -318,26 +320,27 @@ class PartyRoom implements Party.Server {
       currentPick: newPick,
       totalPicks: newTotalPicks,
       bidHistory: [],
+      soldPlayer: undefined, // Clear any previous soldPlayer data
     };
 
-    // Add sold player data to the message if a player was sold
-    const messageData =
-      soldPlayer && winningBid
-        ? {
-            ...stateUpdateData,
-            soldPlayer: {
-              playerId: soldPlayer.id,
-              teamId: winningBid.teamId,
-              price: winningBid.amount,
-            },
-          }
-        : stateUpdateData;
+    // Add sold player data to the state if a player was sold
+    if (soldPlayer && winningBid) {
+      stateUpdateData.soldPlayer = {
+        playerId: soldPlayer.id,
+        teamId: winningBid.teamId,
+        price: winningBid.amount,
+      };
+    }
 
     this.updateState(stateUpdateData);
 
-    this.room.broadcast(
-      JSON.stringify({ type: "stateUpdate", data: messageData })
-    );
+    console.log("PartyKit: handleSoldPhase completed", {
+      soldPlayer: soldPlayer?.id,
+      nextNominatorTeamId,
+      newRound,
+      newPick,
+      newTotalPicks,
+    });
   }
 
   updateTeamAfterAcquisition(teamId: string, price: number) {

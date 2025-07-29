@@ -6,6 +6,7 @@ import { League, useLeagueMembership } from "@/stores/leagueStore";
 import { useLeagueKeepers } from "@/stores/keepersStore";
 import { useDraftedPlayersAuto } from "@/stores/draftedPlayersStore";
 import { useDraftStateStore } from "@/stores/draftRoomStore";
+import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
 
 interface UseDraftHydrationProps {
   leagueId: string;
@@ -83,6 +84,12 @@ export function useDraftHydration({
   const { leagues, loading: leaguesLoading } = useLeagueMembership();
   const { keepers, loading: keepersLoading } = useLeagueKeepers(leagueId);
   const draftedPlayers = useDraftedPlayersAuto(leagueId);
+  const draftedPlayersLoading = useDraftedPlayersStore(
+    (state) => state.loading[leagueId] ?? false
+  );
+  const draftedPlayersLoaded = useDraftedPlayersStore(
+    (state) => state.loaded[leagueId] ?? false
+  );
 
   // Find the league
   const league = leagues.find((league: League) => league.id === leagueId);
@@ -92,11 +99,14 @@ export function useDraftHydration({
       teamsLoading,
       leaguesLoading,
       keepersLoading,
+      draftedPlayersLoading,
+      draftedPlayersLoaded,
       hasPartySocket: !!partySocket,
       hasDraftState: !!draftState,
       teamsCount: teams.length,
       hasLeague: !!league,
       hasHydrated: hasHydrated.current,
+      draftedPlayersCount: draftedPlayers.length,
     });
 
     // Only proceed if we have all required data and a PartyKit connection
@@ -104,10 +114,12 @@ export function useDraftHydration({
       teamsLoading ||
       leaguesLoading ||
       keepersLoading ||
+      draftedPlayersLoading ||
       !partySocket ||
       !draftState ||
       !teams.length ||
-      !league
+      !league ||
+      !draftedPlayersLoaded
     ) {
       console.log(
         "Hydration useEffect - missing required data, returning early"
@@ -160,6 +172,7 @@ export function useDraftHydration({
       draftedPlayersCount: draftedPlayers.length,
       totalRosterSpots,
       draftPhase: draftState.draftPhase,
+      draftedPlayersSample: draftedPlayers.slice(0, 3), // Show first 3 drafted players
     });
 
     // Calculate keeper costs by team
@@ -169,14 +182,21 @@ export function useDraftHydration({
         (keeperCostByTeam[keeper.teamId] || 0) + (keeper.keeperPrice || 0);
     });
 
+    console.log("Keeper costs by team:", keeperCostByTeam);
+
     // Build hydrated teams state
     const hydratedTeams: Record<string, TeamDraftState> = teams.reduce(
       (acc, team) => {
         const keeperCost = keeperCostByTeam[team.id] || 0;
-        const draftedCount = draftedPlayers.filter(
+        const teamDraftedPlayers = draftedPlayers.filter(
           (p) => p.teamId === team.id
-        ).length;
-        const remainingBudget = team.budget - keeperCost;
+        );
+        const draftedCount = teamDraftedPlayers.length;
+        const draftedPlayerCosts = teamDraftedPlayers.reduce(
+          (sum, player) => sum + (player.draftPrice || 0),
+          0
+        );
+        const remainingBudget = team.budget - keeperCost - draftedPlayerCosts;
         const remainingRosterSpots = totalRosterSpots - draftedCount;
 
         const teamState = {
@@ -185,8 +205,7 @@ export function useDraftHydration({
           totalRosterSpots: totalRosterSpots,
           remainingBudget,
           remainingRosterSpots,
-          playersDrafted: draftedPlayers
-            .filter((p) => p.teamId === team.id)
+          playersDrafted: teamDraftedPlayers
             .map((p) => {
               // Use the data we already have from the database instead of fetching
               return {
@@ -205,9 +224,14 @@ export function useDraftHydration({
           budget: team.budget,
           keeperCost,
           draftedCount,
+          draftedPlayerCosts,
           remainingBudget,
           remainingRosterSpots,
           maxBid: teamState.maxBid,
+          teamDraftedPlayers: teamDraftedPlayers.map((p) => ({
+            name: p.playerFirstName + " " + p.playerLastName,
+            cost: p.draftPrice,
+          })),
         });
 
         acc[team.id] = teamState;
@@ -298,6 +322,8 @@ export function useDraftHydration({
     teamsLoading,
     leaguesLoading,
     keepersLoading,
+    draftedPlayersLoading,
+    draftedPlayersLoaded,
     teams,
     league,
     keepers,

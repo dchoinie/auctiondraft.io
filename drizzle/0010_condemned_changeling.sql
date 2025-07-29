@@ -1,0 +1,1 @@
+ALTER TABLE "drafted_players" ADD CONSTRAINT "drafted_players_player_id_league_id_unique" UNIQUE("player_id","league_id");

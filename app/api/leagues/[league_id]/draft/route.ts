@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { leagues, teams, nflPlayers, draftedPlayers } from "@/app/schema";
+import {
+  leagues,
+  teams,
+  nflPlayers,
+  draftedPlayers,
+  keepers,
+} from "@/app/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 
 export async function GET(
@@ -92,12 +98,29 @@ export async function GET(
           .from(draftedPlayers)
           .where(eq(draftedPlayers.teamId, team.id));
 
-        // Calculate remaining budget
-        const totalSpent = draftedPlayersForTeam.reduce(
+        // Get keeper costs for this team
+        const keeperCostsForTeam = await db
+          .select({
+            keeperPrice: keepers.keeperPrice,
+          })
+          .from(keepers)
+          .where(eq(keepers.teamId, team.id));
+
+        // Calculate total spent on drafted players
+        const totalDraftedSpent = draftedPlayersForTeam.reduce(
           (sum, player) => sum + (player.draftPrice || 0),
           0
         );
-        const remainingBudget = (team.budget || 200) - totalSpent;
+
+        // Calculate total spent on keepers
+        const totalKeeperSpent = keeperCostsForTeam.reduce(
+          (sum, keeper) => sum + (keeper.keeperPrice || 0),
+          0
+        );
+
+        // Calculate remaining budget (starting budget - drafted costs - keeper costs)
+        const remainingBudget =
+          (team.budget || 200) - totalDraftedSpent - totalKeeperSpent;
 
         // Calculate remaining roster spots based on league roster size
         const totalRosterSlots =

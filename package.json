@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:partykit": "npx partykit dev --port 1999",
-    "dev:all": "concurrently \"next dev\" \"npx partykit dev --port 1999\"",
+    "dev:all": "concurrently \"next dev\" \"npx partykit dev --port 1999\" \"npx drizzle-kit studio\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const userProfiles = pgTable("user_profiles", {
@@ -77,14 +78,21 @@ export const nflPlayers = pgTable("nfl_players", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const draftedPlayers = pgTable("drafted_players", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teamId: uuid("team_id").references(() => teams.id),
-  playerId: uuid("player_id").references(() => nflPlayers.id),
-  leagueId: uuid("league_id").references(() => leagues.id),
-  draftPrice: integer("draft_price").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+export const draftedPlayers = pgTable(
+  "drafted_players",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id").references(() => teams.id),
+    playerId: uuid("player_id").references(() => nflPlayers.id),
+    leagueId: uuid("league_id").references(() => leagues.id),
+    draftPrice: integer("draft_price").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    // Ensure a player can only be drafted once per league
+    uniquePlayerPerLeague: unique().on(table.playerId, table.leagueId),
+  })
+);
 
 export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),

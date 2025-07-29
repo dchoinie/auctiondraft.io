@@ -54,6 +54,32 @@ export async function POST(
         });
 
         try {
+          // Check if player is already drafted in this league
+          const existingDraft = await db
+            .select()
+            .from(draftedPlayers)
+            .where(
+              and(
+                eq(draftedPlayers.leagueId, leagueId),
+                eq(draftedPlayers.playerId, data.playerId)
+              )
+            )
+            .limit(1);
+
+          if (existingDraft.length > 0) {
+            console.log(
+              "API: Player already drafted, skipping duplicate insert",
+              {
+                playerId: data.playerId,
+                existingDraft: existingDraft[0],
+              }
+            );
+            return NextResponse.json({
+              success: true,
+              message: "Player already drafted",
+            });
+          }
+
           await db.insert(draftedPlayers).values({
             teamId: data.teamId,
             playerId: data.playerId,
