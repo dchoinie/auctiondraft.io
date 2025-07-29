@@ -80,14 +80,14 @@ export default function AuctionStage({
   };
 
   return (
-    <div className="mb-8 w-full p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
+    <div className="mb-4 sm:mb-8 w-full p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
       {/* Volume Control */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-3 sm:mb-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleSpeech}
-          className={`p-2 rounded-full ${
+          className={`p-1 sm:p-2 rounded-full ${
             !isSpeechMuted
               ? "bg-green-900/60 text-green-300 border-green-400"
               : "bg-gray-900/60 text-gray-400 border-gray-600"
@@ -96,13 +96,17 @@ export default function AuctionStage({
             isSpeechMuted ? "Enable auction voice" : "Disable auction voice"
           }
         >
-          {isSpeechMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {isSpeechMuted ? (
+            <VolumeX size={14} className="sm:w-4 sm:h-4" />
+          ) : (
+            <Volume2 size={14} className="sm:w-4 sm:h-4" />
+          )}
         </Button>
       </div>
 
       {/* Round and Pick Info */}
-      <div className="flex justify-center mb-4">
-        <div className="text-xl font-semibold text-emerald-300">
+      <div className="flex justify-center mb-3 sm:mb-4">
+        <div className="text-lg sm:text-xl font-semibold text-emerald-300">
           Round {currentRound || 1} • Pick {currentPick || 1}
         </div>
       </div>
@@ -115,62 +119,64 @@ export default function AuctionStage({
       />
 
       {/* Nominated Player */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex-1">
-          <div className="text-2xl font-semibold text-emerald-300 mb-1">
+          <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
             Nominated Player
           </div>
           {nominatedPlayer ? (
-            <div className="text-3xl md:text-4xl text-yellow-100 font-extrabold drop-shadow-lg">
+            <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl text-yellow-100 font-extrabold drop-shadow-lg">
               {nominatedPlayer.name}{" "}
-              <span className="text-yellow-400 text-xl md:text-2xl font-semibold">
+              <span className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold">
                 ({nominatedPlayer.team} - {nominatedPlayer.position})
               </span>
             </div>
           ) : (
-            <div className="text-yellow-200 italic">
+            <div className="text-yellow-200 italic text-sm sm:text-base">
               No player nominated yet.
             </div>
           )}
         </div>
         {/* Current Highest Bid */}
-        <div className="flex-1 text-right">
-          <div className="text-2xl font-semibold text-emerald-300 mb-1">
+        <div className="flex-1 text-center lg:text-right">
+          <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
             Current Highest Bid
           </div>
           {currentBid ? (
-            <div className="text-4xl md:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
+            <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
               ${currentBid.amount}
-              <span className="ml-3 text-yellow-400 text-xl md:text-2xl font-semibold">
+              <div className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold mt-1">
                 by {highestBidTeamName}
-              </span>
+              </div>
             </div>
           ) : (
-            <div className="text-yellow-200 italic">No bids yet.</div>
+            <div className="text-yellow-200 italic text-sm sm:text-base">
+              No bids yet.
+            </div>
           )}
         </div>
       </div>
       {/* Bidding Interface */}
-      <div className="flex flex-col items-center mb-6">
+      <div className="flex flex-col items-center mb-4 sm:mb-6">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
             onClick={() => setBidAmount((prev) => Math.max(minBid, prev - 1))}
             disabled={bidAmount <= minBid}
           >
-            <Minus className="w-4 h-4 text-emerald-100" />
+            <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
           </Button>
           <Button
-            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-8 py-3 text-lg"
+            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-4 sm:px-6 lg:px-8 py-2 sm:py-3 text-base sm:text-lg"
             disabled={!canBid}
             onClick={() => {
               if (!canBid) return;
               partySocket.send(
                 JSON.stringify({
-                  type: "bid",
+                  type: "placeBid",
                   data: {
-                    teamId: userTeam.id,
+                    teamId: userTeam!.id,
                     amount: bidAmount,
                   },
                 })
@@ -181,72 +187,51 @@ export default function AuctionStage({
           </Button>
           <Button
             size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
             onClick={() => setBidAmount((prev) => prev + 1)}
           >
-            <Plus className="w-4 h-4 text-emerald-100" />
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
           </Button>
         </div>
       </div>
+
       {/* Bid History */}
-      <div className="mb-6">
-        <div className="text-base font-semibold text-yellow-200 mb-2">
-          Bid History (Last 5)
+      {bidHistory.length > 0 && (
+        <div className="mt-4 sm:mt-6">
+          <div className="text-lg sm:text-xl font-semibold text-emerald-300 mb-2 sm:mb-3">
+            Bid History
+          </div>
+          <div className="max-h-32 sm:max-h-40 overflow-y-auto bg-gray-800/50 rounded-lg p-2 sm:p-3">
+            {bidHistory.slice(-10).map((bid, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center py-1 text-sm sm:text-base"
+              >
+                <span className="text-gray-300">
+                  {getTeamName(bid.teamId)}: ${bid.amount}
+                </span>
+                <span className="text-gray-500 text-xs sm:text-sm">
+                  {new Date(bid.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-yellow-950/60 rounded-lg p-2 md:p-3">
-          {bidHistory.length === 0 ? (
-            <div className="text-yellow-300 italic text-sm">No bids yet.</div>
-          ) : (
-            <ul className="divide-y divide-yellow-800">
-              {bidHistory
-                .slice(-5)
-                .reverse()
-                .map((bid, idx) => {
-                  // Format timestamp to only show time (HH:mm:ss)
-                  let timeOnly = bid.timestamp;
-                  try {
-                    const dateObj = new Date(bid.timestamp);
-                    timeOnly = dateObj.toLocaleTimeString([], {
-                      hour12: false,
-                    });
-                  } catch {}
-                  return (
-                    <li
-                      key={idx}
-                      className="py-0.5 flex justify-between text-yellow-100 text-xs md:text-sm"
-                    >
-                      <span>
-                        <span className="font-mono font-bold">
-                          ${bid.amount}
-                        </span>{" "}
-                        by{" "}
-                        <span className="font-semibold">
-                          {getTeamName(bid.teamId)}
-                        </span>
-                      </span>
-                      <span className="text-yellow-400 font-mono">
-                        {timeOnly}
-                      </span>
-                    </li>
-                  );
-                })}
-            </ul>
-          )}
+      )}
+
+      {/* Countdown Trigger */}
+      {canTriggerCountdown && (
+        <div className="mt-4 sm:mt-6 text-center">
+          <Button
+            onClick={() => {
+              partySocket.send(JSON.stringify({ type: "triggerCountdown" }));
+            }}
+            className="bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md text-red-100 font-bold px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base"
+          >
+            Start Countdown
+          </Button>
         </div>
-      </div>
-      {/* Trigger Auction Countdown Button */}
-      <div className="flex justify-center">
-        <Button
-          className="bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md font-bold px-8 py-3 text-lg"
-          disabled={!canTriggerCountdown}
-          onClick={() => {
-            if (!canTriggerCountdown) return;
-            partySocket.send(JSON.stringify({ type: "triggerCountdown" }));
-          }}
-        >
-          Trigger Auction Countdown
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

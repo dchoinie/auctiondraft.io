@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Users, List, Settings, Shield, LogIn } from "lucide-react";
+import { useUser } from "@/stores/userStore";
+import { useLeagueStore } from "@/stores/leagueStore";
 
 function getDraftDateTime(settings: LeagueSettings | null | undefined) {
   if (!settings?.draftDate || !settings?.draftTime) return null;
@@ -49,6 +51,13 @@ export function DraftTab({
 }) {
   const { league_id } = useParams();
   const { settings, loading } = useLeagueSettings(league_id as string);
+  const { user } = useUser();
+  const { leagues } = useLeagueStore();
+  const league = leagues.find((league) => league.id === league_id);
+
+  // Check if user is league admin
+  const isAdmin = user?.id === league?.ownerId;
+
   const draftDateTime = useMemo(() => getDraftDateTime(settings), [settings]);
   const countdown = useCountdown(draftDateTime);
 
@@ -107,34 +116,38 @@ export function DraftTab({
               </CardHeader>
             </Card>
           </button>
-          <button
-            type="button"
-            className="group"
-            onClick={() => setActiveTab && setActiveTab("settings")}
-          >
-            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
-              <CardHeader className="flex flex-col items-center gap-2 pb-2">
-                <Settings className="w-8 h-8 text-gray-200 group-hover:text-gray-100" />
-                <CardTitle className="text-lg text-gray-100 group-hover:text-gray-50">
-                  Settings
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </button>
-          <button
-            type="button"
-            className="group"
-            onClick={() => setActiveTab && setActiveTab("keepers")}
-          >
-            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
-              <CardHeader className="flex flex-col items-center gap-2 pb-2">
-                <Shield className="w-8 h-8 text-yellow-200 group-hover:text-yellow-100" />
-                <CardTitle className="text-lg text-yellow-100 group-hover:text-yellow-50">
-                  Keepers
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="group"
+              onClick={() => setActiveTab && setActiveTab("settings")}
+            >
+              <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                  <Settings className="w-8 h-8 text-gray-200 group-hover:text-gray-100" />
+                  <CardTitle className="text-lg text-gray-100 group-hover:text-gray-50">
+                    Settings
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              className="group"
+              onClick={() => setActiveTab && setActiveTab("keepers")}
+            >
+              <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                <CardHeader className="flex flex-col items-center gap-2 pb-2">
+                  <Shield className="w-8 h-8 text-yellow-200 group-hover:text-yellow-100" />
+                  <CardTitle className="text-lg text-yellow-100 group-hover:text-yellow-50">
+                    Keepers
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </button>
+          )}
         </div>
       </div>
     </div>

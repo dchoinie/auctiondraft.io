@@ -356,19 +356,21 @@ export default function DraftPage() {
         <StaggeredContent>
           <StaggeredItem>
             {isAdmin && (
-              <AdminControls
-                draftState={draftState as DraftRoomState}
-                handleStartDraft={handleStartDraft}
-                handlePauseDraft={handlePauseDraft}
-                handleResetDraft={handleResetDraft}
-                handleResumeDraft={handleResumeDraft}
-              />
+              <div className="px-4 sm:px-6 lg:px-8">
+                <AdminControls
+                  draftState={draftState as DraftRoomState}
+                  handleStartDraft={handleStartDraft}
+                  handlePauseDraft={handlePauseDraft}
+                  handleResetDraft={handleResetDraft}
+                  handleResumeDraft={handleResumeDraft}
+                />
+              </div>
             )}
           </StaggeredItem>
           <StaggeredItem>
-            <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
+            <div className="flex flex-col items-center justify-center min-h-[50vh] sm:min-h-[60vh] lg:min-h-screen text-emerald-200 px-4">
               <SlideUp delay={0.2}>
-                <div className="text-2xl font-bold mb-4">
+                <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 text-center">
                   {isPreDraft
                     ? "Waiting for draft to start..."
                     : isPaused
@@ -377,7 +379,7 @@ export default function DraftPage() {
                 </div>
               </SlideUp>
               <FadeIn delay={0.4}>
-                <div className="text-sm mt-4">
+                <div className="text-sm sm:text-base mt-4 text-center max-w-md">
                   {isPreDraft
                     ? "The draft will begin once the admin clicks Start Draft."
                     : isPaused
@@ -387,14 +389,14 @@ export default function DraftPage() {
               </FadeIn>
               {league?.isDraftStarted && isPreDraft && (
                 <FadeIn delay={0.6}>
-                  <div className="text-sm mt-2 text-yellow-300">
+                  <div className="text-sm mt-2 text-yellow-300 text-center">
                     Draft was previously started. Attempting to restore state...
                   </div>
                 </FadeIn>
               )}
               {draftState && isPreDraft && (
                 <FadeIn delay={0.8}>
-                  <div className="text-sm mt-2 text-blue-300">
+                  <div className="text-sm mt-2 text-blue-300 text-center">
                     Draft is ready to start. Click &ldquo;Start Draft&rdquo; to
                     begin.
                   </div>
@@ -410,7 +412,7 @@ export default function DraftPage() {
   if (isLoadingData)
     return (
       <PageContent>
-        <div className="flex justify-center items-center h-screen text-white">
+        <div className="flex justify-center items-center min-h-[50vh] sm:min-h-[60vh] lg:min-h-screen text-white px-4">
           <Loader2 className="animate-spin mr-2" /> Setting up draft...
         </div>
       </PageContent>
@@ -418,7 +420,7 @@ export default function DraftPage() {
   if (isDataError)
     return (
       <PageContent>
-        <div>
+        <div className="px-4 sm:px-6 lg:px-8">
           Error:{" "}
           {[teamsError, leaguesError, userError]
             .map((err) => {
@@ -439,8 +441,8 @@ export default function DraftPage() {
     <PageContent>
       <StaggeredContent>
         <StaggeredItem>
-          <div className="flex justify-between items-center mb-4">
-            <div>
+          <div className="flex justify-between items-center mb-4 px-4 sm:px-6 lg:px-8">
+            <div className="w-full">
               {isAdmin && (
                 <AdminControls
                   draftState={draftState as DraftRoomState}
@@ -463,7 +465,7 @@ export default function DraftPage() {
         </StaggeredItem>
 
         <StaggeredItem>
-          <div className="my-6">
+          <div className="my-4 sm:my-6 px-4 sm:px-6 lg:px-8">
             <AuctionStage
               draftState={draftState as DraftRoomState}
               teams={teams as Team[]}
@@ -474,22 +476,34 @@ export default function DraftPage() {
         </StaggeredItem>
 
         <StaggeredItem>
-          <div className="my-6">
+          <div className="my-4 sm:my-6 px-4 sm:px-6 lg:px-8">
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <div className="flex justify-center my-6">
-                <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300">
-                  <TabsTrigger value="draft">Draft</TabsTrigger>
-                  <TabsTrigger value="rosters">Rosters</TabsTrigger>
+              <div className="flex justify-center my-4 sm:my-6">
+                <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300 w-full max-w-xs sm:max-w-md">
+                  <TabsTrigger
+                    value="draft"
+                    className="flex-1 text-sm sm:text-base"
+                  >
+                    Draft
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="rosters"
+                    className="flex-1 text-sm sm:text-base"
+                  >
+                    Rosters
+                  </TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value="draft">
-                <div className="grid grid-cols-3 gap-12">
-                  <TeamTracker
-                    draftState={draftState as DraftRoomState}
-                    teams={teams as Team[]}
-                    onlineUserIds={onlineUserIds}
-                  />
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-12">
+                  <div className="lg:col-span-1 order-2 lg:order-1">
+                    <TeamTracker
+                      draftState={draftState as DraftRoomState}
+                      teams={teams as Team[]}
+                      onlineUserIds={onlineUserIds}
+                    />
+                  </div>
+                  <div className="lg:col-span-2 order-1 lg:order-2">
                     <PlayersTable
                       leagueId={league_id as string}
                       partySocket={partySocket}

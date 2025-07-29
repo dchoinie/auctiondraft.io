@@ -17,9 +17,10 @@ import { SettingsTab } from "./SettingsTab";
 interface Tab {
   value: string;
   label: string;
+  adminOnly?: boolean;
 }
 
-const tabs: Tab[] = [
+const allTabs: Tab[] = [
   {
     value: "draft",
     label: "Draft",
@@ -35,10 +36,12 @@ const tabs: Tab[] = [
   {
     value: "settings",
     label: "Settings",
+    adminOnly: true,
   },
   {
     value: "keepers",
     label: "Keepers",
+    adminOnly: true,
   },
 ];
 
@@ -46,12 +49,28 @@ export default function LeaguePage() {
   const { league_id } = useParams();
   const { leagues, fetchLeagues } = useLeagueStore();
   const league = leagues.find((league: League) => league.id === league_id);
+  const { user } = useUser();
 
   const [localSettings, setLocalSettings] = useState(league?.settings || null);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("draft");
+
+  // Check if user is league admin
+  const isAdmin = user?.id === league?.ownerId;
+
+  // Filter tabs based on admin status
+  const tabs = useMemo(() => {
+    return allTabs.filter((tab) => !tab.adminOnly || isAdmin);
+  }, [isAdmin]);
+
+  // Update active tab if current tab is not available for user
+  useEffect(() => {
+    if (!tabs.find((tab) => tab.value === activeTab)) {
+      setActiveTab("draft");
+    }
+  }, [tabs, activeTab]);
 
   // Update localSettings when league changes
   useEffect(() => {
@@ -99,9 +118,8 @@ export default function LeaguePage() {
     if (leagues.length === 0) {
       fetchLeagues();
     }
-  }, [leagues, fetchLeagues]);
+  }, [leagues.length, fetchLeagues]);
 
-  const { user, loading: userLoading } = useUser();
   // Use league_id from params and league from store
   const leagueId = league_id as string;
   // Use league as settings
@@ -264,20 +282,24 @@ export default function LeaguePage() {
         <TabsContent value="rosters" className="mt-6">
           <RostersTab />
         </TabsContent>
-        <TabsContent value="settings" className="mt-6">
-          <SettingsTab
-            localSettings={localSettings}
-            successMessage={successMessage}
-            error={error}
-            handleInputChange={handleInputChange}
-            handleUpdateSettings={handleUpdateSettings}
-            isDirty={isDirty}
-            saving={saving}
-          />
-        </TabsContent>
-        <TabsContent value="keepers" className="mt-6">
-          <KeepersTab leagueId={league_id as string} />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="settings" className="mt-6">
+            <SettingsTab
+              localSettings={localSettings}
+              successMessage={successMessage}
+              error={error}
+              handleInputChange={handleInputChange}
+              handleUpdateSettings={handleUpdateSettings}
+              isDirty={isDirty}
+              saving={saving}
+            />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="keepers" className="mt-6">
+            <KeepersTab leagueId={league_id as string} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

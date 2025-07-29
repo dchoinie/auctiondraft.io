@@ -2,10 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save } from "lucide-react";
+import { Save, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import React from "react";
 import { LeagueSettings } from "@/stores/leagueStore";
+import { useUser } from "@/stores/userStore";
+import { useParams } from "next/navigation";
+import { useLeagueStore } from "@/stores/leagueStore";
 
 interface SettingsTabProps {
   localSettings: LeagueSettings | null;
@@ -26,6 +29,31 @@ export function SettingsTab({
   isDirty,
   saving,
 }: SettingsTabProps) {
+  const { user } = useUser();
+  const { league_id } = useParams();
+  const { leagues } = useLeagueStore();
+  const league = leagues.find((league) => league.id === league_id);
+
+  // Check if user is league admin
+  const isAdmin = user?.id === league?.ownerId;
+
+  // Show access denied for non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-400 mb-2">
+            Access Denied
+          </h3>
+          <p className="text-gray-400">
+            Only league administrators can access league settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {localSettings ? (

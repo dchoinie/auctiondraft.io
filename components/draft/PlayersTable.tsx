@@ -62,24 +62,26 @@ const PlayerRow = React.memo(function PlayerRow({
 
   return (
     <TableRow key={player.id}>
-      <TableCell>{player.firstName}</TableCell>
-      <TableCell>{player.lastName}</TableCell>
-      <TableCell>{player.position}</TableCell>
-      <TableCell>{player.team || "FA"}</TableCell>
+      <TableCell className="text-xs sm:text-sm">{player.firstName}</TableCell>
+      <TableCell className="text-xs sm:text-sm">{player.lastName}</TableCell>
+      <TableCell className="text-xs sm:text-sm">{player.position}</TableCell>
+      <TableCell className="text-xs sm:text-sm">
+        {player.team || "FA"}
+      </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <Button
             size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
             onClick={() => setAmount((prev) => Math.max(minAmount, prev - 1))}
             disabled={amount <= minAmount}
           >
-            <Minus className="w-4 h-4 text-emerald-100" />
+            <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
           </Button>
           <Button
             size="sm"
             variant="default"
-            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md"
+            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
             disabled={!partySocket || !user || !userTeam || !isCurrentNominator}
             onClick={() => {
               if (!partySocket || !user || !userTeam) return;
@@ -101,15 +103,14 @@ const PlayerRow = React.memo(function PlayerRow({
               );
             }}
           >
-            {`Nominate for $${amount}`}
+            Nominate ${amount}
           </Button>
           <Button
             size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100"
+            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
             onClick={() => setAmount((prev) => prev + 1)}
-            disabled={amount >= maxBid}
           >
-            <Plus className="w-4 h-4 text-emerald-100" />
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
           </Button>
         </div>
       </TableCell>
@@ -124,80 +125,65 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
   teams,
   draftState,
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [position, setPosition] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const { players, pagination, loading, error, fetchPlayersPage } = usePlayers(
-    currentPage,
-    PAGE_SIZE
-  );
-  const draftedPlayers = useDraftedPlayersAuto(leagueId);
-
-  // Find the current user's team for this league
-  const userTeam = React.useMemo(() => {
-    if (!user) return null;
-    return teams.find((t) => t.ownerId === user.id) || null;
-  }, [teams, user]);
-
-  // Get maxBid for the current user's team from draftState
-  const maxBid = React.useMemo(() => {
-    if (!userTeam || !draftState) return 1;
-    const teamState = draftState.teams[userTeam.id];
-    return teamState?.maxBid ?? 1;
-  }, [userTeam, draftState]);
-
-  // Get the current nominator from draftState
-  const currentNominatorTeamId = React.useMemo(() => {
-    if (!draftState) return null;
-    return draftState.currentNominatorTeamId;
-  }, [draftState]);
-
-  // Determine if the current user is the current nominator
-  const isCurrentNominator = React.useMemo(() => {
-    if (!userTeam || !currentNominatorTeamId) return false;
-    return userTeam.id === currentNominatorTeamId;
-  }, [userTeam, currentNominatorTeamId]);
-
-  // Debounce search input
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(handler);
-  }, [search]);
-
-  // Get drafted player IDs for this league
-  const draftedPlayerIds = useMemo(
-    () => draftedPlayers.map((p) => p.playerId),
-    [draftedPlayers]
-  );
-
-  // Search results (across all players)
+  // Get players from store
+  const { players, loading, error, fetchPlayersPage } = usePlayers();
   const {
     players: searchedPlayers,
     loading: searchLoading,
     error: searchError,
-  } = usePlayersSearch(debouncedSearch);
+  } = usePlayersSearch();
+  const { draftedPlayerIds } = useDraftedPlayersAuto(leagueId);
 
-  // Filter by position and drafted status
-  const filterByPosition = (player: Player) => {
-    if (position === "ALL") return true;
-    if (position === "D/ST") return player.position === "D/ST";
-    return player.position === position;
-  };
+  // Find the current user's team
+  const userTeam = useMemo(() => {
+    if (!user) return null;
+    return teams.find((t) => t.ownerId === user.id) || null;
+  }, [teams, user]);
 
-  // Filter out drafted players and by position
-  const availablePlayers = useMemo(() => {
-    if (debouncedSearch) {
-      return searchedPlayers.filter(
-        (player) =>
-          !draftedPlayerIds.includes(player.id) && filterByPosition(player)
-      );
-    }
-    return players.filter(
-      (player) =>
-        !draftedPlayerIds.includes(player.id) && filterByPosition(player)
-    );
+  // Check if current user is the nominator
+  const isCurrentNominator = useMemo(() => {
+    if (!userTeam || !draftState) return false;
+    return draftState.currentNominatorTeamId === userTeam.id;
+  }, [userTeam, draftState]);
+
+  // Get max bid for user's team
+  const maxBid = useMemo(() => {
+    if (!userTeam || !draftState?.teams) return 0;
+    const teamState = draftState.teams[userTeam.id];
+    return teamState?.maxBid || 0;
+  }, [userTeam, draftState]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Filter players based on search and position
+  const filteredPlayers = useMemo(() => {
+    const playersToFilter = debouncedSearch ? searchedPlayers : players;
+
+    return playersToFilter.filter((player) => {
+      // Filter out drafted players
+      if (draftedPlayerIds.includes(player.id)) {
+        return false;
+      }
+
+      // Filter by position
+      if (position !== "ALL" && player.position !== position) {
+        return false;
+      }
+
+      return true;
+    });
   }, [debouncedSearch, searchedPlayers, players, draftedPlayerIds, position]);
 
   useEffect(() => {
@@ -211,19 +197,19 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
 
   if (debouncedSearch && searchLoading) {
     return (
-      <div className="p-6 text-emerald-100">
+      <div className="p-4 sm:p-6 text-emerald-100">
         <Loader2 className="w-4 h-4 animate-spin" />
         Searching players...
       </div>
     );
   }
   if (debouncedSearch && searchError) {
-    return <div className="p-6 text-red-500">Error: {searchError}</div>;
+    return <div className="p-4 sm:p-6 text-red-500">Error: {searchError}</div>;
   }
   if (!debouncedSearch && loading) {
     return (
-      <div className="p-6">
-        <div className="p-6 text-emerald-100">
+      <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-6 text-emerald-100">
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading players...
         </div>
@@ -231,14 +217,14 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
     );
   }
   if (!debouncedSearch && error) {
-    return <div className="p-6 text-red-500">Error: {error}</div>;
+    return <div className="p-4 sm:p-6 text-red-500">Error: {error}</div>;
   }
 
   return (
     <div>
-      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <div className="flex gap-2 items-center">
-          <div className="relative w-80">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+          <div className="relative w-full sm:w-80">
             <Input
               type="text"
               placeholder="Search players by name..."
@@ -247,7 +233,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-10"
+              className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-10 text-sm sm:text-base"
               autoComplete="off"
               id="players-search-input"
             />
@@ -271,7 +257,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
               </button>
             )}
           </div>
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <Select
               value={position}
               onValueChange={(val) => {
@@ -279,7 +265,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="w-full bg-gray-900/80 border-gray-700 text-emerald-100">
+              <SelectTrigger className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 text-sm sm:text-base">
                 <SelectValue placeholder="Filter by position" />
               </SelectTrigger>
               <SelectContent>
@@ -293,19 +279,30 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
           </div>
         </div>
       </div>
-      <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-gray-50">First Name</TableHead>
-            <TableHead className="text-gray-50">Last Name</TableHead>
-            <TableHead className="text-gray-50">Position</TableHead>
-            <TableHead className="text-gray-50">Team</TableHead>
-            <TableHead className="text-gray-50"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {availablePlayers.map((player) => {
-            return (
+
+      <div className="overflow-x-auto">
+        <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md min-w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-gray-50 text-xs sm:text-sm">
+                First Name
+              </TableHead>
+              <TableHead className="text-gray-50 text-xs sm:text-sm">
+                Last Name
+              </TableHead>
+              <TableHead className="text-gray-50 text-xs sm:text-sm">
+                Position
+              </TableHead>
+              <TableHead className="text-gray-50 text-xs sm:text-sm">
+                Team
+              </TableHead>
+              <TableHead className="text-gray-50 text-xs sm:text-sm">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredPlayers.slice(0, PAGE_SIZE).map((player) => (
               <PlayerRow
                 key={player.id}
                 player={player}
@@ -315,58 +312,43 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 maxBid={maxBid}
                 isCurrentNominator={isCurrentNominator}
               />
-            );
-          })}
-        </TableBody>
-      </Table>
-      {/* Pagination Controls (only show if not searching) */}
-      {!debouncedSearch && (
-        <>
-          <div className="flex items-center justify-center gap-2 mt-4">
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {filteredPlayers.length === 0 && (
+        <div className="text-center py-8 text-emerald-200">
+          No players found matching your criteria.
+        </div>
+      )}
+
+      {filteredPlayers.length > PAGE_SIZE && (
+        <div className="mt-4 flex justify-center">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handlePageChange(pagination.currentPage - 1)}
-              disabled={!pagination.hasPreviousPage}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               Previous
             </Button>
-            <div className="flex items-center gap-2">
-              {Array.from(
-                { length: Math.min(5, pagination.totalPages) },
-                (_, i) => {
-                  const startPage = Math.max(1, pagination.currentPage - 2);
-                  const page = startPage + i;
-                  if (page > pagination.totalPages) return null;
-                  return (
-                    <Button
-                      key={page}
-                      variant={
-                        page === pagination.currentPage ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => handlePageChange(page)}
-                      className="min-w-[2.5rem]"
-                    >
-                      {page}
-                    </Button>
-                  );
-                }
-              )}
-            </div>
+            <span className="flex items-center px-3 text-emerald-200">
+              Page {currentPage}
+            </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handlePageChange(pagination.currentPage + 1)}
-              disabled={!pagination.hasNextPage}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={filteredPlayers.length <= PAGE_SIZE}
+              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               Next
             </Button>
           </div>
-          <div className="text-center text-sm text-muted-foreground mt-2">
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

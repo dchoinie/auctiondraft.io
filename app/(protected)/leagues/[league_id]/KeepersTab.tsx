@@ -5,14 +5,42 @@ import { usePlayers, Player } from "@/stores/playersStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2, Shield } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUser } from "@/stores/userStore";
+import { useParams } from "next/navigation";
+import { useLeagueStore } from "@/stores/leagueStore";
 
 interface KeepersTabProps {
   leagueId: string;
 }
 
 export function KeepersTab({ leagueId }: KeepersTabProps) {
+  const { user } = useUser();
+  const { league_id } = useParams();
+  const { leagues } = useLeagueStore();
+  const league = leagues.find((league) => league.id === league_id);
+
+  // Check if user is league admin
+  const isAdmin = user?.id === league?.ownerId;
+
+  // Show access denied for non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-400 mb-2">
+            Access Denied
+          </h3>
+          <p className="text-gray-400">
+            Only league administrators can manage keepers.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
   const {
     keepers: existingKeepers,

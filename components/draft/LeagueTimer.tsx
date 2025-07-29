@@ -51,9 +51,9 @@ export default function LeagueTimer({
   };
 
   return (
-    <div className="flex justify-center mb-4">
+    <div className="flex justify-center mb-3 sm:mb-4">
       <div
-        className={`px-4 py-2 rounded-lg border-2 font-mono text-lg font-bold ${getColorClass()}`}
+        className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border-2 font-mono text-base sm:text-lg font-bold ${getColorClass()}`}
       >
         Bidding Time: {timeLeft}s
       </div>
