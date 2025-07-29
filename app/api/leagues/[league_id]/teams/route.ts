@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 // GET: List all teams in a league
 export async function GET(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -69,7 +69,7 @@ export async function GET(
 // POST: Create a new team (admin or user creating their own team)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();

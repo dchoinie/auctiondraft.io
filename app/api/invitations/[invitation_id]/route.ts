@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { invitation_id: string } }
+  { params }: { params: Promise<{ invitation_id: string }> }
 ) {
   try {
     const { userId } = await auth();

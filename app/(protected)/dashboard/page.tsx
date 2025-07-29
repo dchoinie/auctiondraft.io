@@ -6,14 +6,7 @@ import { useUser } from "@/stores/userStore";
 import { useLeagueMembership } from "@/stores/leagueStore";
 import { ProfileCompletionModal } from "@/components/ProfileCompletionModal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  CheckCircle,
-  Plus,
-  BarChart3,
-  Users,
-  Calendar,
-  Clock,
-} from "lucide-react";
+import { CheckCircle, Plus, BarChart3, Users, Clock } from "lucide-react";
 import Link from "next/link";
 import { Team } from "@/stores/teamStore";
 import { Button } from "@/components/ui/button";

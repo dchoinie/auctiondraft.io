@@ -49,7 +49,7 @@ export default function LeaguePage() {
   const { league_id } = useParams();
   const { leagues, fetchLeagues } = useLeagueStore();
   const league = leagues.find((league: League) => league.id === league_id);
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
 
   const [localSettings, setLocalSettings] = useState(league?.settings || null);
   const [saving, setSaving] = useState(false);

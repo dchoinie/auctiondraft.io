@@ -7,7 +7,7 @@ import { sendLeagueInvitationEmail } from "@/lib/email";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -19,7 +19,8 @@ export async function POST(
       );
     }
 
-    const leagueId = params.league_id;
+    const resolvedParams = await params;
+    const leagueId = resolvedParams.league_id;
     const body = await req.json();
     const { email } = body;
 
@@ -148,7 +149,7 @@ export async function POST(
 // Get pending invitations for a league
 export async function GET(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -160,7 +161,8 @@ export async function GET(
       );
     }
 
-    const leagueId = params.league_id;
+    const resolvedParams = await params;
+    const leagueId = resolvedParams.league_id;
 
     // Verify league exists and user is owner
     const league = await db

@@ -9,7 +9,7 @@ export async function POST(
   {
     params,
   }: {
-    params: { league_id: string; invitation_id: string };
+    params: Promise<{ league_id: string; invitation_id: string }>;
   }
 ) {
   try {

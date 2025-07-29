@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 // DELETE: Cancel a pending invitation (admin only)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { league_id: string; invitation_id: string } }
+  { params }: { params: Promise<{ league_id: string; invitation_id: string }> }
 ) {
   try {
     const { userId } = await auth();

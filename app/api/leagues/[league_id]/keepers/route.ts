@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { league_id } = await params;
@@ -44,7 +44,7 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { league_id } = await params;

@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 // GET: Get specific team details
 export async function GET(
   req: NextRequest,
-  { params }: { params: { league_id: string; team_id: string } }
+  { params }: { params: Promise<{ league_id: string; team_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -63,7 +63,7 @@ export async function GET(
 // PUT: Update team (name, etc.)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { league_id: string; team_id: string } }
+  { params }: { params: Promise<{ league_id: string; team_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -155,7 +155,7 @@ export async function PUT(
 // DELETE: Remove team from league
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { league_id: string; team_id: string } }
+  { params }: { params: Promise<{ league_id: string; team_id: string }> }
 ) {
   try {
     const { userId } = await auth();

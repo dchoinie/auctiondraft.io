@@ -11,7 +11,7 @@ import { eq, notInArray, and } from "drizzle-orm";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -20,7 +20,8 @@ export async function POST(
     }
 
     const { action, data } = await request.json();
-    const leagueId = (await params).league_id;
+    const resolvedParams = await params;
+    const leagueId = resolvedParams.league_id;
 
     switch (action) {
       case "saveSnapshot":
@@ -188,7 +189,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { league_id: string } }
+  { params }: { params: Promise<{ league_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -196,7 +197,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const leagueId = await params.league_id;
+    const resolvedParams = await params;
+    const leagueId = resolvedParams.league_id;
 
     // Get the latest draft state (including reset states)
     const latest = await db.query.draftStateHistory.findFirst({

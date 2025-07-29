@@ -79,7 +79,6 @@ export default function Countdown({
           animate={{
             opacity: 1,
             y: 0,
-            scale: 1,
             ...phaseAnimations[auctionPhase as keyof typeof phaseAnimations],
           }}
           exit={{ opacity: 0, y: -30, scale: 0.9 }}

@@ -136,8 +136,12 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
     players: searchedPlayers,
     loading: searchLoading,
     error: searchError,
-  } = usePlayersSearch();
-  const { draftedPlayerIds } = useDraftedPlayersAuto(leagueId);
+  } = usePlayersSearch(debouncedSearch);
+  const draftedPlayers = useDraftedPlayersAuto(leagueId);
+  const draftedPlayerIds = useMemo(
+    () => draftedPlayers.map((player) => player.playerId),
+    [draftedPlayers]
+  );
 
   // Find the current user's team
   const userTeam = useMemo(() => {
