@@ -48,12 +48,14 @@ const PlayerRow = React.memo(function PlayerRow({
   user,
   userTeam,
   maxBid,
+  isCurrentNominator,
 }: {
   player: Player;
   partySocket: PartySocket | null;
   user: { id: string } | null;
   userTeam: Team | null;
   maxBid: number;
+  isCurrentNominator: boolean;
 }) {
   const minAmount = 1;
   const [amount, setAmount] = useState(minAmount);
@@ -78,7 +80,7 @@ const PlayerRow = React.memo(function PlayerRow({
             size="sm"
             variant="default"
             className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md"
-            disabled={!partySocket || !user || !userTeam}
+            disabled={!partySocket || !user || !userTeam || !isCurrentNominator}
             onClick={() => {
               if (!partySocket || !user || !userTeam) return;
               partySocket.send(
@@ -99,7 +101,7 @@ const PlayerRow = React.memo(function PlayerRow({
               );
             }}
           >
-            Nominate for ${amount}
+            {`Nominate for $${amount}`}
           </Button>
           <Button
             size="sm"
@@ -145,6 +147,18 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
     const teamState = draftState.teams[userTeam.id];
     return teamState?.maxBid ?? 1;
   }, [userTeam, draftState]);
+
+  // Get the current nominator from draftState
+  const currentNominatorTeamId = React.useMemo(() => {
+    if (!draftState) return null;
+    return draftState.currentNominatorTeamId;
+  }, [draftState]);
+
+  // Determine if the current user is the current nominator
+  const isCurrentNominator = React.useMemo(() => {
+    if (!userTeam || !currentNominatorTeamId) return false;
+    return userTeam.id === currentNominatorTeamId;
+  }, [userTeam, currentNominatorTeamId]);
 
   // Debounce search input
   useEffect(() => {
@@ -299,6 +313,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 user={user}
                 userTeam={userTeam}
                 maxBid={maxBid}
+                isCurrentNominator={isCurrentNominator}
               />
             );
           })}
