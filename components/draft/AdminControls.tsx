@@ -43,7 +43,7 @@ export default function AdminControls({
   handleResetDraft,
 }: AdminControlsProps) {
   const [controlsVisible, setControlsVisible] = React.useState(true);
-  const { draftStarted, draftPaused } = draftState || {};
+  const { draftPhase } = draftState || {};
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   return (
     <Card
@@ -85,9 +85,9 @@ export default function AdminControls({
           <div className="grid grid-cols-5 gap-3 tracking-wide">
             <Button
               onClick={() => {
-                if (!draftStarted) {
+                if (draftPhase === "pre") {
                   handleStartDraft();
-                } else if (draftPaused) {
+                } else if (draftPhase === "paused") {
                   handleResumeDraft();
                 } else {
                   handlePauseDraft();
@@ -95,12 +95,12 @@ export default function AdminControls({
               }}
               className="flex items-center gap-2 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl font-semibold text-emerald-100 whitespace-normal"
             >
-              {!draftStarted ? (
+              {draftPhase === "pre" ? (
                 <>
                   <Play size={18} />
                   Start Draft
                 </>
-              ) : draftPaused ? (
+              ) : draftPhase === "paused" ? (
                 <>
                   <Play size={18} />
                   Resume Draft

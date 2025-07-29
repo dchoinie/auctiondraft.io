@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { Exo_2 } from "next/font/google";
+import { PageTransition } from "@/components/ui/page-transition";
 
 const exo2 = Exo_2({
   subsets: ["latin"],
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
       <html lang="en" className={exo2.variable}>
-        <body>{children}</body>
+        <body>
+          <PageTransition>{children}</PageTransition>
+        </body>
       </html>
     </ClerkProvider>
   );

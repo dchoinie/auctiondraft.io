@@ -9,6 +9,7 @@ import React from "react";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { MobileSidebar } from "@/components/MobileSidebar";
 import { Loader2, Trophy } from "lucide-react";
+import { PageTransition } from "@/components/ui/page-transition";
 
 export default function ProtectedLayout({
   children,
@@ -18,9 +19,9 @@ export default function ProtectedLayout({
   return (
     <>
       <SignedIn>
-        <div className="flex bg-gradient-to-r from-emerald-900 to-gray-900 min-h-[100vh]">
+        <div className="flex min-h-[100vh]">
           <ClerkLoading>
-            <div className="fixed inset-0 flex items-center justify-center">
+            <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-r from-emerald-900 to-gray-900">
               <span className="text-white flex gap-6">
                 <Loader2 className="w-8 h-8 animate-spin" />
                 <Trophy className="w-8 h-8" />
@@ -30,7 +31,9 @@ export default function ProtectedLayout({
           </ClerkLoading>
           <ClerkLoaded>
             <DesktopSidebar />
-            <MobileSidebar>{children}</MobileSidebar>
+            <MobileSidebar>
+              <PageTransition>{children}</PageTransition>
+            </MobileSidebar>
           </ClerkLoaded>
         </div>
       </SignedIn>

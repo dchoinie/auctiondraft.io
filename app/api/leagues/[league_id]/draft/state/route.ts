@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import {
   draftStateHistory,
@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const { action, data } = await request.json();
-    const leagueId = params.league_id;
+    const leagueId = await params.league_id;
 
     switch (action) {
       case "saveSnapshot":
@@ -46,12 +46,25 @@ export async function POST(
         break;
 
       case "addDraftedPlayer":
-        await db.insert(draftedPlayers).values({
+        console.log("API: Adding drafted player to database", {
           teamId: data.teamId,
           playerId: data.playerId,
           leagueId,
           draftPrice: data.draftPrice,
         });
+
+        try {
+          await db.insert(draftedPlayers).values({
+            teamId: data.teamId,
+            playerId: data.playerId,
+            leagueId,
+            draftPrice: data.draftPrice,
+          });
+          console.log("API: Successfully added drafted player to database");
+        } catch (error) {
+          console.error("API: Error inserting drafted player:", error);
+          throw error;
+        }
         break;
 
       case "clearDraftedPlayers":
@@ -95,6 +108,13 @@ export async function POST(
             .where(eq(draftedPlayers.leagueId, leagueId)),
           db.delete(keepers).where(eq(keepers.leagueId, leagueId)),
         ]);
+        break;
+
+      case "clearDraftStateHistory":
+        // Clear all draft state history for this league
+        await db
+          .delete(draftStateHistory)
+          .where(eq(draftStateHistory.leagueId, leagueId));
         break;
 
       case "convertKeepersToDrafted":

@@ -9,6 +9,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { Team } from "@/stores/teamStore";
+import {
+  PageContent,
+  StaggeredContent,
+  StaggeredItem,
+  FadeIn,
+  SlideUp,
+} from "@/components/ui/page-transition";
 
 // Types for invitations and payments
 interface Invitation {
@@ -101,22 +108,40 @@ export default function Dashboard() {
   // Show loading state
   if (userLoading || leagueLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-gray-50">Loading...</div>
-      </div>
+      <PageContent>
+        <div className="flex items-center justify-center min-h-screen">
+          <FadeIn>
+            <div className="text-lg text-gray-50">Loading...</div>
+          </FadeIn>
+        </div>
+      </PageContent>
     );
   }
 
   // Show error state
   if (userError || leagueError) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-red-600">
-          Error: {userError || leagueError}
+      <PageContent>
+        <div className="flex items-center justify-center min-h-screen">
+          <SlideUp>
+            <div className="text-lg text-red-600">
+              Error: {userError || leagueError}
+            </div>
+          </SlideUp>
         </div>
-      </div>
+      </PageContent>
     );
   }
 
-  return <div className="max-w-4xl mx-auto"></div>;
+  return (
+    <PageContent>
+      <StaggeredContent>
+        <StaggeredItem>
+          <div className="max-w-4xl mx-auto">
+            {/* Dashboard content will go here */}
+          </div>
+        </StaggeredItem>
+      </StaggeredContent>
+    </PageContent>
+  );
 }

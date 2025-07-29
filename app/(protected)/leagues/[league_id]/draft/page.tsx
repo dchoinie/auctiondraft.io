@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import PartySocket from "partysocket";
 import { useAuth } from "@clerk/nextjs";
 import { useLeagueTeams, Team } from "@/stores/teamStore";
 import { useUser } from "@/stores/userStore";
 import { League, useLeagueMembership } from "@/stores/leagueStore";
-import { useLeagueKeepers } from "@/stores/keepersStore";
-import {
-  DraftedPlayer,
-  useDraftedPlayersAuto,
-  useDraftedPlayersStore,
-} from "@/stores/draftedPlayersStore";
+import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
 import { usePlayersStore } from "@/stores/playersStore";
 import { Loader2 } from "lucide-react";
-import { DraftRoomState, TeamDraftState } from "@/party";
+import { DraftRoomState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
 import { useDraftDatabase } from "@/hooks/use-draft-database";
-import { useDraftHydration } from "@/hooks/use-draft-hydration";
+import { useDraftHydration, useDraftPhase } from "@/hooks/use-draft-hydration";
 import AdminControls from "@/components/draft/AdminControls";
 import TeamTracker from "@/components/draft/TeamTracker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -26,6 +21,13 @@ import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
 import AuctionStage from "@/components/draft/AutionStage";
 import Countdown from "@/components/draft/Countdown";
+import {
+  PageContent,
+  StaggeredContent,
+  StaggeredItem,
+  FadeIn,
+  SlideUp,
+} from "@/components/ui/page-transition";
 
 export default function DraftPage() {
   const { league_id } = useParams();
@@ -46,12 +48,6 @@ export default function DraftPage() {
     loading: leaguesLoading,
     error: leaguesError,
   } = useLeagueMembership();
-  const {
-    keepers,
-    loading: keepersLoading,
-    error: keepersError,
-  } = useLeagueKeepers(league_id as string);
-  const draftedPlayers = useDraftedPlayersAuto(league_id as string);
   const draftState = useDraftState(league_id as string);
   const setDraftState = useDraftStateStore((state) => state.setDraftState);
 
@@ -63,64 +59,21 @@ export default function DraftPage() {
   });
 
   // Handle draft state hydration with league-specific data
-  const { isHydrated } = useDraftHydration({
+  const { isHydrated, hasHydratedRef } = useDraftHydration({
     leagueId: league_id as string,
     partySocket,
     draftState,
   });
 
+  // Use the new draft phase hook for cleaner state management
+  const { isPreDraft, isLive, isPaused, isComplete, isActive } =
+    useDraftPhase(draftState);
+
   const playersStore = usePlayersStore();
-  // Use stable selectors for Zustand store methods
-  const getPlayerById = usePlayersStore((state) => state.getPlayerById);
-  const fetchPlayerById = usePlayersStore((state) => state.fetchPlayerById);
-
-  // Helper to get all unique playerIds from draftedPlayers and keepers
-  const allDraftedAndKeeperPlayerIds = useMemo(() => {
-    const draftedIds = draftedPlayers.map((p) => p.playerId);
-    const keeperIds = (keepers || []).map((k) => k.playerId);
-    return Array.from(new Set([...draftedIds, ...keeperIds]));
-  }, [draftedPlayers, keepers]);
-
-  // Only fetch player data when draft starts and we need it for hydration
-  useEffect(() => {
-    // Only fetch players if draft has started and we have keepers/drafted players
-    if (draftState?.draftStarted && allDraftedAndKeeperPlayerIds.length > 0) {
-      async function fetchMissingPlayers() {
-        const missingIds = allDraftedAndKeeperPlayerIds.filter(
-          (id) => !getPlayerById(id)
-        );
-
-        if (missingIds.length > 0) {
-          console.log(
-            `Draft started - fetching ${missingIds.length} missing players for hydration:`,
-            missingIds
-          );
-
-          // Fetch players one by one to handle errors gracefully
-          for (const id of missingIds) {
-            try {
-              await fetchPlayerById(id);
-            } catch (error) {
-              console.warn(`Failed to fetch player ${id}:`, error);
-              // Continue with other players
-            }
-          }
-        }
-      }
-
-      fetchMissingPlayers();
-    }
-  }, [
-    draftState?.draftStarted,
-    allDraftedAndKeeperPlayerIds,
-    getPlayerById,
-    fetchPlayerById,
-  ]);
 
   const league = leagues.find((league: League) => league.id === league_id);
-  const isDataError = teamsError || leaguesError || userError || keepersError;
-  const isLoadingData =
-    teamsLoading || leaguesLoading || userLoading || keepersLoading;
+  const isDataError = teamsError || leaguesError || userError;
+  const isLoadingData = teamsLoading || leaguesLoading || userLoading;
 
   // Connect PartySocket and set up listeners
   useEffect(() => {
@@ -161,11 +114,13 @@ export default function DraftPage() {
             }
 
             if (message.type === "welcome") {
+              // Welcome message received
             }
 
             if (message.type === "stateUpdate" && message.data) {
               setDraftState(league_id as string, message.data);
             }
+
             if (message.type === "draftStarted" && message.data) {
               setDraftState(league_id as string, message.data);
 
@@ -191,15 +146,11 @@ export default function DraftPage() {
                 );
               }
             }
+
             if (message.type === "draftPaused" && message.data) {
               setDraftState(league_id as string, message.data);
             }
-            if (
-              message.type === "connectedUsers" &&
-              Array.isArray(message.userIds)
-            ) {
-              setOnlineUserIds(message.userIds);
-            }
+
             if (message.type === "draftReset") {
               setDraftState(league_id as string, null);
               useDraftedPlayersStore
@@ -207,17 +158,26 @@ export default function DraftPage() {
                 .resetLeague(league_id as string);
             }
 
+            if (
+              message.type === "connectedUsers" &&
+              Array.isArray(message.userIds)
+            ) {
+              setOnlineUserIds(message.userIds);
+            }
+
             // Handle init message
             if (message.type === "init" && message.data) {
               setDraftState(league_id as string, message.data);
             }
 
-            // If this is a state update after a player was sold (no nominated player), refresh drafted players
+            // Check for player sold (no nominated player + idle phase)
+            // This is now more reliable since server handles state transitions better
             if (
               message.type === "stateUpdate" &&
               message.data &&
               !message.data.nominatedPlayer &&
-              message.data.auctionPhase === "idle"
+              message.data.auctionPhase === "idle" &&
+              draftState?.nominatedPlayer // Only refresh if there was a nominated player before
             ) {
               // Refresh drafted players from database
               useDraftedPlayersStore
@@ -288,11 +248,31 @@ export default function DraftPage() {
     if (partySocket) {
       partySocket.send(JSON.stringify({ type: "resetDraft" }));
 
-      // Save initial draft state to database after reset
+      // Clear all draft data from database
       try {
+        // Clear drafted players (but preserve keepers)
+        await fetch(`/api/leagues/${league_id}/draft/state`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "clearDraftedPlayers",
+            data: {},
+          }),
+        });
+
+        // Clear all draft state history
+        await fetch(`/api/leagues/${league_id}/draft/state`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "clearDraftStateHistory",
+            data: {},
+          }),
+        });
+
+        // Save initial draft state to database after reset
         const initialDraftState = {
-          draftStarted: false,
-          draftPaused: false,
+          draftPhase: "pre" as const,
           currentNominatorTeamId: null,
           nominatedPlayer: null,
           startingBidAmount: 0,
@@ -303,8 +283,9 @@ export default function DraftPage() {
           nominationOrder: [],
           currentNominationIndex: 0,
           draftType: "linear" as const,
-          timerDuration: 4,
-          autoStartTimer: false,
+          timerEnabled: false,
+          timerDuration: 60,
+          autoStartTimer: true,
           currentRound: 1,
           currentPick: 1,
           totalPicks: 0,
@@ -324,7 +305,15 @@ export default function DraftPage() {
             },
           }),
         });
-        console.log("Draft state reset to initial state in database");
+
+        // Reset drafted players store after a small delay to ensure database operations complete
+        setTimeout(() => {
+          useDraftedPlayersStore.getState().resetLeague(league_id as string);
+        }, 100);
+
+        console.log(
+          "Draft completely reset - all data cleared and initial state saved"
+        );
       } catch (error) {
         console.error("Error resetting draft state in database:", error);
       }
@@ -333,134 +322,171 @@ export default function DraftPage() {
 
   // Debug logging for draft state
   console.log("Draft page state:", {
-    draftStarted: draftState?.draftStarted,
+    draftPhase: draftState?.draftPhase,
     isHydrated,
     hasDraftState: !!draftState,
+    hasHydratedRef,
+    teamsCount: draftState?.teams ? Object.keys(draftState.teams).length : 0,
   });
 
   // Show waiting message if draft hasn't started or hydration isn't complete
-  if (!draftState?.draftStarted || !isHydrated) {
+  if (!isLive || !isHydrated) {
     return (
-      <>
-        {isAdmin && (
-          <AdminControls
-            draftState={draftState as DraftRoomState}
-            handleStartDraft={handleStartDraft}
-            handlePauseDraft={handlePauseDraft}
-            handleResetDraft={handleResetDraft}
-            handleResumeDraft={handleResumeDraft}
-          />
-        )}
-        <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
-          <div className="text-2xl font-bold mb-4">
-            {!draftState?.draftStarted
-              ? "Waiting for draft to start..."
-              : "Setting up draft room..."}
-          </div>
-          <div className="text-sm mt-4">
-            {!draftState?.draftStarted
-              ? "The draft will begin once the admin clicks Start Draft."
-              : "Loading league data and preparing draft room..."}
-          </div>
-          {league?.isDraftStarted && !draftState?.draftStarted && (
-            <div className="text-sm mt-2 text-yellow-300">
-              Draft was previously started. Attempting to restore state...
+      <PageContent>
+        <StaggeredContent>
+          <StaggeredItem>
+            {isAdmin && (
+              <AdminControls
+                draftState={draftState as DraftRoomState}
+                handleStartDraft={handleStartDraft}
+                handlePauseDraft={handlePauseDraft}
+                handleResetDraft={handleResetDraft}
+                handleResumeDraft={handleResumeDraft}
+              />
+            )}
+          </StaggeredItem>
+          <StaggeredItem>
+            <div className="flex flex-col items-center justify-center h-screen text-emerald-200">
+              <SlideUp delay={0.2}>
+                <div className="text-2xl font-bold mb-4">
+                  {isPreDraft
+                    ? "Waiting for draft to start..."
+                    : isPaused
+                      ? "Draft is paused..."
+                      : "Setting up draft room..."}
+                </div>
+              </SlideUp>
+              <FadeIn delay={0.4}>
+                <div className="text-sm mt-4">
+                  {isPreDraft
+                    ? "The draft will begin once the admin clicks Start Draft."
+                    : isPaused
+                      ? "The draft has been paused. Click Resume to continue."
+                      : "Loading league data and preparing draft room..."}
+                </div>
+              </FadeIn>
+              {league?.isDraftStarted && isPreDraft && (
+                <FadeIn delay={0.6}>
+                  <div className="text-sm mt-2 text-yellow-300">
+                    Draft was previously started. Attempting to restore state...
+                  </div>
+                </FadeIn>
+              )}
+              {draftState && isPreDraft && (
+                <FadeIn delay={0.8}>
+                  <div className="text-sm mt-2 text-blue-300">
+                    Draft is ready to start. Click &ldquo;Start Draft&rdquo; to
+                    begin.
+                  </div>
+                </FadeIn>
+              )}
             </div>
-          )}
-          {draftState && !draftState.draftStarted && (
-            <div className="text-sm mt-2 text-blue-300">
-              Draft is ready to start. Click &ldquo;Start Draft&rdquo; to begin.
-            </div>
-          )}
-        </div>
-      </>
+          </StaggeredItem>
+        </StaggeredContent>
+      </PageContent>
     );
   }
 
   if (isLoadingData)
     return (
-      <div className="flex justify-center items-center h-screen text-white">
-        <Loader2 className="animate-spin mr-2" /> Setting up draft...
-      </div>
+      <PageContent>
+        <div className="flex justify-center items-center h-screen text-white">
+          <Loader2 className="animate-spin mr-2" /> Setting up draft...
+        </div>
+      </PageContent>
     );
   if (isDataError)
     return (
-      <div>
-        Error:{" "}
-        {[teamsError, leaguesError, userError, keepersError]
-          .map((err) => {
-            if (!err) return null;
-            if (typeof err === "string") return err;
-            if (typeof err === "object") {
-              return Object.values(err).filter(Boolean).join(", ");
-            }
-            return String(err);
-          })
-          .filter(Boolean)
-          .join(" | ")}
-      </div>
+      <PageContent>
+        <div>
+          Error:{" "}
+          {[teamsError, leaguesError, userError]
+            .map((err) => {
+              if (!err) return null;
+              if (typeof err === "string") return err;
+              if (typeof err === "object") {
+                return Object.values(err).filter(Boolean).join(", ");
+              }
+              return String(err);
+            })
+            .filter(Boolean)
+            .join(" | ")}
+        </div>
+      </PageContent>
     );
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          {isAdmin && (
-            <AdminControls
-              draftState={draftState as DraftRoomState}
-              handleStartDraft={handleStartDraft}
-              handlePauseDraft={handlePauseDraft}
-              handleResetDraft={handleResetDraft}
-              handleResumeDraft={handleResumeDraft}
-            />
-          )}
-        </div>
-      </div>
-      {/* Countdown popup overlay */}
-      <Countdown
-        auctionPhase={draftState?.auctionPhase || "idle"}
-        timerDuration={4} // Fixed 4 seconds for auction countdown
-      />
-
-      <div className="my-6">
-        <AuctionStage
-          draftState={draftState as DraftRoomState}
-          teams={teams as Team[]}
-          partySocket={partySocket}
-          user={user}
-        />
-      </div>
-      <div className="my-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <div className="flex justify-center my-6">
-            <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300">
-              <TabsTrigger value="draft">Draft</TabsTrigger>
-              <TabsTrigger value="rosters">Rosters</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="draft">
-            <div className="grid grid-cols-3 gap-12">
-              <TeamTracker
-                draftState={draftState as DraftRoomState}
-                teams={teams as Team[]}
-                onlineUserIds={onlineUserIds}
-              />
-              <div className="col-span-2">
-                <PlayersTable
-                  leagueId={league_id as string}
-                  partySocket={partySocket}
-                  user={user}
-                  teams={teams as Team[]}
+    <PageContent>
+      <StaggeredContent>
+        <StaggeredItem>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              {isAdmin && (
+                <AdminControls
                   draftState={draftState as DraftRoomState}
+                  handleStartDraft={handleStartDraft}
+                  handlePauseDraft={handlePauseDraft}
+                  handleResetDraft={handleResetDraft}
+                  handleResumeDraft={handleResumeDraft}
                 />
-              </div>
+              )}
             </div>
-          </TabsContent>
-          <TabsContent value="rosters">
-            <Rosters />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </>
+          </div>
+        </StaggeredItem>
+
+        {/* Countdown popup overlay */}
+        <StaggeredItem>
+          <Countdown
+            auctionPhase={draftState?.auctionPhase || "idle"}
+            timerDuration={4} // Fixed 4 seconds for auction countdown
+          />
+        </StaggeredItem>
+
+        <StaggeredItem>
+          <div className="my-6">
+            <AuctionStage
+              draftState={draftState as DraftRoomState}
+              teams={teams as Team[]}
+              partySocket={partySocket}
+              user={user}
+            />
+          </div>
+        </StaggeredItem>
+
+        <StaggeredItem>
+          <div className="my-6">
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <div className="flex justify-center my-6">
+                <TabsList className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl text-emerald-300">
+                  <TabsTrigger value="draft">Draft</TabsTrigger>
+                  <TabsTrigger value="rosters">Rosters</TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="draft">
+                <div className="grid grid-cols-3 gap-12">
+                  <TeamTracker
+                    draftState={draftState as DraftRoomState}
+                    teams={teams as Team[]}
+                    onlineUserIds={onlineUserIds}
+                  />
+                  <div className="col-span-2">
+                    <PlayersTable
+                      leagueId={league_id as string}
+                      partySocket={partySocket}
+                      user={user}
+                      teams={teams as Team[]}
+                      draftState={draftState as DraftRoomState}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="rosters">
+                <Rosters />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </StaggeredItem>
+      </StaggeredContent>
+    </PageContent>
   );
 }

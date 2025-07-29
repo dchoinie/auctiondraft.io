@@ -18,9 +18,11 @@ export type TeamDraftState = {
   maxBid: number;
 };
 
+// Draft phase enum for better state management
+export type DraftPhase = "pre" | "live" | "paused" | "complete";
+
 export type DraftRoomState = {
-  draftStarted: boolean;
-  draftPaused: boolean; // Track if draft is paused
+  draftPhase: DraftPhase; // Replace draftStarted and draftPaused
   currentNominatorTeamId: string | null;
   nominatedPlayer: {
     id: string;
@@ -38,14 +40,14 @@ export type DraftRoomState = {
   auctionPhase: "idle" | "goingOnce" | "goingTwice" | "sold";
   nominationOrder: string[];
   currentNominationIndex: number;
-  draftType: "snake" | "linear"; // Add draft type to state
-  timerDuration: number; // Timer duration in seconds
-  autoStartTimer: boolean; // Auto-start countdown on nomination
-  currentRound: number; // Current round number
-  currentPick: number; // Current pick number within the round
-  totalPicks: number; // Total picks made so far
+  draftType: "snake" | "linear";
+  timerEnabled: boolean;
+  timerDuration: number;
+  autoStartTimer: boolean;
+  currentRound: number;
+  currentPick: number;
+  totalPicks: number;
   teams: Record<string, TeamDraftState>;
-  // New: Track the last 10 bids
   bidHistory: Array<{
     amount: number;
     teamId: string;
@@ -55,8 +57,7 @@ export type DraftRoomState = {
 
 class PartyRoom implements Party.Server {
   state: DraftRoomState = {
-    draftStarted: false,
-    draftPaused: false, // Not paused initially
+    draftPhase: "pre", // Start in pre-draft phase
     currentNominatorTeamId: null,
     nominatedPlayer: null,
     startingBidAmount: 0,
@@ -66,16 +67,18 @@ class PartyRoom implements Party.Server {
     auctionPhase: "idle",
     nominationOrder: [],
     currentNominationIndex: 0,
-    draftType: "linear", // Default to linear
-    timerDuration: 4, // Default timer duration
-    autoStartTimer: false, // Default to manual start
-    currentRound: 1, // Start at round 1
-    currentPick: 1, // Start at pick 1
-    totalPicks: 0, // No picks made yet
+    draftType: "snake",
+    timerEnabled: false,
+    timerDuration: 0,
+    autoStartTimer: false,
+    currentRound: 1,
+    currentPick: 1,
+    totalPicks: 0,
     teams: {},
     bidHistory: [],
   };
   resetAllowed = true; // Allow reset by default since we're not hydrating from DB
+  hasLoadedFromDB = false; // Track if we've loaded state from database
 
   // Track connected user IDs (actual user IDs from Clerk)
   connectedUserIds = new Set<string>();
@@ -90,6 +93,70 @@ class PartyRoom implements Party.Server {
   countdownPhase: "goingOnce" | "goingTwice" | "sold" | null = null;
   leagueTimerTimeout: NodeJS.Timeout | null = null;
 
+  // Helper method for immutable state updates with broadcasting
+  private updateState(
+    updates: Partial<DraftRoomState>,
+    broadcastType: "stateUpdate" | "draftPaused" | "draftReset" = "stateUpdate"
+  ) {
+    this.state = { ...this.state, ...updates };
+    this.room.broadcast(
+      JSON.stringify({ type: broadcastType, data: this.state })
+    );
+  }
+
+  // Helper method to check if draft is active (live and not paused)
+  private isDraftActive(): boolean {
+    return this.state.draftPhase === "live";
+  }
+
+  // Helper method to validate draft state before actions
+  private validateDraftState(action: string): boolean {
+    if (this.state.draftPhase === "paused") {
+      console.log(`PartyKit: Ignoring ${action} - draft is paused`);
+      return false;
+    }
+    if (this.state.draftPhase !== "live") {
+      console.log(
+        `PartyKit: Ignoring ${action} - draft is not live (current phase: ${this.state.draftPhase})`
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // Helper method to validate user authorization
+  private validateUserAuth(
+    userId: string | undefined,
+    action: string
+  ): boolean {
+    if (!userId || !this.isUserAuthorized(userId)) {
+      console.log(`PartyKit: Unauthorized ${action} attempt by user ${userId}`);
+      return false;
+    }
+    return true;
+  }
+
+  // Helper method to get current timestamp
+  private getCurrentTimestamp(): string {
+    return new Date().toISOString();
+  }
+
+  // Helper method to check if draft is complete (all teams have filled rosters)
+  private checkDraftCompletion(): boolean {
+    const teams = Object.values(this.state.teams);
+    if (teams.length === 0) return false;
+
+    const allTeamsComplete = teams.every(
+      (team) => team.remainingRosterSpots <= 0
+    );
+    if (allTeamsComplete && this.state.draftPhase === "live") {
+      console.log("PartyKit: Draft completed - all teams have filled rosters");
+      this.updateState({ draftPhase: "complete" });
+      return true;
+    }
+    return false;
+  }
+
   startAuctionCountdown() {
     if (this.countdownTimeout) {
       return;
@@ -98,21 +165,21 @@ class PartyRoom implements Party.Server {
     // Auction countdown is always 4 seconds per phase
     const auctionCountdownDuration = 4;
 
-    this.state = { ...this.state, auctionPhase: "goingOnce" };
+    this.updateState({ auctionPhase: "goingOnce" });
     this.room.broadcast(
       JSON.stringify({ type: "stateUpdate", data: this.state })
     );
     this.countdownPhase = "goingOnce";
 
     this.countdownTimeout = setTimeout(() => {
-      this.state = { ...this.state, auctionPhase: "goingTwice" };
+      this.updateState({ auctionPhase: "goingTwice" });
       this.room.broadcast(
         JSON.stringify({ type: "stateUpdate", data: this.state })
       );
       this.countdownPhase = "goingTwice";
 
       this.countdownTimeout = setTimeout(async () => {
-        this.state = { ...this.state, auctionPhase: "sold" };
+        this.updateState({ auctionPhase: "sold" });
         this.room.broadcast(
           JSON.stringify({ type: "stateUpdate", data: this.state })
         );
@@ -129,15 +196,19 @@ class PartyRoom implements Party.Server {
       clearTimeout(this.leagueTimerTimeout);
     }
 
-    // Get league timer duration (default to 60 seconds)
-    const leagueTimerDuration = this.state.timerDuration || 60;
+    // Check if timer is enabled and get league timer duration
+    if (!this.state.timerEnabled || !this.state.timerDuration) {
+      // Timer is disabled or no duration set, don't start timer
+      return;
+    }
+
+    const leagueTimerDuration = this.state.timerDuration;
 
     // Set bid timer to league duration
-    this.state = {
-      ...this.state,
+    this.updateState({
       bidTimer: leagueTimerDuration,
       bidTimerExpiresAt: Date.now() + leagueTimerDuration * 1000,
-    };
+    });
 
     this.room.broadcast(
       JSON.stringify({ type: "stateUpdate", data: this.state })
@@ -156,11 +227,10 @@ class PartyRoom implements Party.Server {
       this.leagueTimerTimeout = null;
     }
 
-    this.state = {
-      ...this.state,
+    this.updateState({
       bidTimer: null,
       bidTimerExpiresAt: null,
-    };
+    });
   }
 
   clearCountdown() {
@@ -223,11 +293,12 @@ class PartyRoom implements Party.Server {
     const newRound = Math.floor(newTotalPicks / totalTeams) + 1;
     const newPick = (newTotalPicks % totalTeams) + 1;
 
-    this.state = {
+    // Prepare the state update with sold player data if applicable
+    const stateUpdateData = {
       ...this.state,
       nominatedPlayer: null,
       currentBid: null,
-      auctionPhase: "idle",
+      auctionPhase: "idle" as const,
       currentNominationIndex: nextNominationIndex,
       currentNominatorTeamId: nextNominatorTeamId,
       currentRound: newRound,
@@ -236,8 +307,23 @@ class PartyRoom implements Party.Server {
       bidHistory: [],
     };
 
+    // Add sold player data to the message if a player was sold
+    const messageData =
+      soldPlayer && winningBid
+        ? {
+            ...stateUpdateData,
+            soldPlayer: {
+              playerId: soldPlayer.id,
+              teamId: winningBid.teamId,
+              price: winningBid.amount,
+            },
+          }
+        : stateUpdateData;
+
+    this.updateState(stateUpdateData);
+
     this.room.broadcast(
-      JSON.stringify({ type: "stateUpdate", data: this.state })
+      JSON.stringify({ type: "stateUpdate", data: messageData })
     );
   }
 
@@ -273,6 +359,9 @@ class PartyRoom implements Party.Server {
           cost: price,
         });
       }
+
+      // Check if draft is complete after this acquisition
+      this.checkDraftCompletion();
     }
   }
 
@@ -353,7 +442,7 @@ class PartyRoom implements Party.Server {
       // Send welcome message
       conn.send(JSON.stringify({ type: "welcome", userId }));
 
-      // Send initial state
+      // Send initial state (but don't reset if draft is already in progress)
       conn.send(JSON.stringify({ type: "init", data: this.state }));
       this.broadcastUserList();
     } catch (error) {
@@ -396,145 +485,137 @@ class PartyRoom implements Party.Server {
           console.log(
             "PartyKit: Init message received - draft should be started using startDraft message"
           );
+
+          // If we haven't loaded from DB yet, send the current state
+          // Otherwise, let the client handle state restoration
+          if (!this.hasLoadedFromDB) {
+            conn.send(JSON.stringify({ type: "init", data: this.state }));
+          }
           break;
         case "hydrateState":
           // Accept hydrated state from client (no authorization check needed)
           if (message.data) {
             console.log("PartyKit: Accepting hydrated state from client", {
               teamsCount: Object.keys(message.data.teams || {}).length,
-              draftStarted: message.data.draftStarted,
+              draftPhase: message.data.draftPhase,
               currentNominatorTeamId: message.data.currentNominatorTeamId,
             });
-            this.state = { ...message.data };
-            this.room.broadcast(
-              JSON.stringify({ type: "stateUpdate", data: this.state })
-            );
+            this.updateState({ ...message.data });
           }
           break;
         case "restoreState":
           // Accept restored state from database (no authorization check needed)
           if (message.data) {
+            // Calculate snake draft direction for debugging
+            const totalTeams = message.data.nominationOrder?.length || 0;
+            const currentRoundFromIndex = Math.floor(
+              message.data.currentNominationIndex / totalTeams
+            );
+            const isReverseRound = currentRoundFromIndex % 2 === 1;
+            const positionInRound =
+              message.data.currentNominationIndex % totalTeams;
+
             console.log("PartyKit: Restoring state from database", {
               teamsCount: Object.keys(message.data.teams || {}).length,
-              draftStarted: message.data.draftStarted,
+              draftPhase: message.data.draftPhase,
               currentNominatorTeamId: message.data.currentNominatorTeamId,
+              currentNominationIndex: message.data.currentNominationIndex,
+              nominationOrder: message.data.nominationOrder,
+              draftType: message.data.draftType,
+              currentRoundFromIndex,
+              isReverseRound,
+              positionInRound,
+              snakeDirection: isReverseRound ? "reverse" : "forward",
             });
-            this.state = { ...message.data };
-            this.room.broadcast(
-              JSON.stringify({ type: "stateUpdate", data: this.state })
-            );
+            this.updateState({ ...message.data });
+            this.hasLoadedFromDB = true;
           }
           break;
         case "resetDraft":
           // Check if user is authorized (league owner)
-          if (!userId || !this.isUserAuthorized(userId)) {
-            console.log("PartyKit: Unauthorized resetDraft attempt");
+          if (!this.validateUserAuth(userId, "resetDraft")) {
             break;
           }
 
           // Database operations handled by client
 
-          this.state = {
-            draftStarted: false,
-            draftPaused: false, // Not paused initially
-            currentNominatorTeamId: null,
-            nominatedPlayer: null,
-            startingBidAmount: 0,
-            currentBid: null,
-            bidTimer: null,
-            bidTimerExpiresAt: null,
-            auctionPhase: "idle",
-            nominationOrder: [],
-            currentNominationIndex: 0,
-            draftType: "linear", // Default to linear
-            timerDuration: 4, // Default timer duration
-            autoStartTimer: false, // Default to manual start
-            currentRound: 1, // Start at round 1
-            currentPick: 1, // Start at pick 1
-            totalPicks: 0, // No picks made yet
-            teams: {},
-            bidHistory: [],
-          };
+          this.updateState(
+            {
+              draftPhase: "pre", // Reset to pre-draft phase
+              currentNominatorTeamId: null,
+              nominatedPlayer: null,
+              startingBidAmount: 0,
+              currentBid: null,
+              bidTimer: null,
+              bidTimerExpiresAt: null,
+              auctionPhase: "idle",
+              nominationOrder: [],
+              currentNominationIndex: 0,
+              draftType: "linear", // Default to linear
+              timerEnabled: false, // Default to timer disabled
+              timerDuration: 60, // Default timer duration (when enabled)
+              autoStartTimer: true, // Default to auto-start timer
+              currentRound: 1, // Start at round 1
+              currentPick: 1, // Start at pick 1
+              totalPicks: 0, // No picks made yet
+              teams: {},
+              bidHistory: [],
+            },
+            "draftReset"
+          );
           this.resetAllowed = true;
-
-          // Database operations handled by client
-
-          this.room.broadcast(JSON.stringify({ type: "draftReset" }));
+          this.hasLoadedFromDB = false;
           break;
         case "startDraft":
           // Check if user is authorized (league owner)
-          if (!userId || !this.isUserAuthorized(userId)) {
-            console.log("PartyKit: Unauthorized startDraft attempt");
+          if (!this.validateUserAuth(userId, "startDraft")) {
             break;
           }
 
-          console.log(
-            "PartyKit: Starting draft - setting draftStarted to true"
-          );
+          console.log("PartyKit: Starting draft - setting draftPhase to live");
 
-          this.state = {
-            ...this.state,
-            draftStarted: true,
-            draftPaused: false,
-          };
-
-          console.log("PartyKit: Draft started - broadcasting state update");
-
-          this.room.broadcast(
-            JSON.stringify({ type: "stateUpdate", data: this.state })
-          );
+          this.updateState({
+            draftPhase: "live", // Transition to live phase
+          });
+          this.hasLoadedFromDB = true;
           break;
         case "pauseDraft":
           // Check if user is authorized (league owner)
-          if (!userId || !this.isUserAuthorized(userId)) {
-            console.log("PartyKit: Unauthorized pauseDraft attempt");
+          if (!this.validateUserAuth(userId, "pauseDraft")) {
             break;
           }
 
           // Clear any active countdown when pausing
           this.clearCountdown();
 
-          this.state = {
-            ...this.state,
-            draftPaused: true,
-            auctionPhase: "idle",
-          };
-
-          // Database operations handled by client
-
-          this.room.broadcast(
-            JSON.stringify({ type: "draftPaused", data: this.state })
+          this.updateState(
+            {
+              draftPhase: "paused", // Transition to paused phase
+              auctionPhase: "idle",
+            },
+            "draftPaused"
           );
           break;
         case "resumeDraft":
           // Check if user is authorized (league owner)
-          if (!userId || !this.isUserAuthorized(userId)) {
-            console.log("PartyKit: Unauthorized resumeDraft attempt");
+          if (!this.validateUserAuth(userId, "resumeDraft")) {
             break;
           }
 
-          this.state = {
-            ...this.state,
-            draftPaused: false,
-          };
-
-          // Database operations handled by client
-
-          this.room.broadcast(
-            JSON.stringify({ type: "stateUpdate", data: this.state })
-          );
+          this.updateState({
+            draftPhase: "live", // Transition to live phase
+          });
           break;
         case "nominatePlayer": {
-          // Check if draft is paused
-          if (this.state.draftPaused) {
-            break; // Ignore nomination if draft is paused
+          // Check if draft is active
+          if (!this.validateDraftState("nominatePlayer")) {
+            break;
           }
 
           // message.data: { teamId, amount, player: { id, firstName, lastName, team, position } }
           this.clearCountdown();
           const { teamId, amount, player } = message.data;
-          this.state = {
-            ...this.state,
+          this.updateState({
             nominatedPlayer: {
               id: player.id,
               name: player.firstName + " " + player.lastName,
@@ -547,22 +628,16 @@ class PartyRoom implements Party.Server {
             },
             bidHistory: [], // Clear bid history on new nomination
             auctionPhase: "idle",
-          };
+          });
 
-          this.room.broadcast(
-            JSON.stringify({ type: "stateUpdate", data: this.state })
-          );
-
-          // Auto-start league timer if enabled
-          if (this.state.autoStartTimer) {
-            this.startLeagueTimer();
-          }
+          // Auto-start league timer
+          this.startLeagueTimer();
           break;
         }
         case "triggerCountdown": {
-          // Check if draft is paused
-          if (this.state.draftPaused) {
-            break; // Ignore countdown trigger if draft is paused
+          // Check if draft is active
+          if (!this.validateDraftState("triggerCountdown")) {
+            break;
           }
 
           // Only allow if auctionPhase is idle and a player is nominated
@@ -579,9 +654,9 @@ class PartyRoom implements Party.Server {
           break;
         }
         case "bid": {
-          // Check if draft is paused
-          if (this.state.draftPaused) {
-            break; // Ignore bid if draft is paused
+          // Check if draft is active
+          if (!this.validateDraftState("bid")) {
+            break;
           }
 
           // Cancel auction countdown if a bid is placed
@@ -609,16 +684,15 @@ class PartyRoom implements Party.Server {
           const newBid = {
             amount,
             teamId,
-            timestamp: new Date().toISOString(),
+            timestamp: this.getCurrentTimestamp(),
           };
           const newBidHistory = [...this.state.bidHistory, newBid].slice(-10);
 
-          this.state = {
-            ...this.state,
+          this.updateState({
             currentBid: { amount, teamId },
             bidHistory: newBidHistory,
             auctionPhase: "idle",
-          };
+          });
 
           // Handle timer logic based on current phase
           if (
@@ -627,15 +701,10 @@ class PartyRoom implements Party.Server {
           ) {
             // Bid came in during auction countdown - reset to 10 seconds before starting auction countdown again
             this.clearLeagueTimer();
-            this.state = {
-              ...this.state,
+            this.updateState({
               bidTimer: 10,
               bidTimerExpiresAt: Date.now() + 10 * 1000,
-            };
-
-            this.room.broadcast(
-              JSON.stringify({ type: "stateUpdate", data: this.state })
-            );
+            });
 
             // Start 10-second timer before auction countdown
             this.leagueTimerTimeout = setTimeout(() => {
@@ -648,10 +717,6 @@ class PartyRoom implements Party.Server {
           }
 
           // Database operations handled by client
-
-          this.room.broadcast(
-            JSON.stringify({ type: "stateUpdate", data: this.state })
-          );
           break;
         }
         default:

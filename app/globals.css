@@ -81,6 +81,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-exo2), sans-serif;
+    background: linear-gradient(to right, #064e3b, #111827);
   }
 }
 

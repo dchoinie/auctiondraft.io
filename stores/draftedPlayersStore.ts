@@ -18,6 +18,7 @@ interface DraftedPlayersState {
   draftedPlayers: Record<string, DraftedPlayer[]>; // leagueId -> drafted players
   loading: Record<string, boolean>;
   error: Record<string, string | null>;
+  loaded: Record<string, boolean>; // Track if data has been loaded for each league
   fetchDraftedPlayers: (leagueId: string) => Promise<void>;
   resetLeague: (leagueId: string) => void;
 }
@@ -28,6 +29,7 @@ export const useDraftedPlayersStore = create<DraftedPlayersState>()(
       draftedPlayers: {},
       loading: {},
       error: {},
+      loaded: {},
       fetchDraftedPlayers: async (leagueId: string) => {
         set((state) => ({
           loading: { ...state.loading, [leagueId]: true },
@@ -44,6 +46,7 @@ export const useDraftedPlayersStore = create<DraftedPlayersState>()(
               },
               loading: { ...state.loading, [leagueId]: false },
               error: { ...state.error, [leagueId]: null },
+              loaded: { ...state.loaded, [leagueId]: true },
             }));
           } else {
             set((state) => ({
@@ -52,6 +55,7 @@ export const useDraftedPlayersStore = create<DraftedPlayersState>()(
                 ...state.error,
                 [leagueId]: data.error || "Failed to fetch drafted players",
               },
+              loaded: { ...state.loaded, [leagueId]: true },
             }));
           }
         } catch (err) {
@@ -64,6 +68,7 @@ export const useDraftedPlayersStore = create<DraftedPlayersState>()(
                   ? err.message
                   : "Failed to fetch drafted players",
             },
+            loaded: { ...state.loaded, [leagueId]: true },
           }));
         }
       },
@@ -72,10 +77,12 @@ export const useDraftedPlayersStore = create<DraftedPlayersState>()(
           const { [leagueId]: removed, ...rest } = state.draftedPlayers;
           const { [leagueId]: removedLoading, ...restLoading } = state.loading;
           const { [leagueId]: removedError, ...restError } = state.error;
+          const { [leagueId]: removedLoaded, ...restLoaded } = state.loaded;
           return {
             draftedPlayers: rest,
             loading: restLoading,
             error: restError,
+            loaded: restLoaded,
           };
         });
       },
@@ -105,15 +112,24 @@ export function useDraftedPlayersAuto(leagueId?: string) {
   const loading = useDraftedPlayersStore(
     (state) => state.loading[leagueId ?? ""]
   );
+  const error = useDraftedPlayersStore((state) => state.error[leagueId ?? ""]);
+  const loaded = useDraftedPlayersStore(
+    (state) => state.loaded[leagueId ?? ""]
+  );
   const fetchDraftedPlayers = useDraftedPlayersStore(
     (state) => state.fetchDraftedPlayers
   );
 
   useEffect(() => {
-    if (leagueId && !loading && draftedPlayers.length === 0) {
+    // Only fetch if:
+    // 1. We have a leagueId
+    // 2. Not currently loading
+    // 3. No error state
+    // 4. Data hasn't been loaded yet for this league
+    if (leagueId && !loading && !error && !loaded) {
       fetchDraftedPlayers(leagueId);
     }
-  }, [leagueId, fetchDraftedPlayers, loading, draftedPlayers.length]);
+  }, [leagueId, fetchDraftedPlayers, loading, error, loaded]);
 
   return draftedPlayers;
 }

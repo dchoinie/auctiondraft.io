@@ -22,38 +22,65 @@ export function useDraftHydration({
   const setDraftState = useDraftStateStore((state) => state.setDraftState);
 
   // Return hydration status for the client to use
-  const isHydrated = hasHydrated.current && draftState?.draftStarted;
+  const isHydrated =
+    hasHydrated.current ||
+    (draftState?.draftPhase === "live" &&
+      draftState.teams &&
+      Object.keys(draftState.teams).length > 0);
+
+  // Helper function to validate draft state completeness
+  const isDraftStateComplete = (state: DraftRoomState): boolean => {
+    return (
+      state.draftPhase === "live" &&
+      state.teams &&
+      Object.keys(state.teams).length > 0 &&
+      state.nominationOrder &&
+      state.nominationOrder.length > 0
+    );
+  };
 
   // Load draft state from database when entering the draft room
   useEffect(() => {
     async function loadDraftStateFromDB() {
-      if (!partySocket || draftState) return; // Load if no draft state exists
+      if (!partySocket || hasHydrated.current) return;
 
       try {
         console.log("Loading draft state from database...");
         const response = await fetch(`/api/leagues/${leagueId}/draft/state`);
         if (response.ok) {
           const { draftState: savedDraftState } = await response.json();
-          if (savedDraftState) {
+          if (savedDraftState && savedDraftState.draftPhase === "live") {
             console.log("Found saved draft state, restoring...", {
-              draftStarted: savedDraftState.draftStarted,
-              eventType: savedDraftState.eventType,
+              draftPhase: savedDraftState.draftPhase,
+              currentRound: savedDraftState.currentRound,
+              totalPicks: savedDraftState.totalPicks,
             });
+
+            // Set the draft state locally first
             setDraftState(leagueId, savedDraftState);
 
-            // Send the restored state to PartyKit
+            // Send the restored state to PartyKit immediately
             partySocket.send(
               JSON.stringify({ type: "restoreState", data: savedDraftState })
             );
+
+            // Mark as hydrated immediately since we have the state
+            hasHydrated.current = true;
+          } else {
+            console.log("No saved draft state found or draft not started");
+            // If no saved state, mark as hydrated so the draft can start
+            hasHydrated.current = true;
           }
         }
       } catch (error) {
         console.error("Error loading draft state from database:", error);
+        // If there's an error, mark as hydrated so the draft can still start
+        hasHydrated.current = true;
       }
     }
 
     loadDraftStateFromDB();
-  }, [leagueId, partySocket, draftState, setDraftState]);
+  }, [leagueId, partySocket]); // Removed setDraftState from dependencies
 
   // Get all the data we need for hydration
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
@@ -69,7 +96,7 @@ export function useDraftHydration({
     console.log("Hydration check:", {
       hasHydrated: hasHydrated.current,
       hasDraftState: !!draftState,
-      draftStarted: draftState?.draftStarted,
+      draftPhase: draftState?.draftPhase,
       teamsLoading,
       leaguesLoading,
       keepersLoading,
@@ -82,7 +109,7 @@ export function useDraftHydration({
     if (
       !hasHydrated.current &&
       draftState &&
-      draftState.draftStarted &&
+      draftState.draftPhase === "live" &&
       !teamsLoading &&
       !leaguesLoading &&
       !keepersLoading &&
@@ -90,6 +117,19 @@ export function useDraftHydration({
       league &&
       partySocket
     ) {
+      // Validate that we have a complete draft state before proceeding
+      if (!isDraftStateComplete(draftState)) {
+        console.log("PartyKit: Draft state incomplete, skipping hydration", {
+          hasTeams:
+            !!draftState.teams && Object.keys(draftState.teams).length > 0,
+          hasNominationOrder:
+            !!draftState.nominationOrder &&
+            draftState.nominationOrder.length > 0,
+          draftPhase: draftState.draftPhase,
+        });
+        return;
+      }
+
       // Calculate total roster spots
       const totalRosterSpots =
         (league.settings.qbSlots || 0) +
@@ -163,14 +203,41 @@ export function useDraftHydration({
       const currentRound = Math.floor(totalDraftPicks / totalTeams) + 1;
       const currentPick = (totalDraftPicks % totalTeams) + 1;
 
+      // Build nomination order based on team draft order
+      const nominationOrder = teams
+        .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
+        .map((team: Team) => team.id);
+
+      // Calculate the correct current nominator team ID based on currentNominationIndex
+      const currentNominatorTeamId =
+        nominationOrder[draftState.currentNominationIndex] || null;
+
+      // Calculate snake draft direction for debugging
+      const currentRoundFromIndex = Math.floor(
+        draftState.currentNominationIndex / totalTeams
+      );
+      const isReverseRound = currentRoundFromIndex % 2 === 1;
+      const positionInRound = draftState.currentNominationIndex % totalTeams;
+
+      console.log("Hydration - nomination details:", {
+        currentNominationIndex: draftState.currentNominationIndex,
+        nominationOrder,
+        currentNominatorTeamId,
+        totalTeams,
+        currentRound,
+        currentPick,
+        draftType: draftState.draftType,
+        currentRoundFromIndex,
+        isReverseRound,
+        positionInRound,
+        snakeDirection: isReverseRound ? "reverse" : "forward",
+      });
+
       // Build the hydrated draft state
       const hydratedDraftState: DraftRoomState = {
         ...draftState,
-        currentNominatorTeamId:
-          teams.find((team: Team) => team.draftOrder === 1)?.id || null,
-        nominationOrder: teams
-          .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
-          .map((team: Team) => team.id),
+        currentNominatorTeamId,
+        nominationOrder,
         draftType:
           (league.settings.draftType as "snake" | "linear") || "linear",
         timerDuration: league.settings.timerDuration ?? 60,
@@ -211,10 +278,28 @@ export function useDraftHydration({
 
   // Reset hydration flag when draft state is reset
   useEffect(() => {
-    if (!draftState || !draftState.draftStarted) {
+    if (!draftState || draftState.draftPhase !== "live") {
       hasHydrated.current = false;
     }
   }, [draftState]);
 
-  return { isHydrated };
+  return { isHydrated, hasHydratedRef: hasHydrated.current };
+}
+
+// Helper hook for draft phase management
+export function useDraftPhase(draftState: DraftRoomState | null) {
+  const isPreDraft = draftState?.draftPhase === "pre";
+  const isLive = draftState?.draftPhase === "live";
+  const isPaused = draftState?.draftPhase === "paused";
+  const isComplete = draftState?.draftPhase === "complete";
+  const isActive = isLive || isPaused; // Draft has been started but not completed
+
+  return {
+    isPreDraft,
+    isLive,
+    isPaused,
+    isComplete,
+    isActive,
+    phase: draftState?.draftPhase || "pre",
+  };
 }

@@ -1,6 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { DraftRoomState } from "@/party";
 import type PartySocket from "partysocket";
+import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
+
+interface ExtendedDraftRoomState extends DraftRoomState {
+  soldPlayer?: {
+    playerId: string;
+    teamId: string;
+    price: number;
+  };
+}
 
 interface UseDraftDatabaseProps {
   leagueId: string;
@@ -13,6 +22,9 @@ export function useDraftDatabase({
   partySocket,
   draftState,
 }: UseDraftDatabaseProps) {
+  const processingSoldRef = useRef(false);
+  const lastProcessedSoldPlayerRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!partySocket) return;
 
@@ -37,6 +49,13 @@ export function useDraftDatabase({
 
           case "stateUpdate":
             if (message.data && draftState) {
+              console.log("Client: State update received", {
+                previousAuctionPhase: draftState.auctionPhase,
+                currentAuctionPhase: message.data.auctionPhase,
+                hasSoldPlayerData: !!(message.data as ExtendedDraftRoomState)
+                  .soldPlayer,
+              });
+
               // Save state update to database for persistence
               try {
                 await fetch(`/api/leagues/${leagueId}/draft/state`, {
@@ -60,51 +79,91 @@ export function useDraftDatabase({
                 console.error("Error saving state update to database:", error);
               }
 
-              // Check if a player was just sold (auction phase changed from active to idle)
-              const previousAuctionPhase = draftState.auctionPhase;
-              const currentAuctionPhase = message.data.auctionPhase;
-              const previousNominatedPlayer = draftState.nominatedPlayer;
-              const currentNominatedPlayer = message.data.nominatedPlayer;
+              // Check if a player was just sold by looking for soldPlayer data in the message
+              const soldPlayerData = (message.data as ExtendedDraftRoomState)
+                .soldPlayer;
 
-              // If auction phase changed from active to idle and nominated player is null, player was sold
-              if (
-                (previousAuctionPhase === "goingOnce" ||
-                  previousAuctionPhase === "goingTwice" ||
-                  previousAuctionPhase === "sold") &&
-                currentAuctionPhase === "idle" &&
-                previousNominatedPlayer &&
-                !currentNominatedPlayer &&
-                draftState.currentBid
-              ) {
+              // Enhanced duplicate prevention with player ID tracking
+              if (soldPlayerData && !processingSoldRef.current) {
+                const soldPlayerId = soldPlayerData.playerId;
+
+                // Check if we've already processed this player
+                if (lastProcessedSoldPlayerRef.current === soldPlayerId) {
+                  console.log(
+                    "Client: Skipping duplicate sold player processing",
+                    soldPlayerId
+                  );
+                  return;
+                }
+
+                processingSoldRef.current = true;
+                lastProcessedSoldPlayerRef.current = soldPlayerId;
+
                 console.log("Client: Player sold - adding to database", {
-                  playerId: previousNominatedPlayer.id,
-                  teamId: draftState.currentBid.teamId,
-                  price: draftState.currentBid.amount,
+                  playerId: soldPlayerData.playerId,
+                  teamId: soldPlayerData.teamId,
+                  price: soldPlayerData.price,
                 });
 
                 // Add the sold player to the database via API
+                const requestData = {
+                  teamId: soldPlayerData.teamId,
+                  playerId: soldPlayerData.playerId,
+                  draftPrice: soldPlayerData.price,
+                };
+
+                console.log(
+                  "Client: Sending addDraftedPlayer request",
+                  requestData
+                );
+
                 try {
-                  await fetch(`/api/leagues/${leagueId}/draft/state`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      action: "addDraftedPlayer",
-                      data: {
-                        teamId: draftState.currentBid.teamId,
-                        playerId: previousNominatedPlayer.id,
-                        draftPrice: draftState.currentBid.amount,
-                      },
-                    }),
-                  });
+                  const response = await fetch(
+                    `/api/leagues/${leagueId}/draft/state`,
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        action: "addDraftedPlayer",
+                        data: requestData,
+                      }),
+                    }
+                  );
+
+                  console.log("Client: API response status:", response.status);
+
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error(
+                      "Error adding drafted player - API response:",
+                      errorData
+                    );
+                  } else {
+                    const responseData = await response.json();
+                    console.log(
+                      "Successfully added drafted player to database",
+                      responseData
+                    );
+
+                    // Refetch drafted players to update the UI
+                    useDraftedPlayersStore
+                      .getState()
+                      .fetchDraftedPlayers(leagueId);
+                  }
                 } catch (error) {
                   console.error("Error adding drafted player:", error);
                 }
+
+                // Reset the processing flag after a delay
+                setTimeout(() => {
+                  processingSoldRef.current = false;
+                }, 1000);
               }
             }
             break;
 
           case "init":
-            if (message.data && message.data.draftStarted) {
+            if (message.data && message.data.draftPhase === "live") {
               console.log(
                 "Client: Draft initialized - saving state to database"
               );
