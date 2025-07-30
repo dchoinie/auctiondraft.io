@@ -8,11 +8,14 @@ import { useParams } from "next/navigation";
 import { useUser } from "@/stores/userStore";
 import { useLeagueTeams } from "@/stores/teamStore";
 import { useLeagueKeepers } from "@/stores/keepersStore";
+import { useLeagueSettings } from "@/stores/leagueStore";
 import { KeepersTab } from "./KeepersTab";
 import { DraftTab } from "./DraftTab";
 import { TeamsTab } from "./TeamsTab";
 import { RostersTab } from "./RostersTab";
 import { SettingsTab } from "./SettingsTab";
+import { AnalyticsTab } from "./AnalyticsTab";
+import { Loader2 } from "lucide-react";
 
 interface Tab {
   value: string;
@@ -34,6 +37,10 @@ const allTabs: Tab[] = [
     label: "Rosters",
   },
   {
+    value: "analytics",
+    label: "Analytics",
+  },
+  {
     value: "settings",
     label: "Settings",
     adminOnly: true,
@@ -47,9 +54,14 @@ const allTabs: Tab[] = [
 
 export default function LeaguePage() {
   const { league_id } = useParams();
-  const { leagues, fetchLeagues } = useLeagueStore();
+  const { leagues, fetchLeagues, loading: leaguesLoading } = useLeagueStore();
   const league = leagues.find((league: League) => league.id === league_id);
   const { user, loading: userLoading } = useUser();
+
+  // Get loading states for all data dependencies
+  const { loading: settingsLoading } = useLeagueSettings(league_id as string);
+  const { loading: teamsLoading } = useLeagueTeams(league_id as string);
+  const { loading: keepersLoading } = useLeagueKeepers(league_id as string);
 
   const [localSettings, setLocalSettings] = useState(league?.settings || null);
   const [saving, setSaving] = useState(false);
@@ -64,6 +76,27 @@ export default function LeaguePage() {
   const tabs = useMemo(() => {
     return allTabs.filter((tab) => !tab.adminOnly || isAdmin);
   }, [isAdmin]);
+
+  // Determine if we're still loading all necessary data
+  const isLoading = useMemo(() => {
+    return (
+      userLoading ||
+      leaguesLoading ||
+      settingsLoading ||
+      teamsLoading ||
+      keepersLoading ||
+      !league ||
+      !user
+    );
+  }, [
+    userLoading,
+    leaguesLoading,
+    settingsLoading,
+    teamsLoading,
+    keepersLoading,
+    league,
+    user,
+  ]);
 
   // Update active tab if current tab is not available for user
   useEffect(() => {
@@ -82,7 +115,7 @@ export default function LeaguePage() {
   // Helper to check if form is dirty
   const isDirty = useMemo(() => {
     if (!league?.settings || !localSettings) return false;
-    return JSON.stringify(RostersTab) !== JSON.stringify(localSettings);
+    return JSON.stringify(league.settings) !== JSON.stringify(localSettings);
   }, [league, localSettings]);
 
   // Handle input changes
@@ -128,7 +161,6 @@ export default function LeaguePage() {
   // Teams state/logic
   const {
     teams = [],
-    loading: teamsLoading,
     error: teamsError,
     deleteTeam,
   } = useLeagueTeams(leagueId);
@@ -151,6 +183,32 @@ export default function LeaguePage() {
     null
   );
 
+  // Fetch pending invitations
+  const fetchPendingInvitations = async () => {
+    if (!isAdmin) return; // Only fetch if user is admin
+    
+    try {
+      const response = await fetch(`/api/leagues/${leagueId}/invite`);
+      const data = await response.json();
+      if (data.success) {
+        // Filter out invitations for users who already have teams
+        const filteredInvitations = data.invitations.filter((invitation: any) => {
+          return !teams.some(team => team.ownerEmail === invitation.email);
+        });
+        setPendingInvitations(filteredInvitations);
+      }
+    } catch (error) {
+      console.error("Failed to fetch pending invitations:", error);
+    }
+  };
+
+  // Fetch invitations when page loads or when teams change
+  useEffect(() => {
+    if (isAdmin && !teamsLoading) {
+      fetchPendingInvitations();
+    }
+  }, [isAdmin, teamsLoading, teams]);
+
   const handleSendInvitation = async () => {
     if (!inviteEmail.trim()) {
       setInviteError("Email is required");
@@ -170,6 +228,8 @@ export default function LeaguePage() {
       if (data.success) {
         setShowInviteDialog(false);
         setInviteEmail("");
+        // Refresh invitations list
+        fetchPendingInvitations();
         alert(
           `Invitation email sent to ${inviteEmail.trim()}! They will receive an email with a link to join the league.`
         );
@@ -228,6 +288,18 @@ export default function LeaguePage() {
     }
   };
 
+  // Show loading spinner until all data is loaded
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mb-4" />
+          <div className="text-lg text-gray-300">Loading league data...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-3xl font-bold text-gray-50 text-center mb-6">
@@ -281,6 +353,9 @@ export default function LeaguePage() {
         </TabsContent>
         <TabsContent value="rosters" className="mt-6">
           <RostersTab />
+        </TabsContent>
+        <TabsContent value="analytics" className="mt-6">
+          <AnalyticsTab />
         </TabsContent>
         {isAdmin && (
           <TabsContent value="settings" className="mt-6">

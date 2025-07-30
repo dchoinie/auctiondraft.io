@@ -20,7 +20,26 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name } = body;
+    const { 
+      name,
+      leagueSize,
+      draftDate,
+      draftTime,
+      draftLocation,
+      startingBudget,
+      qbSlots,
+      rbSlots,
+      wrSlots,
+      teSlots,
+      flexSlots,
+      dstSlots,
+      kSlots,
+      benchSlots,
+      draftType,
+      timerEnabled,
+      timerDuration,
+      joinCode
+    } = body;
 
     console.log("Creating league for user:", userId, "with name:", name);
 
@@ -58,14 +77,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Prepare league data with all settings
+    const leagueData: any = {
+      name: name.trim(),
+      ownerId: userId,
+      isDraftStarted: 0,
+    };
+
+    // Add all the settings fields if they exist
+    if (leagueSize !== undefined) leagueData.leagueSize = Number(leagueSize);
+    if (draftDate) leagueData.draftDate = new Date(draftDate + "T00:00:00Z");
+    if (draftTime) leagueData.draftTime = draftTime;
+    if (draftLocation !== undefined) leagueData.draftLocation = draftLocation;
+    if (startingBudget !== undefined) leagueData.startingBudget = Number(startingBudget);
+    if (qbSlots !== undefined) leagueData.qbSlots = Number(qbSlots);
+    if (rbSlots !== undefined) leagueData.rbSlots = Number(rbSlots);
+    if (wrSlots !== undefined) leagueData.wrSlots = Number(wrSlots);
+    if (teSlots !== undefined) leagueData.teSlots = Number(teSlots);
+    if (flexSlots !== undefined) leagueData.flexSlots = Number(flexSlots);
+    if (dstSlots !== undefined) leagueData.dstSlots = Number(dstSlots);
+    if (kSlots !== undefined) leagueData.kSlots = Number(kSlots);
+    if (benchSlots !== undefined) leagueData.benchSlots = Number(benchSlots);
+    if (draftType) leagueData.draftType = draftType;
+    if (timerEnabled !== undefined) leagueData.timerEnabled = Number(timerEnabled);
+    if (timerDuration !== undefined) leagueData.timerDuration = Number(timerDuration);
+    if (joinCode !== undefined) leagueData.joinCode = joinCode;
+
     // Create the league
     const newLeague = await db
       .insert(leagues)
-      .values({
-        name: name.trim(),
-        ownerId: userId,
-        isDraftStarted: 0,
-      })
+      .values(leagueData)
       .returning();
 
     console.log("League created:", newLeague[0]);

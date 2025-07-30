@@ -33,6 +33,7 @@ export interface LeagueSettings {
   draftType: string;
   timerEnabled: number;
   timerDuration: number;
+  joinCode: string | null;
 }
 
 interface LeagueState {

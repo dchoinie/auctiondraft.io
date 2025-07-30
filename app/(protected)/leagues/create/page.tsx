@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 const DEFAULTS = {
   name: "",
   leagueSize: 10,
+  startingBudget: 200,
   draftDate: "",
   draftTime: "",
   draftLocation: "",
@@ -43,6 +44,7 @@ const DEFAULTS = {
 interface LeagueFormValues {
   name: string;
   leagueSize: number;
+  startingBudget: number;
   draftDate: string;
   draftTime: string;
   draftLocation: string;
@@ -65,7 +67,7 @@ export default function CreateLeaguePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { user } = useUser();
+  const { user, refetch: refetchUser } = useUser();
 
   const {
     register,
@@ -90,6 +92,7 @@ export default function CreateLeaguePage() {
         joinCode: data.joinCode || null,
         timerEnabled: data.timerEnabled ? 1 : 0,
         leagueSize: Number(data.leagueSize),
+        startingBudget: Number(data.startingBudget),
         qbSlots: Number(data.qbSlots),
         rbSlots: Number(data.rbSlots),
         wrSlots: Number(data.wrSlots),
@@ -108,6 +111,8 @@ export default function CreateLeaguePage() {
       const result = await res.json();
       if (result.success && result.league) {
         setSuccess("League created successfully!");
+        // Refresh user data to update credit count
+        refetchUser();
         setTimeout(() => {
           router.push(`/leagues/${result.league.id}`);
         }, 1000);
@@ -214,6 +219,27 @@ export default function CreateLeaguePage() {
                     })}
                   />
                 </div>
+              </div>
+              {/* Starting Budget */}
+              <div className="pt-8">
+                <Label
+                  className="text-emerald-300 font-semibold"
+                  htmlFor="startingBudget"
+                >
+                  Starting Budget ($)
+                </Label>
+                <Input
+                  className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition mt-1"
+                  id="startingBudget"
+                  type="number"
+                  min="100"
+                  max="1000"
+                  {...register("startingBudget", {
+                    required: true,
+                    min: 100,
+                    max: 1000,
+                  })}
+                />
               </div>
               {/* Join Code */}
               <div className="pt-8">

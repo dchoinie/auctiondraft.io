@@ -123,6 +123,11 @@ const config = {
           border: '2px solid rgb(250 204 21)',
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
         },
+        '.purple-bg': {
+          background: 'linear-gradient(to bottom right, rgb(88 28 135 / 0.8), rgb(147 51 234 / 0.8))',
+          border: '2px solid rgb(168 85 247)',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
       }
       addUtilities(newUtilities)
     }

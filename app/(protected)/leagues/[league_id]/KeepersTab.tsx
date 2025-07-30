@@ -5,7 +5,7 @@ import { usePlayers, Player } from "@/stores/playersStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Trash2, Shield } from "lucide-react";
+import { Save, Trash2, Shield, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/stores/userStore";
 import { useParams } from "next/navigation";
@@ -50,6 +50,18 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
       fetchPlayersPage();
     }
   }, [players, playersLoading, fetchPlayersPage]);
+
+  // Show loading state while data is being fetched
+  if (teamsLoading || keepersLoading || playersLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mx-auto mb-4" />
+          <p className="text-gray-400">Loading keepers data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show access denied for non-admin users
   if (!isAdmin) {

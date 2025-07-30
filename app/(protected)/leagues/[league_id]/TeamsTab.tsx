@@ -32,11 +32,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Users, Crown, Mail, Trash2, Loader2, AlertCircle } from "lucide-react";
-import React from "react";
+import { Users, Crown, Mail, Trash2, Loader2, AlertCircle, Plus } from "lucide-react";
+import React, { useState } from "react";
 import { LeagueSettings } from "@/stores/leagueStore";
-import { Team } from "@/stores/teamStore";
+import { Team, useLeagueTeams } from "@/stores/teamStore";
 import { Invitation } from "@/lib/email";
+import { useUser } from "@/stores/userStore";
 
 interface TeamsTabProps {
   cancellingInvitation: string | null;
@@ -90,6 +91,49 @@ export function TeamsTab(props: TeamsTabProps) {
     teamsLoading,
     userLoading,
   } = props;
+
+  const { user } = useUser();
+  const { createTeam } = useLeagueTeams(settings?.id);
+
+  // Team creation state
+  const [showCreateTeamDialog, setShowCreateTeamDialog] = useState(false);
+  const [teamName, setTeamName] = useState("");
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [createTeamError, setCreateTeamError] = useState<string | null>(null);
+
+  // Check if current user has a team in this league
+  const userHasTeam = teams.some(team => team.ownerId === user?.id);
+
+  const handleCreateTeam = async () => {
+    if (!teamName.trim() || !user?.id) {
+      setCreateTeamError("Team name is required");
+      return;
+    }
+
+    setIsCreatingTeam(true);
+    setCreateTeamError(null);
+
+    try {
+      const success = await createTeam({
+        name: teamName.trim(),
+        ownerId: user.id,
+      });
+
+      if (success) {
+        setShowCreateTeamDialog(false);
+        setTeamName("");
+        // Show success message
+        alert("Team created successfully!");
+      } else {
+        setCreateTeamError("Failed to create team. Please try again.");
+      }
+    } catch (error) {
+      setCreateTeamError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsCreatingTeam(false);
+    }
+  };
+
   return (
     <>
       {/* --- Begin Teams Management Section --- */}
@@ -105,9 +149,43 @@ export function TeamsTab(props: TeamsTabProps) {
         </div>
       ) : (
         <>
+          {/* Admin Team Creation Section */}
+          {isOwner && !userHasTeam && (
+            <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-200">
+                  <Crown className="h-5 w-5" />
+                  Create Your Team
+                </CardTitle>
+                <CardDescription className="text-yellow-100/80">
+                  As the league admin, you need to create your own team to participate in the league.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-100 mb-2">
+                      You haven&apos;t created your team yet. Click the button below to create your team and start participating in the league.
+                    </p>
+                    <p className="text-sm text-yellow-200/70">
+                      Starting budget: ${settings.startingBudget || 200}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowCreateTeamDialog(true)}
+                    className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create My Team
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Pending Invitations */}
           {isOwner && pendingInvitations.length > 0 && (
-            <Card className="mb-6">
+            <Card className="mb-6 green-bg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-emerald-200">
                   <Mail className="h-5 w-5" />
@@ -193,7 +271,7 @@ export function TeamsTab(props: TeamsTabProps) {
                       : `${teams.length} team${teams.length === 1 ? "" : "s"} in this league`}
                   </CardDescription>
                 </div>
-                {isOwner && teams.length < settings.leagueSize && (
+                {isOwner && teams.length < (settings.leagueSize || 10) && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -257,6 +335,75 @@ export function TeamsTab(props: TeamsTabProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Create Team Dialog */}
+          <Dialog open={showCreateTeamDialog} onOpenChange={setShowCreateTeamDialog}>
+            <DialogContent className="bg-gradient-to-br from-yellow-900/90 to-gray-900/90 border-2 border-yellow-400 text-yellow-100">
+              <DialogHeader>
+                <DialogTitle>Create Your Team</DialogTitle>
+                <DialogDescription className="text-yellow-200">
+                  Choose a name for your team. This will be your team&apos;s identity in the league.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {createTeamError && (
+                  <Alert
+                    variant="destructive"
+                    className="bg-red-900/80 border-red-700 text-red-100"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{createTeamError}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="team-name" className="text-yellow-200">
+                    Team Name
+                  </Label>
+                  <Input
+                    id="team-name"
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="Enter your team name"
+                    disabled={isCreatingTeam}
+                    className="bg-gray-900/80 border-gray-700 text-yellow-100 placeholder:text-yellow-200/50"
+                    maxLength={50}
+                  />
+                  <p className="text-xs text-yellow-200/70">
+                    Your team will start with ${settings?.startingBudget || 200} budget
+                  </p>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateTeamDialog(false)}
+                    disabled={isCreatingTeam}
+                    className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateTeam}
+                    disabled={isCreatingTeam || !teamName.trim()}
+                    className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl hover:text-gray-300"
+                  >
+                    {isCreatingTeam ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Team
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Delete Team Confirmation */}
           <AlertDialog
             open={!!deletingTeam}

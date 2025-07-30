@@ -21,6 +21,7 @@ import Rosters from "@/components/draft/Rosters";
 import PlayersTable from "@/components/draft/PlayersTable";
 import AuctionStage from "@/components/draft/AuctionStage";
 import Countdown from "@/components/draft/Countdown";
+import DraftChat from "@/components/draft/DraftChat";
 import {
   PageContent,
   StaggeredContent,
@@ -35,7 +36,13 @@ export default function DraftPage() {
   const [partySocket, setPartySocket] = useState<PartySocket | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("draft");
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const lastProcessedStateRef = useRef<string | null>(null);
+
+  // Debug: Log partySocket changes
+  useEffect(() => {
+    console.log("DraftPage: partySocket state changed:", partySocket ? "connected" : "null");
+  }, [partySocket]);
 
   // db selectors
   const {
@@ -92,11 +99,17 @@ export default function DraftPage() {
         });
 
         socket.addEventListener("close", (event) => {
+          console.log("DraftPage: PartySocket closed");
           setPartySocket(null);
         });
 
         socket.addEventListener("open", () => {
+          console.log("DraftPage: PartySocket opened, setting socket");
           setPartySocket(socket);
+        });
+
+        socket.addEventListener("error", (error) => {
+          console.error("DraftPage: PartySocket error:", error);
         });
 
         // Set up message listener
@@ -260,6 +273,10 @@ export default function DraftPage() {
     setActiveTab(tab);
   };
 
+  const handleChatToggle = () => {
+    setIsChatOpen(!isChatOpen);
+  };
+
   // Determine if current user is admin (league owner)
   const isAdmin = !!(user && league && user.id === league.ownerId);
 
@@ -405,6 +422,14 @@ export default function DraftPage() {
             </div>
           </StaggeredItem>
         </StaggeredContent>
+
+        {/* Chat Component */}
+        <DraftChat
+          partySocket={partySocket}
+          user={user}
+          isOpen={isChatOpen}
+          onToggle={handleChatToggle}
+        />
       </PageContent>
     );
   }
@@ -457,6 +482,14 @@ export default function DraftPage() {
             </div>
           </StaggeredItem>
         </StaggeredContent>
+
+        {/* Chat Component */}
+        <DraftChat
+          partySocket={partySocket}
+          user={user}
+          isOpen={isChatOpen}
+          onToggle={handleChatToggle}
+        />
       </PageContent>
     );
   }
@@ -467,6 +500,14 @@ export default function DraftPage() {
         <div className="flex justify-center items-center min-h-[50vh] sm:min-h-[60vh] lg:min-h-screen text-white px-4">
           <Loader2 className="animate-spin mr-2" /> Setting up draft...
         </div>
+        
+        {/* Chat Component */}
+        <DraftChat
+          partySocket={partySocket}
+          user={user}
+          isOpen={isChatOpen}
+          onToggle={handleChatToggle}
+        />
       </PageContent>
     );
   if (isDataError)
@@ -486,6 +527,14 @@ export default function DraftPage() {
             .filter(Boolean)
             .join(" | ")}
         </div>
+        
+        {/* Chat Component */}
+        <DraftChat
+          partySocket={partySocket}
+          user={user}
+          isOpen={isChatOpen}
+          onToggle={handleChatToggle}
+        />
       </PageContent>
     );
 
@@ -601,6 +650,14 @@ export default function DraftPage() {
           </div>
         </StaggeredItem>
       </StaggeredContent>
+
+      {/* Chat Component */}
+      <DraftChat
+        partySocket={partySocket}
+        user={user}
+        isOpen={isChatOpen}
+        onToggle={handleChatToggle}
+      />
     </PageContent>
   );
 }

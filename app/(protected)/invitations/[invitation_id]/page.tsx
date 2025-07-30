@@ -69,6 +69,9 @@ export default function InvitationPage() {
   const [isDeclining, setIsDeclining] = useState(false);
   const [actionComplete, setActionComplete] = useState(false);
 
+  // Check if user already has firstName and lastName
+  const userHasName = user?.firstName && user?.lastName;
+
   useEffect(() => {
     if (userLoading) return;
 
@@ -104,13 +107,17 @@ export default function InvitationPage() {
       setError("Team name is required");
       return;
     }
-    if (!firstName.trim()) {
-      setError("First name is required");
-      return;
-    }
-    if (!lastName.trim()) {
-      setError("Last name is required");
-      return;
+    
+    // Only validate firstName and lastName if user doesn't already have them
+    if (!userHasName) {
+      if (!firstName.trim()) {
+        setError("First name is required");
+        return;
+      }
+      if (!lastName.trim()) {
+        setError("Last name is required");
+        return;
+      }
     }
 
     setIsAccepting(true);
@@ -124,8 +131,8 @@ export default function InvitationPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             teamName: teamName.trim(),
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
+            firstName: userHasName ? user.firstName : firstName.trim(),
+            lastName: userHasName ? user.lastName : lastName.trim(),
           }),
         }
       );
@@ -376,33 +383,40 @@ export default function InvitationPage() {
           <DialogHeader>
             <DialogTitle>Join {invitation.leagueName}</DialogTitle>
             <DialogDescription>
-              Enter your name and choose a name for your team in this league.
+              {userHasName 
+                ? "Choose a name for your team in this league."
+                : "Enter your name and choose a name for your team in this league."
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="first-name">First Name</Label>
-              <Input
-                id="first-name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Enter your first name"
-                disabled={isAccepting}
-                maxLength={50}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="last-name">Last Name</Label>
-              <Input
-                id="last-name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Enter your last name"
-                disabled={isAccepting}
-                maxLength={50}
-              />
-            </div>
+            {!userHasName && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="first-name">First Name</Label>
+                  <Input
+                    id="first-name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter your first name"
+                    disabled={isAccepting}
+                    maxLength={50}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last-name">Last Name</Label>
+                  <Input
+                    id="last-name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter your last name"
+                    disabled={isAccepting}
+                    maxLength={50}
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label htmlFor="team-name">Team Name</Label>
               <Input
@@ -431,8 +445,7 @@ export default function InvitationPage() {
                 disabled={
                   isAccepting ||
                   !teamName.trim() ||
-                  !firstName.trim() ||
-                  !lastName.trim()
+                  (!userHasName && (!firstName.trim() || !lastName.trim()))
                 }
               >
                 {isAccepting ? (

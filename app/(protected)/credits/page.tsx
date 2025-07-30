@@ -15,9 +15,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreditCard, Loader2, CheckCircle } from "lucide-react";
 
 const CREDIT_OPTIONS = [
-  { credits: 1, label: "1 Credit", price: 9.99 },
-  { credits: 3, label: "3 Credits", price: 24.99 },
-  { credits: 5, label: "Unlimited", price: 44.99 },
+  { credits: 1, label: "1 Credit", price: 9.99, package: "basic" },
+  { credits: 5, label: "5 Credits", price: 39.99, package: "premium" },
 ];
 
 export default function CreditsPage() {
@@ -30,13 +29,20 @@ export default function CreditsPage() {
     setError(null);
     setSuccess(false);
     try {
-      const response = await fetch("/api/checkout", {
+      // Find the package name for the selected credits
+      const option = CREDIT_OPTIONS.find(opt => opt.credits === credits);
+      if (!option) {
+        setError("Invalid credit option selected.");
+        return;
+      }
+      
+      const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credits }),
+        body: JSON.stringify({ creditPackage: option.package }),
       });
       const data = await response.json();
-      if (data.url) {
+      if (data.success && data.url) {
         window.location.href = data.url;
       } else {
         setError(data.error || "Failed to initiate checkout.");
@@ -100,9 +106,7 @@ export default function CreditsPage() {
               <ul className="text-sm text-gray-500 space-y-1">
                 <li>
                   {option.credits === 1 && "Create 1 league"}
-                  {option.credits === 3 && "Create up to 3 leagues"}
-                  {option.credits === 5 &&
-                    "Create unlimited leagues for the season"}
+                  {option.credits === 5 && "Create up to 5 leagues"}
                 </li>
                 <li>Instant credit delivery after payment</li>
               </ul>

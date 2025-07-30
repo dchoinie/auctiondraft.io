@@ -93,6 +93,10 @@ export async function GET(
         dstSlots: leagueData.dstSlots || 1,
         kSlots: leagueData.kSlots || 1,
         benchSlots: leagueData.benchSlots || 7,
+        draftType: leagueData.draftType || "snake",
+        timerEnabled: leagueData.timerEnabled || 0,
+        timerDuration: leagueData.timerDuration || 60,
+        joinCode: leagueData.joinCode || null,
       },
     };
 

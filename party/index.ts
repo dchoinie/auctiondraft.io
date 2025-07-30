@@ -21,6 +21,14 @@ export type TeamDraftState = {
 // Draft phase enum for better state management
 export type DraftPhase = "pre" | "live" | "paused" | "complete";
 
+export type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: string;
+};
+
 export type DraftRoomState = {
   draftPhase: DraftPhase; // Replace draftStarted and draftPaused
   currentNominatorTeamId: string | null;
@@ -58,6 +66,7 @@ export type DraftRoomState = {
     teamId: string;
     price: number;
   };
+  chatMessages: ChatMessage[]; // Add chat messages to state
 };
 
 class PartyRoom implements Party.Server {
@@ -81,6 +90,7 @@ class PartyRoom implements Party.Server {
     totalPicks: 0,
     teams: {},
     bidHistory: [],
+    chatMessages: [], // Initialize empty chat messages array
   };
   resetAllowed = true; // Allow reset by default since we're not hydrating from DB
   hasLoadedFromDB = false; // Track if we've loaded state from database
@@ -746,6 +756,39 @@ class PartyRoom implements Party.Server {
           // Database operations handled by client
           break;
         }
+        case "chatMessage": {
+          // Store and broadcast chat message to all connected users
+          // No authorization check needed for chat messages
+          if (message.data) {
+            const chatMessage: ChatMessage = {
+              id: message.data.id || `${Date.now()}-${Math.random()}`,
+              userId: message.data.userId,
+              userName: message.data.userName,
+              message: message.data.message,
+              timestamp: message.data.timestamp,
+            };
+
+            console.log("PartyKit: Storing and broadcasting chat message", {
+              userId: chatMessage.userId,
+              userName: chatMessage.userName,
+              messageLength: chatMessage.message?.length || 0,
+            });
+            
+            // Add message to state (keep last 100 messages)
+            const newChatMessages = [...this.state.chatMessages, chatMessage].slice(-100);
+            this.updateState({
+              chatMessages: newChatMessages,
+            });
+            
+            // Broadcast the chat message to all connected users
+            this.room.broadcast(JSON.stringify({
+              type: "chatMessage",
+              data: chatMessage,
+            }));
+          }
+          break;
+        }
+
         default:
           conn.send(JSON.stringify({ echo: message }));
           break;
