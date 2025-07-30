@@ -409,6 +409,58 @@ export default function DraftPage() {
     );
   }
 
+  // Show completed draft view with download button
+  if (isComplete) {
+    return (
+      <PageContent>
+        <StaggeredContent>
+          <StaggeredItem>
+            <div className="flex flex-col items-center justify-center min-h-[50vh] sm:min-h-[60vh] lg:min-h-screen text-emerald-200 px-4">
+              <SlideUp delay={0.2}>
+                <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 text-center">
+                  Draft Complete! 🎉
+                </div>
+              </SlideUp>
+              <FadeIn delay={0.4}>
+                <div className="text-sm sm:text-base mt-4 text-center max-w-md mb-8">
+                  Congratulations! The draft has been completed successfully.
+                </div>
+              </FadeIn>
+              <FadeIn delay={0.6}>
+                <a
+                  href={`/api/leagues/${league_id}/draft/csv`}
+                  download
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  Download CSV
+                </a>
+              </FadeIn>
+              <FadeIn delay={0.8}>
+                <div className="text-xs mt-4 text-gray-400 text-center max-w-sm">
+                  The CSV contains team rosters and draft recap with all player information and prices.
+                </div>
+              </FadeIn>
+            </div>
+          </StaggeredItem>
+        </StaggeredContent>
+      </PageContent>
+    );
+  }
+
   if (isLoadingData)
     return (
       <PageContent>
@@ -451,6 +503,34 @@ export default function DraftPage() {
                   handleResetDraft={handleResetDraft}
                   handleResumeDraft={handleResumeDraft}
                 />
+              )}
+              {isComplete && (
+                <div className="mt-4 flex flex-col items-center">
+                  <div className="text-emerald-300 text-sm mb-3 text-center">
+                    🎉 Draft completed successfully! Download the results below.
+                  </div>
+                  <a
+                    href={`/api/leagues/${league_id}/draft/csv`}
+                    download
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-medium rounded-md shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Download Draft Results CSV
+                  </a>
+                </div>
               )}
             </div>
           </div>
