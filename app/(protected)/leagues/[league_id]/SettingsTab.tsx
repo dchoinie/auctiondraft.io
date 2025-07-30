@@ -2,12 +2,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Shield } from "lucide-react";
+import { Save, Shield, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import React from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import React, { useState } from "react";
 import { LeagueSettings } from "@/stores/leagueStore";
 import { useUser } from "@/stores/userStore";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useLeagueStore } from "@/stores/leagueStore";
 
 interface SettingsTabProps {
@@ -31,11 +42,41 @@ export function SettingsTab({
 }: SettingsTabProps) {
   const { user } = useUser();
   const { league_id } = useParams();
-  const { leagues } = useLeagueStore();
+  const router = useRouter();
+  const { leagues, removeLeague } = useLeagueStore();
   const league = leagues.find((league) => league.id === league_id);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Check if user is league admin
   const isAdmin = user?.id === league?.ownerId;
+
+  const handleDeleteLeague = async () => {
+    if (!league_id || Array.isArray(league_id)) return;
+    
+    setDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      const response = await fetch(`/api/leagues/${league_id}/delete`, {
+        method: "DELETE",
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from store and redirect to dashboard
+        removeLeague(league_id);
+        router.push("/dashboard");
+      } else {
+        setDeleteError(data.error || "Failed to delete league");
+      }
+    } catch (err) {
+      setDeleteError("An error occurred while deleting the league");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Show access denied for non-admin users
   if (!isAdmin) {
@@ -402,6 +443,58 @@ export function SettingsTab({
               <Save className="h-4 w-4" />
               {saving ? "Updating..." : "Update Settings"}
             </Button>
+          </div>
+
+          {/* Delete League Section */}
+          <div className="border-t border-gray-700 pt-8 mt-8">
+            <div className="text-center flex flex-col items-center">
+              <h3 className="text-lg font-semibold text-red-400 mb-2">
+                Danger Zone
+              </h3>
+              <p className="text-gray-400 mb-4">
+                This action cannot be undone. All league data will be permanently deleted.
+              </p>
+              
+              {deleteError && (
+                <Alert className="mb-4 border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-800">
+                    {deleteError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="flex items-center gap-2 bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md hover:shadow-xl"
+                    disabled={deleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? "Deleting..." : "Delete League"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the league
+                      and all associated data. This action cannot be reversed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteLeague}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete League
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       ) : (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { leagues, leagueInvitations } from "@/app/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 // DELETE: Cancel a pending invitation (admin only)
 export async function DELETE(
@@ -27,6 +27,7 @@ export async function DELETE(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

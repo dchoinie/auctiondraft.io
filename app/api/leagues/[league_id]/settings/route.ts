@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { leagues, teams } from "@/app/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
@@ -34,6 +34,7 @@ export async function GET(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     console.log("Query result:", league);
@@ -133,6 +134,7 @@ export async function PUT(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

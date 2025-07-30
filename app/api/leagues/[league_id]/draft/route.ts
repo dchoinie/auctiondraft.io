@@ -8,7 +8,7 @@ import {
   draftedPlayers,
   keepers,
 } from "@/app/schema";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, sql, ne } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
@@ -46,6 +46,7 @@ export async function GET(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

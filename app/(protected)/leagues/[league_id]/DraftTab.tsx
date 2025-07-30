@@ -93,7 +93,7 @@ export function DraftTab({
             className="group"
             onClick={() => setActiveTab && setActiveTab("teams")}
           >
-            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+            <Card className="flex flex-col items-center p-6 green-bg hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
               <CardHeader className="flex flex-col items-center gap-2 pb-2">
                 <Users className="w-8 h-8 text-emerald-200 group-hover:text-emerald-100" />
                 <CardTitle className="text-lg text-emerald-100 group-hover:text-emerald-50">
@@ -107,7 +107,7 @@ export function DraftTab({
             className="group"
             onClick={() => setActiveTab && setActiveTab("rosters")}
           >
-            <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+            <Card className="flex flex-col items-center p-6 blue-bg hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
               <CardHeader className="flex flex-col items-center gap-2 pb-2">
                 <List className="w-8 h-8 text-blue-200 group-hover:text-blue-100" />
                 <CardTitle className="text-lg text-blue-100 group-hover:text-blue-50">
@@ -122,7 +122,7 @@ export function DraftTab({
               className="group"
               onClick={() => setActiveTab && setActiveTab("settings")}
             >
-              <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <Card className="flex flex-col items-center p-6 gray-bg hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
                 <CardHeader className="flex flex-col items-center gap-2 pb-2">
                   <Settings className="w-8 h-8 text-gray-200 group-hover:text-gray-100" />
                   <CardTitle className="text-lg text-gray-100 group-hover:text-gray-50">
@@ -138,7 +138,7 @@ export function DraftTab({
               className="group"
               onClick={() => setActiveTab && setActiveTab("keepers")}
             >
-              <Card className="flex flex-col items-center p-6 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
+              <Card className="flex flex-col items-center p-6 yellow-bg hover:shadow-xl hover:scale-105 transition-transform cursor-pointer">
                 <CardHeader className="flex flex-col items-center gap-2 pb-2">
                   <Shield className="w-8 h-8 text-yellow-200 group-hover:text-yellow-100" />
                   <CardTitle className="text-lg text-yellow-100 group-hover:text-yellow-50">

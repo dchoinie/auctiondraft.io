@@ -46,6 +46,7 @@ export const leagues = pgTable("leagues", {
   draftType: text("draft_type").default("snake"), // "linear" or "snake"
   timerEnabled: integer("timer_enabled").default(0), // 0 = false, 1 = true
   timerDuration: integer("timer_duration").default(60), // seconds
+  status: text("status").default("active"), // "active" or "deleted"
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   joinCode: text("join_code"),
 });

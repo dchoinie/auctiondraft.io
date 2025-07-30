@@ -1,0 +1,1 @@
+ALTER TABLE "leagues" ADD COLUMN "status" text DEFAULT 'active';

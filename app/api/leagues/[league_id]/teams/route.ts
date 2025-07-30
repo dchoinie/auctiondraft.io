@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { leagues, teams, userProfiles } from "@/app/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 // GET: List all teams in a league
 export async function GET(
@@ -22,11 +22,12 @@ export async function GET(
     const resolvedParams = await params;
     const leagueId = resolvedParams.league_id;
 
-    // Verify league exists
+    // Verify league exists and is not deleted
     const league = await db
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {
@@ -100,11 +101,12 @@ export async function POST(
       );
     }
 
-    // Verify league exists
+    // Verify league exists and is not deleted
     const league = await db
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

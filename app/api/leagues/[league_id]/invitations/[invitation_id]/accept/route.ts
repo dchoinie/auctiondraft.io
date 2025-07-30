@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { leagues, teams, leagueInvitations, userProfiles } from "@/app/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 export async function POST(
   req: NextRequest,
@@ -110,6 +110,7 @@ export async function POST(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

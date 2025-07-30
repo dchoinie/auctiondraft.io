@@ -100,7 +100,33 @@ const config = {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [
+    tailwindcssAnimate,
+    function({ addUtilities }: { addUtilities: (utilities: Record<string, Record<string, string>>) => void }) {
+      const newUtilities = {
+        '.green-bg': {
+          background: 'linear-gradient(to bottom right, rgb(6 78 59 / 0.8), rgb(21 128 61 / 0.8))',
+          border: '2px solid rgb(52 211 153)',
+        },
+        '.blue-bg': {
+          background: 'linear-gradient(to bottom right, rgb(30 58 138 / 0.8), rgb(29 78 216 / 0.8))',
+          border: '2px solid rgb(96 165 250)',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
+        '.gray-bg': {
+          background: 'linear-gradient(to bottom right, rgb(17 24 39 / 0.8), rgb(55 65 81 / 0.8))',
+          border: '2px solid rgb(156 163 175)',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
+        '.yellow-bg': {
+          background: 'linear-gradient(to bottom right, rgb(120 113 108 / 0.8), rgb(161 98 7 / 0.8))',
+          border: '2px solid rgb(250 204 21)',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 } satisfies Config;
 
 export default config;

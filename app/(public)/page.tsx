@@ -6,15 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import {
   Trophy,
-  Zap,
-  Target,
-  Users,
-  Shield,
-  Smartphone,
-  CheckCircle,
-  ArrowRight,
-  Star,
-  TrendingUp,
+  LogInIcon,
+  UserPlusIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -65,19 +58,21 @@ const Home: NextPage = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <Button asChild className="bg-emerald-500 hover:bg-emerald-600">
+              <Button asChild className="green-bg">
                 <SignUpButton mode="modal">
                   <button>
-                    <Zap className="w-5 h-5 mr-2" />
+                    <UserPlusIcon className="w-5 h-5 mr-2" />
                     Sign Up
-                    <ArrowRight className="w-5 h-5 ml-2" />
                   </button>
                 </SignUpButton>
               </Button>
 
-              <Button asChild variant="outline">
+              <Button asChild className="gray-bg">
                 <SignInButton mode="modal">
-                  <button>Sign In</button>
+                  <button>
+                    <LogInIcon className="w-5 h-5 mr-2" />
+                    Sign In
+                  </button>
                 </SignInButton>
               </Button>
             </div>

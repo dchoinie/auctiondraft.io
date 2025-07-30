@@ -1,7 +1,7 @@
 // Use dynamic imports to avoid __dirname issues in PartyKit
 import { db } from "./db";
 import { leagues, teams } from "../app/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 export interface PartyKitAuthResult {
   userId: string | null;
@@ -102,6 +102,7 @@ export async function checkLeagueMembership(
       .select()
       .from(leagues)
       .where(eq(leagues.id, leagueId))
+      .where(ne(leagues.status, "deleted"))
       .limit(1);
 
     if (league.length === 0) {

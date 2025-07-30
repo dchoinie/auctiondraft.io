@@ -201,7 +201,7 @@ export default function Dashboard() {
 
             {/* Analytics Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+              <Card className="green-bg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-300">
                     Total Leagues
@@ -218,7 +218,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+              <Card className="green-bg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-300">
                     Live Drafts
@@ -236,7 +236,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+              <Card className="green-bg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-300">
                     Total Teams
@@ -254,7 +254,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+              <Card className="green-bg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-300">
                     Analytics
@@ -270,7 +270,7 @@ export default function Dashboard() {
             </div>
 
             {/* Leagues Table */}
-            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+            <Card className="green-bg">
               <CardHeader>
                 <CardTitle className="text-gray-50">Your Leagues</CardTitle>
                 <CardDescription className="text-gray-400">
@@ -288,7 +288,7 @@ export default function Dashboard() {
                       Create your first league to get started with auction
                       drafting
                     </p>
-                    <Button asChild>
+                    <Button asChild className="yellow-bg">
                       <Link href="/leagues/create">
                         <Plus className="h-4 w-4 mr-2" />
                         Create League
@@ -378,7 +378,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Analytics Placeholder */}
-            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md">
+            <Card className="green-bg">
               <CardHeader>
                 <CardTitle className="text-gray-50 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />

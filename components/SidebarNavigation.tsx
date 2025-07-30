@@ -55,7 +55,7 @@ export function SidebarNavigation() {
         {navItems.map((item: NavItem, i: number) => (
           <Button
             asChild
-            className="bg-emerald-800 hover:bg-emerald-700"
+            className="green-bg"
             key={`${item.label}-${i}`}
           >
             <Link href={item.href}>
@@ -73,7 +73,7 @@ export function SidebarNavigation() {
               asChild
               key={league.id}
               variant="ghost"
-              className="w-full bg-gradient-to-br from-emerald-900/80 to-emerald-700/80 border-2 border-emerald-400 shadow-md hover:shadow-xl cursor-pointer h-auto hover:bg-emerald-700"
+              className="w-full green-bg hover:shadow-xl cursor-pointer h-auto"
             >
               <Link href={`/leagues/${league.id}`}>
                 <div className="flex flex-col w-full">

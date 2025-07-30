@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { leagues, teams } from "@/app/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, ne } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,7 +52,8 @@ export async function GET(req: NextRequest) {
         },
       })
       .from(leagues)
-      .where(eq(leagues.ownerId, userId));
+      .where(eq(leagues.ownerId, userId))
+      .where(ne(leagues.status, "deleted"));
 
     // Find leagues where user has a team (member)
     const memberLeagues = await db
@@ -87,7 +88,8 @@ export async function GET(req: NextRequest) {
       })
       .from(leagues)
       .innerJoin(teams, eq(teams.leagueId, leagues.id))
-      .where(eq(teams.ownerId, userId));
+      .where(eq(teams.ownerId, userId))
+      .where(ne(leagues.status, "deleted"));
 
     // Combine and deduplicate leagues
     const allLeagues = [...ownedLeagues, ...memberLeagues];
