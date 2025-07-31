@@ -33,14 +33,30 @@ export default function TeamTracker({
     draftPhase: draftState.draftPhase,
     teamsCount: Object.keys(draftState.teams || {}).length,
     teams: draftState.teams,
+    teamIds: Object.keys(draftState.teams || {}),
   });
 
-  // Combine live and offline teams for display
+  // Combine live and offline teams for display and sort by draft order
   const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
+  const sortedTeams = allTeams.sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0));
+  
+  // Debug logging for team sorting and nomination
+  console.log("TeamTracker - team sorting:", {
+    isOfflineMode,
+    teamsCount: teams.length,
+    offlineTeamsCount: offlineTeams.length,
+    allTeamsCount: allTeams.length,
+    sortedTeamsCount: sortedTeams.length,
+    currentNominatorTeamId: draftState.currentNominatorTeamId,
+    sortedTeamIds: sortedTeams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
+    nominationOrder: draftState.nominationOrder,
+    teams: teams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
+    offlineTeams: offlineTeams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
+  });
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {allTeams.map((team: Team | OfflineTeam) => {
+      {sortedTeams.map((team: Team | OfflineTeam) => {
         const teamState = draftState.teams[team.id];
 
         // Debug logging for each team
@@ -51,11 +67,18 @@ export default function TeamTracker({
           remainingBudget: teamState?.remainingBudget,
           remainingRosterSpots: teamState?.remainingRosterSpots,
           maxBid: teamState?.maxBid,
+          draftStateTeamsCount: Object.keys(draftState.teams || {}).length,
+          draftStateTeamIds: Object.keys(draftState.teams || {}),
         });
 
-        const isTurn = draftState.currentNominatorTeamId === team.id;
-        // For offline teams, always show as online since they don't have ownerId
-        const isOnline = 'ownerId' in team ? onlineUserIds.includes(team.ownerId) : true;
+                 const isTurn = draftState.currentNominatorTeamId === team.id;
+         // For offline teams, always show as online since they don't have ownerId
+         const isOnline = 'ownerId' in team ? onlineUserIds.includes(team.ownerId) : true;
+         
+         // Debug logging for turn highlighting
+         if (isTurn) {
+           console.log(`TeamTracker - highlighting team ${team.name} (${team.id}) as current nominator`);
+         }
         return (
           <Card
             key={team.id}

@@ -198,7 +198,29 @@ export default function DraftPage() {
             }
 
             if (message.type === "draftReset") {
-              setDraftState(league_id as string, null);
+              // Set draft state to pre phase instead of null
+              const resetDraftState = {
+                draftPhase: "pre" as const,
+                currentNominatorTeamId: null,
+                nominatedPlayer: null,
+                startingBidAmount: 0,
+                currentBid: null,
+                bidTimer: null,
+                bidTimerExpiresAt: null,
+                auctionPhase: "idle" as const,
+                nominationOrder: [],
+                currentNominationIndex: 0,
+                draftType: "linear" as const,
+                timerEnabled: false,
+                timerDuration: 60,
+                autoStartTimer: true,
+                currentRound: 1,
+                currentPick: 1,
+                totalPicks: 0,
+                teams: {},
+                bidHistory: [],
+              };
+              setDraftState(league_id as string, resetDraftState);
               useDraftedPlayersStore
                 .getState()
                 .resetLeague(league_id as string);
@@ -296,8 +318,44 @@ export default function DraftPage() {
 
   // Handler to send resetDraft event
   const handleResetDraft = async () => {
+    // Immediately update local state to "pre" phase
+    const resetDraftState = {
+      draftPhase: "pre" as const,
+      currentNominatorTeamId: null,
+      nominatedPlayer: null,
+      startingBidAmount: 0,
+      currentBid: null,
+      bidTimer: null,
+      bidTimerExpiresAt: null,
+      auctionPhase: "idle" as const,
+      nominationOrder: [],
+      currentNominationIndex: 0,
+      draftType: "linear" as const,
+      timerEnabled: false,
+      timerDuration: 60,
+      autoStartTimer: true,
+      currentRound: 1,
+      currentPick: 1,
+      totalPicks: 0,
+      teams: {},
+      bidHistory: [],
+    };
+    
+    // Update local state immediately
+    setDraftState(league_id as string, resetDraftState);
+
+    // Send reset message to PartyKit if socket is available
     if (partySocket) {
       partySocket.send(JSON.stringify({ type: "resetDraft" }));
+    }
+
+    // Force re-hydration by resetting the hydration flag
+    // This ensures that when the draft state changes to "pre", 
+    // the hydration will run again and populate the teams data
+    setTimeout(() => {
+      console.log("Forcing re-hydration after reset...");
+      // The hydration hook will detect the "pre" phase and reset the hydration flag
+    }, 100);
 
       // Clear all draft data from database
       try {
@@ -322,35 +380,13 @@ export default function DraftPage() {
         });
 
         // Save initial draft state to database after reset
-        const initialDraftState = {
-          draftPhase: "pre" as const,
-          currentNominatorTeamId: null,
-          nominatedPlayer: null,
-          startingBidAmount: 0,
-          currentBid: null,
-          bidTimer: null,
-          bidTimerExpiresAt: null,
-          auctionPhase: "idle" as const,
-          nominationOrder: [],
-          currentNominationIndex: 0,
-          draftType: "linear" as const,
-          timerEnabled: false,
-          timerDuration: 60,
-          autoStartTimer: true,
-          currentRound: 1,
-          currentPick: 1,
-          totalPicks: 0,
-          teams: {},
-          bidHistory: [],
-        };
-
         await fetch(`/api/leagues/${league_id}/draft/state`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "saveSnapshot",
             data: {
-              draftState: initialDraftState,
+              draftState: resetDraftState,
               eventType: "draftReset",
               eventData: { resetBy: user?.id },
             },
@@ -363,6 +399,7 @@ export default function DraftPage() {
         }, 100);
 
         // Refresh league data to update isDraftStarted flag
+        console.log("Refreshing league data after reset...");
         refetchLeagues();
 
         console.log(
@@ -371,7 +408,6 @@ export default function DraftPage() {
       } catch (error) {
         console.error("Error resetting draft state in database:", error);
       }
-    }
   };
 
   // Debug logging for draft state
@@ -381,6 +417,8 @@ export default function DraftPage() {
     hasDraftState: !!draftState,
     hasHydratedRef,
     teamsCount: draftState?.teams ? Object.keys(draftState.teams).length : 0,
+    leaguesLoading,
+    leaguesCount: leagues.length,
   });
 
   // Show waiting message if draft hasn't started or hydration isn't complete

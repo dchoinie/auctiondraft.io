@@ -32,9 +32,9 @@ export function useDraftHydration({
 
   // Helper function to validate draft state completeness
   const isDraftStateComplete = (state: DraftRoomState): boolean => {
-    // For hydration purposes, we only need the draft to be live
-    // Teams and nomination order will be populated by hydration
-    return state.draftPhase === "live";
+    // For hydration purposes, we need the draft to be either live or pre
+    // Teams and nomination order will be populated by hydration in both cases
+    return state.draftPhase === "live" || state.draftPhase === "pre";
   };
 
   // Load draft state from database when entering the draft room
@@ -174,14 +174,16 @@ export function useDraftHydration({
     // Validate that we have a complete draft state before proceeding
     if (!isDraftStateComplete(draftState)) {
       console.log("PartyKit: Draft state incomplete, skipping hydration", {
+        draftPhase: draftState.draftPhase,
         hasTeams:
           !!draftState.teams && Object.keys(draftState.teams).length > 0,
         hasNominationOrder:
           !!draftState.nominationOrder && draftState.nominationOrder.length > 0,
-        draftPhase: draftState.draftPhase,
       });
       return;
     }
+
+
 
     // Calculate total roster spots
     const totalRosterSpots =
@@ -197,11 +199,14 @@ export function useDraftHydration({
     console.log("Hydrating draft state with league-specific data", {
       teamsCount: teams.length,
       offlineTeamsCount: offlineTeams.length,
+      isOfflineMode,
       keepersCount: keepers?.length || 0,
       draftedPlayersCount: draftedPlayers.length,
       totalRosterSpots,
       draftPhase: draftState.draftPhase,
       draftedPlayersSample: draftedPlayers.slice(0, 3), // Show first 3 drafted players
+      teams: teams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
+      offlineTeams: offlineTeams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
     });
 
     // Calculate keeper costs by team
@@ -215,10 +220,24 @@ export function useDraftHydration({
 
     // Get all teams (live + offline) for offline mode
     const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
+    
+    console.log("Hydration - allTeams calculation:", {
+      isOfflineMode,
+      teamsCount: teams.length,
+      offlineTeamsCount: offlineTeams.length,
+      allTeamsCount: allTeams.length,
+      allTeams: allTeams.map(t => ({ id: t.id, name: t.name, draftOrder: t.draftOrder })),
+    });
 
     // Build hydrated teams state
     const hydratedTeams: Record<string, TeamDraftState> = allTeams.reduce(
       (acc, team) => {
+        console.log(`Hydration - processing team: ${team.name} (${team.id})`, {
+          isOfflineTeam: 'ownerId' in team ? false : true,
+          budget: team.budget,
+          draftOrder: team.draftOrder,
+        });
+        
         const keeperCost = keeperCostByTeam[team.id] || 0;
         const teamDraftedPlayers = draftedPlayers.filter(
           (p) => p.teamId === team.id
@@ -251,7 +270,7 @@ export function useDraftHydration({
           maxBid: Math.max(1, remainingBudget - (remainingRosterSpots - 1)),
         };
 
-        console.log(`Hydration - team ${team.name}:`, {
+        console.log(`Hydration - team ${team.name} final state:`, {
           teamId: team.id,
           budget: team.budget,
           keeperCost,
@@ -271,6 +290,17 @@ export function useDraftHydration({
       },
       {} as Record<string, TeamDraftState>
     );
+    
+    console.log("Hydration - final hydratedTeams object:", {
+      hydratedTeamsCount: Object.keys(hydratedTeams).length,
+      hydratedTeamIds: Object.keys(hydratedTeams),
+      hydratedTeams: Object.entries(hydratedTeams).map(([id, state]) => ({
+        id,
+        remainingBudget: state.remainingBudget,
+        remainingRosterSpots: state.remainingRosterSpots,
+        maxBid: state.maxBid,
+      })),
+    });
 
     console.log("Hydration - final hydrated teams:", {
       teamsCount: Object.keys(hydratedTeams).length,
@@ -339,7 +369,17 @@ export function useDraftHydration({
     setDraftState(leagueId, hydratedDraftState);
 
     // Send hydrated state back to PartyKit
-    console.log("Sending hydrated state to PartyKit");
+    console.log("Sending hydrated state to PartyKit with teams:", {
+      totalTeams: Object.keys(hydratedTeams).length,
+      teamIds: Object.keys(hydratedTeams),
+      sampleTeamData: Object.entries(hydratedTeams).slice(0, 2).map(([id, state]) => ({
+        id,
+        remainingBudget: state.remainingBudget,
+        remainingRosterSpots: state.remainingRosterSpots,
+        maxBid: state.maxBid,
+      })),
+    });
+    
     partySocket.send(
       JSON.stringify({ type: "hydrateState", data: hydratedDraftState })
     );
@@ -368,10 +408,19 @@ export function useDraftHydration({
 
   // Reset hydration flag when draft state is reset or when draft phase changes
   useEffect(() => {
-    if (!draftState || draftState.draftPhase !== "live") {
+    if (!draftState || draftState.draftPhase === "pre") {
+      console.log("Resetting hydration flag - draft phase is pre or no draft state");
       hasHydrated.current = false;
     }
   }, [draftState?.draftPhase]);
+
+  // Reset hydration flag when PartySocket disconnects and reconnects
+  useEffect(() => {
+    if (!partySocket) {
+      console.log("PartySocket disconnected, resetting hydration flag");
+      hasHydrated.current = false;
+    }
+  }, [partySocket]);
 
   return { isHydrated, hasHydratedRef: hasHydrated.current };
 }
