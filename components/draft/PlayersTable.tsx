@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { usePlayers, usePlayersSearch, Player } from "@/stores/playersStore";
-import { useDraftedPlayersAuto } from "@/stores/draftedPlayersStore";
+import { useDraftedPlayersAuto, useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -154,11 +154,23 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
     loading: searchLoading,
     error: searchError,
   } = usePlayersSearch(debouncedSearch);
+  // Get drafted players and loading state
   const draftedPlayers = useDraftedPlayersAuto(leagueId);
+  const draftedPlayersLoading = useDraftedPlayersStore(
+    (state) => state.loading[leagueId ?? ""]
+  );
   const draftedPlayerIds = useMemo(
     () => draftedPlayers.map((player) => player.playerId),
     [draftedPlayers]
   );
+
+  // Debug logging for drafted players
+  console.log("PlayersTable - drafted players:", {
+    draftedPlayersCount: draftedPlayers.length,
+    draftedPlayerIds: draftedPlayerIds,
+    leagueId,
+    loading: draftedPlayersLoading,
+  });
 
   // Find the current user's team
   const userTeam = useMemo(() => {
@@ -194,7 +206,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
   const filteredPlayers = useMemo(() => {
     const playersToFilter = debouncedSearch ? searchedPlayers : players;
 
-    return playersToFilter.filter((player) => {
+    const filtered = playersToFilter.filter((player) => {
       // Filter out drafted players
       if (draftedPlayerIds.includes(player.id)) {
         return false;
@@ -207,6 +219,17 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
 
       return true;
     });
+
+    // Debug logging for filtered players
+    console.log("PlayersTable - filtered players:", {
+      totalPlayers: playersToFilter.length,
+      filteredCount: filtered.length,
+      draftedPlayerIdsCount: draftedPlayerIds.length,
+      position,
+      search: debouncedSearch,
+    });
+
+    return filtered;
   }, [debouncedSearch, searchedPlayers, players, draftedPlayerIds, position]);
 
   useEffect(() => {
@@ -303,43 +326,53 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md min-w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-gray-50 text-xs sm:text-sm">
-                First Name
-              </TableHead>
-              <TableHead className="text-gray-50 text-xs sm:text-sm">
-                Last Name
-              </TableHead>
-              <TableHead className="text-gray-50 text-xs sm:text-sm">
-                Position
-              </TableHead>
-              <TableHead className="text-gray-50 text-xs sm:text-sm">
-                Team
-              </TableHead>
-              <TableHead className="text-gray-50 text-xs sm:text-sm">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPlayers.slice(0, PAGE_SIZE).map((player) => (
-                                  <PlayerRow
-                      key={player.id}
-                      player={player}
-                      partySocket={partySocket}
-                      user={user}
-                      userTeam={userTeam}
-                      maxBid={maxBid}
-                      isCurrentNominator={isCurrentNominator}
-                      isOfflineMode={isOfflineMode}
-                    />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+             <div className="overflow-x-auto relative">
+         <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md min-w-full">
+           <TableHeader>
+             <TableRow>
+               <TableHead className="text-gray-50 text-xs sm:text-sm">
+                 First Name
+               </TableHead>
+               <TableHead className="text-gray-50 text-xs sm:text-sm">
+                 Last Name
+               </TableHead>
+               <TableHead className="text-gray-50 text-xs sm:text-sm">
+                 Position
+               </TableHead>
+               <TableHead className="text-gray-50 text-xs sm:text-sm">
+                 Team
+               </TableHead>
+               <TableHead className="text-gray-50 text-xs sm:text-sm">
+                 Actions
+               </TableHead>
+             </TableRow>
+           </TableHeader>
+           <TableBody>
+             {filteredPlayers.slice(0, PAGE_SIZE).map((player) => (
+                                   <PlayerRow
+                       key={player.id}
+                       player={player}
+                       partySocket={partySocket}
+                       user={user}
+                       userTeam={userTeam}
+                       maxBid={maxBid}
+                       isCurrentNominator={isCurrentNominator}
+                       isOfflineMode={isOfflineMode}
+                     />
+             ))}
+           </TableBody>
+         </Table>
+         
+         {/* Loading overlay for drafted players refresh */}
+         {draftedPlayersLoading && (
+           <div className="absolute inset-0 bg-gray-900/80 flex items-center justify-center z-10">
+             <div className="flex flex-col items-center gap-2">
+               <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+               <span className="text-emerald-200 text-sm">Updating player list...</span>
+             </div>
+           </div>
+         )}
+       </div>
 
       {filteredPlayers.length === 0 && (
         <div className="text-center py-8 text-emerald-200">

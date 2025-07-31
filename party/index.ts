@@ -789,17 +789,8 @@ class PartyRoom implements Party.Server {
               teamId,
             };
 
-            // Mark player as sold
-            this.state.soldPlayer = {
-              playerId: this.state.nominatedPlayer.id,
-              teamId,
-              price: amount,
-            };
-
-            // Clear nominated player and current bid
-            this.state.nominatedPlayer = null;
-            this.state.currentBid = null;
-            this.state.bidHistory = [];
+            // Store the nominated player ID before clearing it
+            const nominatedPlayerId = this.state.nominatedPlayer.id;
 
             // Update team state
             this.updateTeamAfterAcquisition(teamId, amount);
@@ -844,7 +835,7 @@ class PartyRoom implements Party.Server {
             const newRound = Math.floor(newTotalPicks / totalTeams) + 1;
             const newPick = (newTotalPicks % totalTeams) + 1;
 
-            // Broadcast state update
+            // Broadcast state update with all changes
             this.updateState({
               nominatedPlayer: null,
               currentBid: null,
@@ -856,7 +847,7 @@ class PartyRoom implements Party.Server {
               totalPicks: newTotalPicks,
               bidHistory: [],
               soldPlayer: {
-                playerId: this.state.nominatedPlayer!.id,
+                playerId: nominatedPlayerId,
                 teamId,
                 price: amount,
               },
