@@ -78,11 +78,19 @@ export async function PUT(
     const resolvedParams = await params;
     const { league_id: leagueId, team_id: teamId } = resolvedParams;
     const body = await req.json();
-    const { name } = body;
+    const { name, draftOrder } = body;
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
+    // Validate input
+    if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
       return NextResponse.json(
         { success: false, error: "Team name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (draftOrder !== undefined && (typeof draftOrder !== "number" || draftOrder < 1)) {
+      return NextResponse.json(
+        { success: false, error: "Draft order must be a positive number" },
         { status: 400 }
       );
     }
@@ -129,12 +137,15 @@ export async function PUT(
       );
     }
 
+    // Prepare update data
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (draftOrder !== undefined) updateData.draftOrder = draftOrder;
+
     // Update the team
     const updatedTeam = await db
       .update(teams)
-      .set({
-        name: name.trim(),
-      })
+      .set(updateData)
       .where(eq(teams.id, teamId))
       .returning();
 

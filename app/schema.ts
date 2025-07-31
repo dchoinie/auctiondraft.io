@@ -93,10 +93,11 @@ export const draftedPlayers = pgTable(
   "drafted_players",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    teamId: uuid("team_id").references(() => teams.id),
+    teamId: uuid("team_id"), // Can reference either teams.id or offlineTeams.id
     playerId: uuid("player_id").references(() => nflPlayers.id),
     leagueId: uuid("league_id").references(() => leagues.id),
     draftPrice: integer("draft_price").notNull(),
+    teamType: text("team_type").default("regular"), // "regular" or "offline"
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({

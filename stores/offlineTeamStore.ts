@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { RosterInfo } from "@/lib/utils";
+
 export interface OfflineTeam {
   id: string;
   name: string;
@@ -8,7 +10,7 @@ export interface OfflineTeam {
   budget: number;
   draftOrder: number | null;
   createdAt: string;
-  isAdmin?: boolean;
+  roster?: RosterInfo;
 }
 
 interface OfflineTeamState {

@@ -73,14 +73,18 @@ const PlayerRow = React.memo(function PlayerRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1 sm:gap-2">
-          <Button
-            size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
-            onClick={() => setAmount((prev) => Math.max(minAmount, prev - 1))}
-            disabled={amount <= minAmount}
-          >
-            <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
-          </Button>
+          {!isOfflineMode && (
+            <>
+              <Button
+                size="sm"
+                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                onClick={() => setAmount((prev) => Math.max(minAmount, prev - 1))}
+                disabled={amount <= minAmount}
+              >
+                <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+              </Button>
+            </>
+          )}
           <Button
             size="sm"
             variant="default"
@@ -113,13 +117,17 @@ const PlayerRow = React.memo(function PlayerRow({
           >
             {isOfflineMode ? "Nominate" : `Nominate $${amount}`}
           </Button>
-          <Button
-            size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
-            onClick={() => setAmount((prev) => prev + 1)}
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
-          </Button>
+          {!isOfflineMode && (
+            <>
+              <Button
+                size="sm"
+                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                onClick={() => setAmount((prev) => prev + 1)}
+              >
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+              </Button>
+            </>
+          )}
         </div>
       </TableCell>
     </TableRow>

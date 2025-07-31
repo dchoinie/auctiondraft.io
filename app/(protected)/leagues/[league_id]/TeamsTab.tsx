@@ -32,13 +32,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Users, Crown, Mail, Trash2, Loader2, AlertCircle, Plus } from "lucide-react";
+import { Users, Crown, Mail, Trash2, Loader2, AlertCircle, Plus, GripVertical, Eye } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { LeagueSettings } from "@/stores/leagueStore";
 import { Team, useLeagueTeams } from "@/stores/teamStore";
 import { Invitation } from "@/lib/email";
 import { useUser } from "@/stores/userStore";
 import { useOfflineTeamStore, OfflineTeam } from "@/stores/offlineTeamStore";
+import { useParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useLeagueStore } from "@/stores/leagueStore";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RosterInfo } from "@/lib/utils";
 
 interface TeamsTabProps {
   cancellingInvitation: string | null;
@@ -64,6 +71,42 @@ interface TeamsTabProps {
   teams: Team[];
   teamsLoading: boolean;
   userLoading: boolean;
+}
+
+interface OfflineTeamRoster {
+  team: {
+    id: string;
+    name: string;
+    budget: number;
+    remainingBudget: number;
+    draftOrder: number | null;
+  };
+  rosterInfo: RosterInfo;
+  draftedPlayers: Array<{
+    id: string;
+    playerId: string;
+    draftPrice: number;
+    createdAt: string;
+    player: {
+      firstName: string;
+      lastName: string;
+      position: string;
+      team: string | null;
+      fantasyPositions: string[] | null;
+      status: string | null;
+      injuryStatus: string | null;
+    };
+  }>;
+  positionCounts: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    DST: number;
+    K: number;
+  };
+  rosterSpotsFilled: number;
+  remainingRosterSpots: number;
 }
 
 export function TeamsTab(props: TeamsTabProps) {
@@ -93,16 +136,11 @@ export function TeamsTab(props: TeamsTabProps) {
     userLoading,
   } = props;
 
+  const { league_id } = useParams();
+  const { userId } = useAuth();
   const { user } = useUser();
   const { createTeam } = useLeagueTeams(settings?.id);
-  const { 
-    teams: offlineTeams, 
-    loading: offlineTeamsLoading, 
-    error: offlineTeamsError,
-    fetchTeams: fetchOfflineTeams,
-    createTeam: createOfflineTeam,
-    deleteTeam: deleteOfflineTeam
-  } = useOfflineTeamStore();
+  const { teams: offlineTeams, loading: offlineTeamsLoading, error: offlineTeamsError, fetchTeams: fetchOfflineTeams, createTeam: createOfflineTeam, deleteTeam: deleteOfflineTeam, updateTeam: updateOfflineTeam } = useOfflineTeamStore();
 
   // Team creation state
   const [showCreateTeamDialog, setShowCreateTeamDialog] = useState(false);
@@ -116,6 +154,17 @@ export function TeamsTab(props: TeamsTabProps) {
   const [offlineTeamBudget, setOfflineTeamBudget] = useState(settings?.startingBudget || 200);
   const [isCreatingOfflineTeam, setIsCreatingOfflineTeam] = useState(false);
   const [createOfflineTeamError, setCreateOfflineTeamError] = useState<string | null>(null);
+
+  // Drag and drop state
+  const [draggedTeamId, setDraggedTeamId] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
+
+  // New state for roster viewing
+  const [showRosterDialog, setShowRosterDialog] = useState(false);
+  const [selectedTeamForRoster, setSelectedTeamForRoster] = useState<OfflineTeam | null>(null);
+  const [rosterData, setRosterData] = useState<OfflineTeamRoster | null>(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
 
   // Check if current user has a team in this league (for live mode)
   const userHasTeam = teams.some(team => team.ownerId === user?.id);
@@ -196,16 +245,102 @@ export function TeamsTab(props: TeamsTabProps) {
     }
   };
 
+  const handleViewRoster = async (team: OfflineTeam) => {
+    setSelectedTeamForRoster(team);
+    setShowRosterDialog(true);
+    setRosterLoading(true);
+    setRosterError(null);
+
+    try {
+      const response = await fetch(`/api/leagues/${league_id}/offline-teams/${team.id}/roster`);
+      const data = await response.json();
+
+      if (data.success) {
+        setRosterData(data.roster);
+      } else {
+        setRosterError(data.error || "Failed to fetch roster");
+      }
+    } catch (err) {
+      setRosterError("Failed to fetch roster");
+    } finally {
+      setRosterLoading(false);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, teamId: string) => {
+    setDraggedTeamId(teamId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", teamId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetTeamId: string) => {
+    e.preventDefault();
+    
+    if (!draggedTeamId || draggedTeamId === targetTeamId) {
+      setDraggedTeamId(null);
+      return;
+    }
+
+    setIsReordering(true);
+    
+    try {
+      // Get current teams and their draft orders
+      const currentTeams = [...offlineTeams];
+      const draggedTeam = currentTeams.find(team => team.id === draggedTeamId);
+      const targetTeam = currentTeams.find(team => team.id === targetTeamId);
+      
+      if (!draggedTeam || !targetTeam) {
+        setDraggedTeamId(null);
+        setIsReordering(false);
+        return;
+      }
+
+      // Calculate new draft orders
+      const draggedIndex = currentTeams.findIndex(team => team.id === draggedTeamId);
+      const targetIndex = currentTeams.findIndex(team => team.id === targetTeamId);
+      
+      // Reorder the teams array
+      const reorderedTeams = [...currentTeams];
+      const [movedTeam] = reorderedTeams.splice(draggedIndex, 1);
+      reorderedTeams.splice(targetIndex, 0, movedTeam);
+      
+      // Update draft orders
+      const updatedTeams = reorderedTeams.map((team, index) => ({
+        ...team,
+        draftOrder: index + 1
+      }));
+
+      // Update all offline teams with new draft orders
+      const updatePromises = updatedTeams.map(async (team) => {
+        // Only update offline teams (admin teams are handled separately)
+        return updateOfflineTeam(team.id, { draftOrder: team.draftOrder });
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh the teams list
+      await fetchOfflineTeams(settings?.id || "");
+      
+    } catch (error) {
+      console.error("Error reordering teams:", error);
+    } finally {
+      setDraggedTeamId(null);
+      setIsReordering(false);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTeamId(null);
+  };
+
   return (
     <>
-      {/* Debug Info - Remove this after fixing */}
-      <div className="mb-4 p-3 bg-gray-800 border border-gray-600 rounded">
-        <p className="text-sm text-gray-300">
-          <strong>Debug Info:</strong> Draft Mode: {settings?.draftMode || "not set"} | 
-          Is Offline Mode: {isOfflineMode ? "Yes" : "No"}
-        </p>
-      </div>
-
       {/* --- Begin Teams Management Section --- */}
       {userLoading || teamsLoading ? (
         <div className="flex items-center justify-center min-h-32">
@@ -220,6 +355,19 @@ export function TeamsTab(props: TeamsTabProps) {
       ) : isOfflineMode ? (
         // Offline Draft Mode UI
         <div className="space-y-6">
+          {/* Drag and Drop Instructions */}
+          <div className="p-4 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-blue-400 rounded flex items-center justify-center">
+                <span className="text-blue-900 font-bold text-sm">ℹ</span>
+              </div>
+              <h3 className="text-blue-200 font-semibold">Draft Order Management</h3>
+            </div>
+            <p className="text-blue-100 text-sm">
+              You can drag and drop teams to reorder them for the draft. The order shown below will be the draft order used during the auction.
+            </p>
+          </div>
+
           {/* Offline Teams Management */}
           <Card className="bg-gradient-to-br from-blue-900/90 to-gray-900/90 border-2 border-blue-800 text-blue-100">
             <CardHeader>
@@ -268,27 +416,46 @@ export function TeamsTab(props: TeamsTabProps) {
                   {offlineTeams.map((team: OfflineTeam) => (
                     <div
                       key={team.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700"
+                      draggable={isOwner && !isReordering}
+                      onDragStart={(e) => handleDragStart(e, team.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, team.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700 cursor-pointer transition-all duration-200 ${
+                        draggedTeamId === team.id 
+                          ? "opacity-50 scale-95 border-blue-400" 
+                          : "hover:border-blue-400 hover:bg-gray-800/80"
+                      } ${isReordering ? "pointer-events-none" : ""}`}
                     >
                       <div className="flex items-center gap-4">
+                        {isOwner && (
+                          <div className="text-blue-400 hover:text-blue-300 cursor-grab active:cursor-grabbing">
+                            <GripVertical className="h-5 w-5" />
+                          </div>
+                        )}
                         <div className="w-10 h-10 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
                           {team.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <h3 className="font-semibold flex items-center gap-2 text-blue-300 leading-none">
                             {team.name}
-                            {team.isAdmin && (
-                              <Crown className="h-4 w-4 text-yellow-400" />
-                            )}
                           </h3>
                           <p className="text-sm text-gray-300 tracking-wide">
                             Budget: ${team.budget} • Draft Order: {team.draftOrder || "TBD"}
-                            {team.isAdmin && " • Admin Team"}
                           </p>
+
                         </div>
                       </div>
-                      {isOwner && !team.isAdmin && (
+                      {isOwner && (
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
+                            onClick={() => handleViewRoster(team)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -418,6 +585,51 @@ export function TeamsTab(props: TeamsTabProps) {
                     <Plus className="h-4 w-4 mr-2" />
                     Create My Team
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Admin Teams Section for Offline Mode */}
+          {isOfflineMode && teams.length > 0 && (
+            <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-200">
+                  <Crown className="h-5 w-5" />
+                  Admin Teams
+                </CardTitle>
+                <CardDescription className="text-yellow-100/80">
+                  Teams created by league admins and members.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {teams.map((team: Team) => (
+                    <div
+                      key={team.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
+                          {team.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2 text-yellow-300 leading-none">
+                            {team.name}
+                            {team.ownerId === settings.ownerId && (
+                              <Crown className="h-4 w-4 text-yellow-400" />
+                            )}
+                          </h3>
+                          <p className="text-sm text-gray-300 tracking-wide">
+                            {team.ownerFirstName && team.ownerLastName
+                              ? `${team.ownerFirstName} ${team.ownerLastName}`
+                              : team.ownerEmail || "Unknown Owner"}
+                            {team.draftOrder && ` • Draft Order: ${team.draftOrder}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -791,6 +1003,121 @@ export function TeamsTab(props: TeamsTabProps) {
         </>
       )}
       {/* --- End Teams Management Section --- */}
+
+      {/* Roster Dialog */}
+      <Dialog open={showRosterDialog} onOpenChange={setShowRosterDialog}>
+        <DialogContent className="bg-gradient-to-br from-blue-900/90 to-gray-900/90 border-2 border-blue-400 text-blue-100 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-blue-300">
+              {selectedTeamForRoster?.name} - Roster
+            </DialogTitle>
+            <DialogDescription className="text-blue-200">
+              View drafted players and roster status for this offline team.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {rosterLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading roster...</span>
+            </div>
+          ) : rosterError ? (
+            <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-100">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{rosterError}</AlertDescription>
+            </Alert>
+          ) : rosterData ? (
+            <div className="space-y-6">
+              {/* Team Summary */}
+              <Card className="bg-gray-900/80 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-blue-300">Team Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-400">Starting Budget</p>
+                      <p className="text-lg font-semibold text-green-400">${rosterData.team.budget}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Remaining Budget</p>
+                      <p className="text-lg font-semibold text-yellow-400">${rosterData.team.remainingBudget}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Players Drafted</p>
+                      <p className="text-lg font-semibold text-blue-400">{rosterData.rosterSpotsFilled}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Remaining Spots</p>
+                      <p className="text-lg font-semibold text-purple-400">{rosterData.remainingRosterSpots}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Position Breakdown */}
+              <Card className="bg-gray-900/80 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-blue-300">Position Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                    {Object.entries(rosterData.positionCounts).map(([position, count]) => (
+                      <div key={position} className="text-center">
+                        <p className="text-sm text-gray-400">{position}</p>
+                        <p className="text-lg font-semibold text-blue-400">{count}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Drafted Players */}
+              <Card className="bg-gray-900/80 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-blue-300">Drafted Players</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {rosterData.draftedPlayers.length === 0 ? (
+                    <p className="text-center text-gray-400 py-4">No players drafted yet</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-gray-700">
+                          <TableHead className="text-blue-200">Player</TableHead>
+                          <TableHead className="text-blue-200">Position</TableHead>
+                          <TableHead className="text-blue-200">Team</TableHead>
+                          <TableHead className="text-blue-200">Draft Price</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rosterData.draftedPlayers.map((draftedPlayer) => (
+                          <TableRow key={draftedPlayer.id} className="border-gray-700">
+                            <TableCell className="text-blue-100">
+                              {draftedPlayer.player.firstName} {draftedPlayer.player.lastName}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-900/80 border-blue-700 text-blue-200">
+                                {draftedPlayer.player.position}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {draftedPlayer.player.team || "FA"}
+                            </TableCell>
+                            <TableCell className="text-green-400 font-semibold">
+                              ${draftedPlayer.draftPrice}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 } 

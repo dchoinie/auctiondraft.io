@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { offlineTeams, leagues, teams, userProfiles } from "@/app/schema";
 import { eq, and, ne } from "drizzle-orm";
+import { calculateRosterInfo } from "@/lib/utils";
 
 export async function GET(
   req: NextRequest,
@@ -49,56 +50,28 @@ export async function GET(
       .where(eq(offlineTeams.leagueId, leagueId))
       .orderBy(offlineTeams.draftOrder);
 
-    // Fetch admin's team (if it exists)
-    const adminTeam = await db
-      .select({
-        id: teams.id,
-        name: teams.name,
-        ownerId: teams.ownerId,
-        budget: teams.budget,
-        draftOrder: teams.draftOrder,
-        createdAt: teams.createdAt,
-      })
-      .from(teams)
-      .where(and(eq(teams.leagueId, leagueId), eq(teams.ownerId, userId)))
-      .limit(1);
-
-    // Combine admin team with offline teams
-    let allTeams = [...offlineTeamsList];
-
-    // Add admin team if it exists and doesn't already have a draft order
-    if (adminTeam.length > 0) {
-      const adminTeamData = adminTeam[0];
-      const adminTeamExists = offlineTeamsList.some(team => team.id === adminTeamData.id);
-      
-      if (!adminTeamExists) {
-        // If admin team doesn't have a draft order, assign it to the end
-        const nextDraftOrder = offlineTeamsList.length + 1;
-        allTeams.push({
-          id: adminTeamData.id,
-          name: adminTeamData.name,
-          leagueId: adminTeamData.leagueId,
-          budget: adminTeamData.budget,
-          draftOrder: adminTeamData.draftOrder || nextDraftOrder,
-          createdAt: adminTeamData.createdAt,
-          isAdmin: true,
-        });
-      }
-    }
-
-    // Sort by draft order
-    allTeams.sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0));
+    // Calculate roster information based on league settings
+    const rosterInfo = calculateRosterInfo({
+      qbSlots: league[0].qbSlots,
+      rbSlots: league[0].rbSlots,
+      wrSlots: league[0].wrSlots,
+      teSlots: league[0].teSlots,
+      flexSlots: league[0].flexSlots,
+      dstSlots: league[0].dstSlots,
+      kSlots: league[0].kSlots,
+      benchSlots: league[0].benchSlots,
+    });
 
     return NextResponse.json({
       success: true,
-      teams: allTeams.map((team) => ({
+      teams: offlineTeamsList.map((team) => ({
         id: team.id,
         name: team.name,
         leagueId: team.leagueId,
         budget: team.budget,
         draftOrder: team.draftOrder,
         createdAt: team.createdAt.toISOString(),
-        isAdmin: (team as any).isAdmin || false,
+        roster: rosterInfo,
       })),
     });
   } catch (error) {
@@ -192,6 +165,18 @@ export async function POST(
       })
       .returning();
 
+    // Calculate roster information based on league settings
+    const rosterInfo = calculateRosterInfo({
+      qbSlots: league[0].qbSlots,
+      rbSlots: league[0].rbSlots,
+      wrSlots: league[0].wrSlots,
+      teSlots: league[0].teSlots,
+      flexSlots: league[0].flexSlots,
+      dstSlots: league[0].dstSlots,
+      kSlots: league[0].kSlots,
+      benchSlots: league[0].benchSlots,
+    });
+
     return NextResponse.json({
       success: true,
       team: {
@@ -201,6 +186,7 @@ export async function POST(
         budget: newTeam[0].budget,
         draftOrder: newTeam[0].draftOrder,
         createdAt: newTeam[0].createdAt.toISOString(),
+        roster: rosterInfo,
       },
     });
   } catch (error) {
