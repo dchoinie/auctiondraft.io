@@ -116,7 +116,7 @@ export function useDraftHydration({
   const isOfflineMode = league?.settings?.draftMode === "offline";
 
   // Fetch offline teams when in offline mode
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOfflineMode && leagueId) {
       fetchOfflineTeams(leagueId);
     }
