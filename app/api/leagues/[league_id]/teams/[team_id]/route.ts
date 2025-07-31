@@ -105,8 +105,7 @@ export async function PUT(
     const league = await db
       .select()
       .from(leagues)
-      .where(eq(leagues.id, leagueId))
-      .where(ne(leagues.status, "deleted"))
+      .where(and(eq(leagues.id, leagueId), ne(leagues.status, "deleted")))
       .limit(1);
 
     if (league.length === 0) {
@@ -189,8 +188,7 @@ export async function DELETE(
     const league = await db
       .select()
       .from(leagues)
-      .where(eq(leagues.id, leagueId))
-      .where(ne(leagues.status, "deleted"))
+      .where(and(eq(leagues.id, leagueId), ne(leagues.status, "deleted")))
       .limit(1);
 
     if (league.length === 0) {

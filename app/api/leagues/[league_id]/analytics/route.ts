@@ -119,7 +119,7 @@ function analyzeMostBidOnPlayers(draftHistory: any[]) {
       currentNominatedPlayer = draftState.nominatedPlayer.id;
       currentPlayerName = draftState.nominatedPlayer.name || 'Unknown Player';
       
-      if (!bidCounts[currentNominatedPlayer]) {
+      if (currentNominatedPlayer && !bidCounts[currentNominatedPlayer]) {
         bidCounts[currentNominatedPlayer] = { count: 0, playerName: currentPlayerName, playerId: currentNominatedPlayer };
       }
     }

@@ -91,8 +91,8 @@ export async function GET(
     }
 
     // Build roster slots based on league settings
-    const slotOrder = ["QB", "RB", "WR", "TE", "FLEX", "K", "DST", "BENCH"];
-    const slotCounts = {
+    const slotOrder = ["QB", "RB", "WR", "TE", "FLEX", "K", "DST", "BENCH"] as const;
+    const slotCounts: Record<typeof slotOrder[number], number> = {
       QB: leagueData.qbSlots || 0,
       RB: leagueData.rbSlots || 0,
       WR: leagueData.wrSlots || 0,
@@ -106,7 +106,7 @@ export async function GET(
     // Function to assign players to roster slots
     function assignPlayersToSlots(
       players: typeof allDraftedPlayers,
-      slotCounts: Record<string, number>
+      slotCounts: Record<typeof slotOrder[number], number>
     ): Record<string, (typeof allDraftedPlayers[0] | null)[]> {
       const slots: Record<string, (typeof allDraftedPlayers[0] | null)[]> = {};
       slotOrder.forEach((slot) => {
@@ -137,7 +137,7 @@ export async function GET(
       });
 
       // Fill direct position slots
-      ["QB", "RB", "WR", "TE", "K", "DST"].forEach((slot) => {
+      (["QB", "RB", "WR", "TE", "K", "DST"] as const).forEach((slot) => {
         for (let i = 0; i < slotCounts[slot]; i++) {
           const player = grouped[slot].shift();
           slots[slot].push(player || null);
@@ -147,7 +147,7 @@ export async function GET(
       // Fill FLEX slots
       for (let i = 0; i < slotCounts["FLEX"]; i++) {
         let player = null;
-        for (const pos of ["RB", "WR", "TE"]) {
+        for (const pos of (["RB", "WR", "TE"] as const)) {
           if (grouped[pos].length > 0) {
             player = grouped[pos].shift()!;
             break;
@@ -159,7 +159,7 @@ export async function GET(
       // Fill BENCH slots with remaining players
       for (let i = 0; i < slotCounts["BENCH"]; i++) {
         let player = null;
-        for (const pos of ["RB", "WR", "TE", "QB", "K", "DST"]) {
+        for (const pos of (["RB", "WR", "TE", "QB", "K", "DST"] as const)) {
           if (grouped[pos].length > 0) {
             player = grouped[pos].shift()!;
             break;
