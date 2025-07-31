@@ -756,6 +756,106 @@ class PartyRoom implements Party.Server {
           // Database operations handled by client
           break;
         }
+        case "offlineAuctionComplete": {
+          // Check if draft is active
+          if (!this.validateDraftState("offlineAuctionComplete")) {
+            break;
+          }
+
+          // Only allow in idle phase with a nominated player
+          if (
+            this.state.auctionPhase === "idle" &&
+            this.state.nominatedPlayer
+          ) {
+            const { teamId, amount } = message.data;
+
+            // Validate team budget
+            if (!this.validateTeamBudget(teamId, amount)) {
+              console.log(`Team ${teamId} cannot afford bid amount: ${amount}`);
+              break;
+            }
+
+            // Set the winning bid
+            this.state.currentBid = {
+              amount,
+              teamId,
+            };
+
+            // Mark player as sold
+            this.state.soldPlayer = {
+              playerId: this.state.nominatedPlayer.id,
+              teamId,
+              price: amount,
+            };
+
+            // Clear nominated player and current bid
+            this.state.nominatedPlayer = null;
+            this.state.currentBid = null;
+            this.state.bidHistory = [];
+
+            // Update team state
+            this.updateTeamAfterAcquisition(teamId, amount);
+
+            // Calculate next nomination based on draft type
+            let nextNominationIndex: number;
+            const totalTeams = this.state.nominationOrder.length;
+
+            if (this.state.draftType === "snake") {
+              // Snake draft: reverse direction every round
+              const currentRound = Math.floor(
+                this.state.currentNominationIndex / totalTeams
+              );
+              const isReverseRound = currentRound % 2 === 1; // Odd rounds (1, 3, 5...) go in reverse
+
+              if (isReverseRound) {
+                // Going backwards in this round
+                nextNominationIndex = this.state.currentNominationIndex - 1;
+                if (nextNominationIndex < 0) {
+                  // End of reverse round, start next round going forward
+                  nextNominationIndex = 0;
+                }
+              } else {
+                // Going forwards in this round
+                nextNominationIndex = this.state.currentNominationIndex + 1;
+                if (nextNominationIndex >= totalTeams) {
+                  // End of forward round, start next round going backward
+                  nextNominationIndex = totalTeams - 1;
+                }
+              }
+            } else {
+              // Linear draft: always go to next team in order
+              nextNominationIndex =
+                (this.state.currentNominationIndex + 1) % totalTeams;
+            }
+
+            const nextNominatorTeamId =
+              this.state.nominationOrder[nextNominationIndex] || null;
+
+            // Update round and pick counters
+            const newTotalPicks = this.state.totalPicks + 1;
+            const newRound = Math.floor(newTotalPicks / totalTeams) + 1;
+            const newPick = (newTotalPicks % totalTeams) + 1;
+
+            // Broadcast state update
+            this.updateState({
+              nominatedPlayer: null,
+              currentBid: null,
+              auctionPhase: "idle" as const,
+              currentNominationIndex: nextNominationIndex,
+              currentNominatorTeamId: nextNominatorTeamId,
+              currentRound: newRound,
+              currentPick: newPick,
+              totalPicks: newTotalPicks,
+              bidHistory: [],
+              soldPlayer: {
+                playerId: this.state.nominatedPlayer!.id,
+                teamId,
+                price: amount,
+              },
+            });
+          }
+          break;
+        }
         case "chatMessage": {
           // Store and broadcast chat message to all connected users
           // No authorization check needed for chat messages

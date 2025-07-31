@@ -9,6 +9,7 @@ import { useUser } from "@/stores/userStore";
 import { League, useLeagueMembership } from "@/stores/leagueStore";
 import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
 import { usePlayersStore } from "@/stores/playersStore";
+import { useOfflineTeamStore } from "@/stores/offlineTeamStore";
 import { Loader2 } from "lucide-react";
 import { DraftRoomState } from "@/party";
 import { useDraftStateStore, useDraftState } from "@/stores/draftRoomStore";
@@ -56,6 +57,7 @@ export default function DraftPage() {
     loading: leaguesLoading,
     error: leaguesError,
   } = useLeagueMembership();
+  const { teams: offlineTeams, fetchTeams: fetchOfflineTeams } = useOfflineTeamStore();
   const draftState = useDraftState(league_id as string);
   const setDraftState = useDraftStateStore((state) => state.setDraftState);
 
@@ -80,8 +82,16 @@ export default function DraftPage() {
   const playersStore = usePlayersStore();
 
   const league = leagues.find((league: League) => league.id === league_id);
+  const isOfflineMode = league?.settings?.draftMode === "offline";
   const isDataError = teamsError || leaguesError || userError;
   const isLoadingData = teamsLoading || leaguesLoading || userLoading;
+
+  // Fetch offline teams when in offline mode
+  useEffect(() => {
+    if (isOfflineMode && league_id) {
+      fetchOfflineTeams(league_id as string);
+    }
+  }, [isOfflineMode, league_id, fetchOfflineTeams]);
 
   // Connect PartySocket and set up listeners
   useEffect(() => {
@@ -423,13 +433,15 @@ export default function DraftPage() {
           </StaggeredItem>
         </StaggeredContent>
 
-        {/* Chat Component */}
-        <DraftChat
-          partySocket={partySocket}
-          user={user}
-          isOpen={isChatOpen}
-          onToggle={handleChatToggle}
-        />
+        {/* Chat Component - Only show in live mode */}
+        {!isOfflineMode && (
+          <DraftChat
+            partySocket={partySocket}
+            user={user}
+            isOpen={isChatOpen}
+            onToggle={handleChatToggle}
+          />
+        )}
       </PageContent>
     );
   }
@@ -483,13 +495,15 @@ export default function DraftPage() {
           </StaggeredItem>
         </StaggeredContent>
 
-        {/* Chat Component */}
-        <DraftChat
-          partySocket={partySocket}
-          user={user}
-          isOpen={isChatOpen}
-          onToggle={handleChatToggle}
-        />
+        {/* Chat Component - Only show in live mode */}
+        {!isOfflineMode && (
+          <DraftChat
+            partySocket={partySocket}
+            user={user}
+            isOpen={isChatOpen}
+            onToggle={handleChatToggle}
+          />
+        )}
       </PageContent>
     );
   }
@@ -501,13 +515,15 @@ export default function DraftPage() {
           <Loader2 className="animate-spin mr-2" /> Setting up draft...
         </div>
         
-        {/* Chat Component */}
-        <DraftChat
-          partySocket={partySocket}
-          user={user}
-          isOpen={isChatOpen}
-          onToggle={handleChatToggle}
-        />
+        {/* Chat Component - Only show in live mode */}
+        {!isOfflineMode && (
+          <DraftChat
+            partySocket={partySocket}
+            user={user}
+            isOpen={isChatOpen}
+            onToggle={handleChatToggle}
+          />
+        )}
       </PageContent>
     );
   if (isDataError)
@@ -528,13 +544,15 @@ export default function DraftPage() {
             .join(" | ")}
         </div>
         
-        {/* Chat Component */}
-        <DraftChat
-          partySocket={partySocket}
-          user={user}
-          isOpen={isChatOpen}
-          onToggle={handleChatToggle}
-        />
+        {/* Chat Component - Only show in live mode */}
+        {!isOfflineMode && (
+          <DraftChat
+            partySocket={partySocket}
+            user={user}
+            isOpen={isChatOpen}
+            onToggle={handleChatToggle}
+          />
+        )}
       </PageContent>
     );
 
@@ -598,8 +616,10 @@ export default function DraftPage() {
             <AuctionStage
               draftState={draftState as DraftRoomState}
               teams={teams as Team[]}
+              offlineTeams={offlineTeams}
               partySocket={partySocket}
               user={user}
+              isOfflineMode={isOfflineMode}
             />
           </div>
         </StaggeredItem>
@@ -629,7 +649,9 @@ export default function DraftPage() {
                     <TeamTracker
                       draftState={draftState as DraftRoomState}
                       teams={teams as Team[]}
+                      offlineTeams={offlineTeams}
                       onlineUserIds={onlineUserIds}
+                      isOfflineMode={isOfflineMode}
                     />
                   </div>
                   <div className="lg:col-span-2 order-1 lg:order-2">
@@ -639,6 +661,7 @@ export default function DraftPage() {
                       user={user}
                       teams={teams as Team[]}
                       draftState={draftState as DraftRoomState}
+                      isOfflineMode={isOfflineMode}
                     />
                   </div>
                 </div>
@@ -651,13 +674,15 @@ export default function DraftPage() {
         </StaggeredItem>
       </StaggeredContent>
 
-      {/* Chat Component */}
-      <DraftChat
-        partySocket={partySocket}
-        user={user}
-        isOpen={isChatOpen}
-        onToggle={handleChatToggle}
-      />
+      {/* Chat Component - Only show in live mode */}
+      {!isOfflineMode && (
+        <DraftChat
+          partySocket={partySocket}
+          user={user}
+          isOpen={isChatOpen}
+          onToggle={handleChatToggle}
+        />
+      )}
     </PageContent>
   );
 }

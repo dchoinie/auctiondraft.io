@@ -16,7 +16,8 @@ import { CreditCard, Loader2, CheckCircle } from "lucide-react";
 
 const CREDIT_OPTIONS = [
   { credits: 1, label: "1 Credit", price: 9.99, package: "basic" },
-  { credits: 5, label: "5 Credits", price: 39.99, package: "premium" },
+  { credits: 3, label: "3 Credits", price: 24.99, package: "standard" },
+  { credits: -1, label: "Unlimited", price: 49.99, package: "unlimited" },
 ];
 
 export default function CreditsPage() {
@@ -106,7 +107,8 @@ export default function CreditsPage() {
               <ul className="text-sm text-gray-500 space-y-1">
                 <li>
                   {option.credits === 1 && "Create 1 league"}
-                  {option.credits === 5 && "Create up to 5 leagues"}
+                  {option.credits === 3 && "Create up to 3 leagues"}
+                  {option.credits === -1 && "Create unlimited leagues"}
                 </li>
                 <li>Instant credit delivery after payment</li>
               </ul>

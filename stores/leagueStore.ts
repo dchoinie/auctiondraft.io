@@ -31,6 +31,7 @@ export interface LeagueSettings {
   benchSlots: number;
   // Draft Management Settings
   draftType: string;
+  draftMode: string;
   timerEnabled: number;
   timerDuration: number;
   joinCode: string | null;

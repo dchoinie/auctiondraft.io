@@ -28,6 +28,7 @@ interface PlayersTableProps {
   user: { id: string } | null;
   teams: Team[];
   draftState: import("@/party").DraftRoomState | null;
+  isOfflineMode?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -49,6 +50,7 @@ const PlayerRow = React.memo(function PlayerRow({
   userTeam,
   maxBid,
   isCurrentNominator,
+  isOfflineMode = false,
 }: {
   player: Player;
   partySocket: PartySocket | null;
@@ -56,6 +58,7 @@ const PlayerRow = React.memo(function PlayerRow({
   userTeam: Team | null;
   maxBid: number;
   isCurrentNominator: boolean;
+  isOfflineMode?: boolean;
 }) {
   const minAmount = 1;
   const [amount, setAmount] = useState(minAmount);
@@ -82,14 +85,19 @@ const PlayerRow = React.memo(function PlayerRow({
             size="sm"
             variant="default"
             className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
-            disabled={!partySocket || !user || !userTeam || !isCurrentNominator}
+            disabled={!partySocket || !user || (!isCurrentNominator)}
             onClick={() => {
-              if (!partySocket || !user || !userTeam) return;
+              if (!partySocket || !user) return;
+              // In offline mode, we don't need a userTeam, but we still need to send a teamId
+              // We'll use the first team's ID as a placeholder for offline nominations
+              const teamId = userTeam?.id || (teams.length > 0 ? teams[0].id : null);
+              if (!teamId) return;
+              
               partySocket.send(
                 JSON.stringify({
                   type: "nominatePlayer",
                   data: {
-                    teamId: userTeam.id,
+                    teamId: teamId,
                     amount,
                     player: {
                       id: player.id,
@@ -103,7 +111,7 @@ const PlayerRow = React.memo(function PlayerRow({
               );
             }}
           >
-            Nominate ${amount}
+            {isOfflineMode ? "Nominate" : `Nominate $${amount}`}
           </Button>
           <Button
             size="sm"
@@ -124,6 +132,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
   user,
   teams,
   draftState,
+  isOfflineMode = false,
 }) => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -149,11 +158,13 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
     return teams.find((t) => t.ownerId === user.id) || null;
   }, [teams, user]);
 
-  // Check if current user is the nominator
+  // Check if current user is the nominator (in offline mode, admin can always nominate)
   const isCurrentNominator = useMemo(() => {
-    if (!userTeam || !draftState) return false;
+    if (!draftState) return false;
+    if (isOfflineMode) return true; // Admin can always nominate in offline mode
+    if (!userTeam) return false;
     return draftState.currentNominatorTeamId === userTeam.id;
-  }, [userTeam, draftState]);
+  }, [userTeam, draftState, isOfflineMode]);
 
   // Get max bid for user's team
   const maxBid = useMemo(() => {
@@ -307,15 +318,16 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
           </TableHeader>
           <TableBody>
             {filteredPlayers.slice(0, PAGE_SIZE).map((player) => (
-              <PlayerRow
-                key={player.id}
-                player={player}
-                partySocket={partySocket}
-                user={user}
-                userTeam={userTeam}
-                maxBid={maxBid}
-                isCurrentNominator={isCurrentNominator}
-              />
+                                  <PlayerRow
+                      key={player.id}
+                      player={player}
+                      partySocket={partySocket}
+                      user={user}
+                      userTeam={userTeam}
+                      maxBid={maxBid}
+                      isCurrentNominator={isCurrentNominator}
+                      isOfflineMode={isOfflineMode}
+                    />
             ))}
           </TableBody>
         </Table>

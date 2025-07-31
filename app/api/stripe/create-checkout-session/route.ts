@@ -13,11 +13,17 @@ const CREDIT_PACKAGES = {
     name: "Basic League Credits",
     description: "1 league credit to create your first league",
   },
-  premium: {
-    credits: 5,
-    price: 3999, // $39.99 in cents
-    name: "Premium League Credits",
-    description: "5 league credits with a discount",
+  standard: {
+    credits: 3,
+    price: 2499, // $24.99 in cents
+    name: "Standard League Credits",
+    description: "3 league credits for multiple leagues",
+  },
+  unlimited: {
+    credits: -1, // -1 represents unlimited
+    price: 4999, // $49.99 in cents
+    name: "Unlimited League Credits",
+    description: "Unlimited league creation",
   },
 };
 

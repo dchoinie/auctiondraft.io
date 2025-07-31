@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { League } from "@/stores/leagueStore";
 import { useUserStore } from "@/stores/userStore";
 import { useLeagueStore } from "@/stores/leagueStore";
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
 export function SidebarNavigation() {
   const { leagues } = useLeagueStore();
   const { user } = useUserStore();
+  const pathname = usePathname();
 
   const rosterSize = (league: League) => {
     return (
@@ -47,6 +49,10 @@ export function SidebarNavigation() {
       (league.settings.kSlots || 0) +
       (league.settings.benchSlots || 0)
     );
+  };
+
+  const isLeagueActive = (leagueId: string) => {
+    return pathname.startsWith(`/leagues/${leagueId}`);
   };
 
   return (
@@ -68,31 +74,38 @@ export function SidebarNavigation() {
       <div className="flex flex-col gap-3 mt-3">
         <h5 className="text-gray-50 text-sm my-3">My Leagues</h5>
         {leagues.length > 0 ? (
-          leagues.map((league: League) => (
-            <Button
-              asChild
-              key={league.id}
-              variant="ghost"
-              className="w-full green-bg hover:shadow-xl cursor-pointer h-auto"
-            >
-              <Link href={`/leagues/${league.id}`}>
-                <div className="flex flex-col w-full">
-                  <p className="text-gray-50">{league.name}</p>
-                  <small className="text-gray-400 text-wrap">
-                    {`${league.settings.leagueSize}-man`}
-                    {`/${rosterSize(league)} roster`}
-                    {`/$${league.settings.startingBudget} budget`}
-                    {`/${league.settings.draftType} nominations`}
-                  </small>
-                  {user?.id === league.ownerId && (
-                    <Badge className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl text-gray-50 self-start mt-1">
-                      Admin
-                    </Badge>
-                  )}
-                </div>
-              </Link>
-            </Button>
-          ))
+          leagues.map((league: League) => {
+            const isActive = isLeagueActive(league.id);
+            return (
+              <Button
+                asChild
+                key={league.id}
+                variant="ghost"
+                className={`w-full cursor-pointer h-auto transition-all duration-200 ${
+                  isActive 
+                    ? "bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-lg hover:shadow-xl" 
+                    : "green-bg hover:shadow-xl"
+                }`}
+              >
+                <Link href={`/leagues/${league.id}`}>
+                  <div className="flex flex-col w-full">
+                    <p className="text-gray-50">{league.name}</p>
+                    <small className="text-gray-400 text-wrap">
+                      {`${league.settings.leagueSize}-man`}
+                      {`/${rosterSize(league)} roster`}
+                      {`/$${league.settings.startingBudget} budget`}
+                      {`/${league.settings.draftType} nominations`}
+                    </small>
+                    {user?.id === league.ownerId && (
+                      <Badge className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl text-gray-50 self-start mt-1">
+                        Admin
+                      </Badge>
+                    )}
+                  </div>
+                </Link>
+              </Button>
+            );
+          })
         ) : (
           <p className="text-gray-50">No leagues found</p>
         )}

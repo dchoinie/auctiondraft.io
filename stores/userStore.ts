@@ -169,7 +169,7 @@ export function useUser() {
 
   // Computed values
   const needsProfileCompletion = !user?.firstName || !user?.lastName;
-  const hasCredits = (user?.leagueCredits || 0) > 0;
+  const hasCredits = (user?.leagueCredits || 0) > 0 || user?.leagueCredits === -1;
   const isAdmin = user?.isAdmin || false;
 
   // Auto-fetch user when auth is loaded and we have a userId

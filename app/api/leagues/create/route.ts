@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       kSlots,
       benchSlots,
       draftType,
+      draftMode,
       timerEnabled,
       timerDuration,
       joinCode
@@ -67,7 +68,8 @@ export async function POST(req: NextRequest) {
 
     console.log("User credits:", user.leagueCredits);
 
-    if (!user.leagueCredits || user.leagueCredits < 1) {
+    // Check if user has credits (unlimited is represented as -1)
+    if (!user.leagueCredits || (user.leagueCredits !== -1 && user.leagueCredits < 1)) {
       return NextResponse.json(
         {
           success: false,
@@ -99,6 +101,7 @@ export async function POST(req: NextRequest) {
     if (kSlots !== undefined) leagueData.kSlots = Number(kSlots);
     if (benchSlots !== undefined) leagueData.benchSlots = Number(benchSlots);
     if (draftType) leagueData.draftType = draftType;
+    if (draftMode) leagueData.draftMode = draftMode;
     if (timerEnabled !== undefined) leagueData.timerEnabled = Number(timerEnabled);
     if (timerDuration !== undefined) leagueData.timerDuration = Number(timerDuration);
     if (joinCode !== undefined) leagueData.joinCode = joinCode;
@@ -111,16 +114,20 @@ export async function POST(req: NextRequest) {
 
     console.log("League created:", newLeague[0]);
 
-    // Deduct one credit from user
-    await db
-      .update(userProfiles)
-      .set({
-        leagueCredits: user.leagueCredits - 1,
-        updatedAt: new Date(),
-      })
-      .where(eq(userProfiles.id, userId));
+    // Deduct one credit from user (unless unlimited)
+    if (user.leagueCredits !== -1) {
+      await db
+        .update(userProfiles)
+        .set({
+          leagueCredits: user.leagueCredits - 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(userProfiles.id, userId));
 
-    console.log("Credits deducted. New credit count:", user.leagueCredits - 1);
+      console.log("Credits deducted. New credit count:", user.leagueCredits - 1);
+    } else {
+      console.log("Unlimited credits - no deduction needed");
+    }
 
     return NextResponse.json({
       success: true,

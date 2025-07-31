@@ -8,6 +8,13 @@ import { useUser } from "@/stores/userStore";
 import Link from "next/link";
 import { SignOutButton } from "@clerk/nextjs";
 
+// Helper function to format credits display
+const formatCredits = (credits: number | undefined) => {
+  if (credits === undefined || credits === null) return "0";
+  if (credits === -1) return "∞";
+  return credits.toString();
+};
+
 interface MobileSidebarProps {
   children: React.ReactNode;
 }
@@ -29,7 +36,7 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
                 </h1>
                 <div className="flex items-center gap-2">
                   <h6 className="italic mr-2">
-                    League Credits: {user?.leagueCredits}
+                    League Credits: {formatCredits(user?.leagueCredits)}
                   </h6>
                 </div>
                 <Button
@@ -70,7 +77,7 @@ export function MobileSidebar({ children }: MobileSidebarProps) {
           <div className="flex items-center gap-2">
             <div className="flex flex-col text-center">
               <h6 className="italic mr-2 text-gray-50 m-0 p-0">
-                League Credits: {user?.leagueCredits}
+                League Credits: {formatCredits(user?.leagueCredits)}
               </h6>
               <Button asChild variant="link" className="h-6 text-yellow-600">
                 <Link href="/credits">Buy More Credits</Link>

@@ -127,6 +127,14 @@ export function LeagueCreationCTA() {
 
   const needsSetup = !hasCredits;
   const credits = user?.leagueCredits || 0;
+  
+  // Format credits display
+  const formatCredits = (credits: number) => {
+    if (credits === -1) return "∞";
+    return credits.toString();
+  };
+  
+  const creditsText = credits === -1 ? "unlimited" : `${credits} league credit${credits !== 1 ? "s" : ""}`;
 
   return (
     <>
@@ -139,9 +147,7 @@ export function LeagueCreationCTA() {
           <CardDescription>
             {needsSetup
               ? "Purchase league credits to get started"
-              : `You have ${credits} league credit${
-                  credits !== 1 ? "s" : ""
-                } available`}
+              : `You have ${creditsText} available`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

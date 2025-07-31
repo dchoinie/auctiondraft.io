@@ -93,6 +93,7 @@ export async function GET(
         kSlots: leagueData.kSlots || 1,
         benchSlots: leagueData.benchSlots || 7,
         draftType: leagueData.draftType || "snake",
+        draftMode: leagueData.draftMode || "live",
         timerEnabled: leagueData.timerEnabled || 0,
         timerDuration: leagueData.timerDuration || 60,
         joinCode: leagueData.joinCode || null,
@@ -176,6 +177,11 @@ export async function PUT(
     if (body.kSlots !== undefined) updateData.kSlots = parseInt(body.kSlots);
     if (body.benchSlots !== undefined)
       updateData.benchSlots = parseInt(body.benchSlots);
+    if (body.draftType) updateData.draftType = body.draftType;
+    if (body.draftMode) updateData.draftMode = body.draftMode;
+    if (body.timerEnabled !== undefined) updateData.timerEnabled = parseInt(body.timerEnabled);
+    if (body.timerDuration !== undefined) updateData.timerDuration = parseInt(body.timerDuration);
+    if (body.joinCode !== undefined) updateData.joinCode = body.joinCode;
 
     // Update the league
     await db.update(leagues).set(updateData).where(eq(leagues.id, leagueId));

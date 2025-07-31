@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import PageTitle from "@/components/PageTitle";
 import Link from "next/link";
 import { useUser } from "@/stores/userStore";
@@ -37,6 +39,7 @@ const DEFAULTS = {
   kSlots: 1,
   benchSlots: 7,
   draftType: "snake",
+  draftMode: "live",
   timerEnabled: false,
   timerDuration: 60,
 };
@@ -57,6 +60,7 @@ interface LeagueFormValues {
   kSlots: number;
   benchSlots: number;
   draftType: string;
+  draftMode: string;
   timerEnabled: boolean;
   timerDuration: number;
   joinCode: string | null;
@@ -85,6 +89,11 @@ export default function CreateLeaguePage() {
     setError(null);
     setSuccess(null);
     setLoading(true);
+    
+    // Debug logging
+    console.log("Form data:", data);
+    console.log("Draft mode value:", data.draftMode);
+    
     try {
       // Convert timerEnabled to int for backend
       const payload = {
@@ -101,8 +110,11 @@ export default function CreateLeaguePage() {
         dstSlots: Number(data.dstSlots),
         kSlots: Number(data.kSlots),
         benchSlots: Number(data.benchSlots),
+        draftMode: data.draftMode,
         timerDuration: data.timerEnabled ? Number(data.timerDuration) : 60,
       };
+      
+      console.log("Payload being sent:", payload);
       const res = await fetch("/api/leagues/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,7 +164,7 @@ export default function CreateLeaguePage() {
           </div>
           <div className="mt-2">
             <Badge className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl">
-              Current league credits: {user?.leagueCredits}
+              Current league credits: {user?.leagueCredits === -1 ? "∞" : user?.leagueCredits}
             </Badge>
           </div>
         </div>
@@ -482,27 +494,68 @@ export default function CreateLeaguePage() {
                   <Label className="text-emerald-300 font-semibold mb-2 block">
                     Nomination Type
                   </Label>
-                  <div className="flex gap-4 mt-2">
-                    <label className="text-emerald-300 flex items-center gap-2 font-medium">
-                      <Input
-                        className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition"
-                        type="radio"
-                        value="snake"
-                        {...register("draftType")}
-                        defaultChecked
-                      />
-                      Snake
-                    </label>
-                    <label className="text-emerald-300 flex items-center gap-2 font-medium">
-                      <Input
-                        className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 transition"
-                        type="radio"
-                        value="linear"
-                        {...register("draftType")}
-                      />
-                      Linear
-                    </label>
+                  <Controller
+                    name="draftType"
+                    control={control}
+                    render={({ field }) => (
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="flex gap-4 mt-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="snake" id="snake" className="border-yellow-400 text-yellow-400 data-[state=checked]:border-yellow-400 data-[state=checked]:text-yellow-400" />
+                          <Label htmlFor="snake" className="text-emerald-300 font-medium">Snake</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="linear" id="linear" className="border-yellow-400 text-yellow-400 data-[state=checked]:border-yellow-400 data-[state=checked]:text-yellow-400" />
+                          <Label htmlFor="linear" className="text-emerald-300 font-medium">Linear</Label>
+                        </div>
+                      </RadioGroup>
+                    )}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Label className="text-emerald-300 font-semibold block">
+                      Draft Mode
+                    </Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-emerald-300 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-3 bg-gray-900 border-gray-700 text-emerald-100">
+                          <div className="space-y-2">
+                            <p className="font-semibold">Live Draft:</p>
+                            <p className="text-sm">Requires all users to create an auctiondraft.io account & join your league. Auctiondraft.io will then provide all the necessary elements of your auction draft (nominations, bidding, auction countdowns, etc...)</p>
+                            <p className="font-semibold mt-3">Offline Draft:</p>
+                            <p className="text-sm">For league admins only, this will provide the league admin tools to track an offline draft by selecting nominated players, setting the purchase amount, updating team budgets & rosters positions.</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
+                  <Controller
+                    name="draftMode"
+                    control={control}
+                    render={({ field }) => (
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="flex gap-4 mt-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="live" id="live" className="border-yellow-400 text-yellow-400 data-[state=checked]:border-yellow-400 data-[state=checked]:text-yellow-400" />
+                          <Label htmlFor="live" className="text-emerald-300 font-medium">Live Draft</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="offline" id="offline" className="border-yellow-400 text-yellow-400 data-[state=checked]:border-yellow-400 data-[state=checked]:text-yellow-400" />
+                          <Label htmlFor="offline" className="text-emerald-300 font-medium">Offline Draft</Label>
+                        </div>
+                      </RadioGroup>
+                    )}
+                  />
                 </div>
                 <div>
                   <Label className="text-emerald-300 font-semibold mb-2 block">

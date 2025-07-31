@@ -1,6 +1,7 @@
 import { DraftRoomState } from "@/party";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { OfflineTeam } from "@/stores/offlineTeamStore";
 
 interface Team {
   id: string;
@@ -13,13 +14,17 @@ interface Team {
 interface TeamTrackerProps {
   draftState: DraftRoomState | null;
   teams: Team[];
+  offlineTeams?: OfflineTeam[];
   onlineUserIds: string[];
+  isOfflineMode?: boolean;
 }
 
 export default function TeamTracker({
   draftState,
   teams,
+  offlineTeams = [],
   onlineUserIds,
+  isOfflineMode = false,
 }: TeamTrackerProps) {
   if (!draftState) return null;
 
@@ -30,9 +35,12 @@ export default function TeamTracker({
     teams: draftState.teams,
   });
 
+  // Combine live and offline teams for display
+  const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
+
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {teams.map((team: Team) => {
+      {allTeams.map((team: Team | OfflineTeam) => {
         const teamState = draftState.teams[team.id];
 
         // Debug logging for each team
@@ -46,7 +54,8 @@ export default function TeamTracker({
         });
 
         const isTurn = draftState.currentNominatorTeamId === team.id;
-        const isOnline = onlineUserIds.includes(team.ownerId);
+        // For offline teams, always show as online since they don't have ownerId
+        const isOnline = 'ownerId' in team ? onlineUserIds.includes(team.ownerId) : true;
         return (
           <Card
             key={team.id}
@@ -76,7 +85,7 @@ export default function TeamTracker({
                   )}
                 </div>
                 <div className="text-xs sm:text-sm text-gray-300 truncate">
-                  {team.ownerFirstName} {team.ownerLastName}
+                  {'ownerFirstName' in team ? `${team.ownerFirstName} ${team.ownerLastName}` : 'Offline Team'}
                 </div>
               </div>
               {teamState && (

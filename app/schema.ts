@@ -44,6 +44,7 @@ export const leagues = pgTable("leagues", {
   benchSlots: integer("bench_slots").default(7),
   // Draft Management Settings
   draftType: text("draft_type").default("snake"), // "linear" or "snake"
+  draftMode: text("draft_mode").default("live"), // "live" or "offline"
   timerEnabled: integer("timer_enabled").default(0), // 0 = false, 1 = true
   timerDuration: integer("timer_duration").default(60), // seconds
   status: text("status").default("active"), // "active" or "deleted"
@@ -55,6 +56,15 @@ export const teams = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   ownerId: text("owner_id").references(() => userProfiles.id),
+  leagueId: uuid("league_id").references(() => leagues.id),
+  budget: integer("budget").default(200),
+  draftOrder: integer("draft_order"), // Order in which teams pick during draft
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const offlineTeams = pgTable("offline_teams", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
   leagueId: uuid("league_id").references(() => leagues.id),
   budget: integer("budget").default(200),
   draftOrder: integer("draft_order"), // Order in which teams pick during draft

@@ -70,10 +70,19 @@ export async function POST(req: NextRequest) {
 
       // Update user's league credits
       const currentCredits = user[0].leagueCredits || 0;
+      
+      // Handle unlimited credits (represented as -1)
+      let newCredits: number;
+      if (creditsGranted === -1) {
+        newCredits = -1; // Set to unlimited
+      } else {
+        newCredits = currentCredits + creditsGranted;
+      }
+      
       await db
         .update(userProfiles)
         .set({
-          leagueCredits: currentCredits + creditsGranted,
+          leagueCredits: newCredits,
           updatedAt: new Date(),
         })
         .where(eq(userProfiles.id, userId));

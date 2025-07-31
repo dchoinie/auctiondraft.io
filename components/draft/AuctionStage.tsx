@@ -1,24 +1,32 @@
 import React from "react";
 import { DraftRoomState } from "@/party";
 import { Team } from "@/stores/teamStore";
+import { OfflineTeam } from "@/stores/offlineTeamStore";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import { Minus, Plus, Volume2, VolumeX } from "lucide-react";
+import { Minus, Plus, Volume2, VolumeX, Check } from "lucide-react";
 import PartySocket from "partysocket";
 import LeagueTimer from "./LeagueTimer";
 
 interface AuctionStageProps {
   draftState: DraftRoomState | null;
   teams: Team[];
+  offlineTeams?: OfflineTeam[];
   partySocket: PartySocket | null;
   user: { id: string } | null;
+  isOfflineMode?: boolean;
 }
 
 export default function AuctionStage({
   draftState,
   teams,
+  offlineTeams = [],
   partySocket,
   user,
+  isOfflineMode = false,
 }: AuctionStageProps) {
   const {
     nominatedPlayer,
@@ -35,6 +43,10 @@ export default function AuctionStage({
   const minBid = currentBid?.amount ? currentBid.amount + 1 : 1;
   const [bidAmount, setBidAmount] = useState(minBid);
   const [isSpeechMuted, setIsSpeechMuted] = useState(false);
+  
+  // Offline mode state
+  const [offlineWinningTeam, setOfflineWinningTeam] = useState<string>("");
+  const [offlineWinningAmount, setOfflineWinningAmount] = useState<number>(1);
 
   // Keep bidAmount in sync with minBid if nominated player or currentBid changes
   React.useEffect(() => {
@@ -78,6 +90,28 @@ export default function AuctionStage({
     setIsSpeechMuted(!isSpeechMuted);
     // No need to send to party since this is a per-user preference
   };
+
+  // Offline mode handlers
+  const handleOfflineAuctionComplete = () => {
+    if (!offlineWinningTeam || offlineWinningAmount <= 0 || !partySocket) return;
+    
+    partySocket.send(
+      JSON.stringify({
+        type: "offlineAuctionComplete",
+        data: {
+          teamId: offlineWinningTeam,
+          amount: offlineWinningAmount,
+        },
+      })
+    );
+    
+    // Reset form
+    setOfflineWinningTeam("");
+    setOfflineWinningAmount(1);
+  };
+
+  // Get all teams (live + offline) for offline mode
+  const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
 
   return (
     <div className="mb-4 sm:mb-8 w-full p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
@@ -157,46 +191,93 @@ export default function AuctionStage({
         </div>
       </div>
       {/* Bidding Interface */}
-      <div className="flex flex-col items-center mb-4 sm:mb-6">
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
-            onClick={() => setBidAmount((prev) => Math.max(minBid, prev - 1))}
-            disabled={bidAmount <= minBid}
-          >
-            <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
-          </Button>
-          <Button
-            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-4 sm:px-6 lg:px-8 py-2 sm:py-3 text-base sm:text-lg"
-            disabled={!canBid}
-            onClick={() => {
-              if (!canBid) return;
-              partySocket.send(
-                JSON.stringify({
-                  type: "placeBid",
-                  data: {
-                    teamId: userTeam!.id,
-                    amount: bidAmount,
-                  },
-                })
-              );
-            }}
-          >
-            Bid ${bidAmount}
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
-            onClick={() => setBidAmount((prev) => prev + 1)}
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
-          </Button>
+      {isOfflineMode ? (
+        // Offline Mode Bidding Interface
+        <div className="flex flex-col items-center mb-4 sm:mb-6">
+          <div className="w-full max-w-md space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="winning-team" className="text-emerald-300 font-semibold">
+                Winning Team
+              </Label>
+              <Select value={offlineWinningTeam} onValueChange={setOfflineWinningTeam}>
+                <SelectTrigger className="bg-gray-900/80 border-gray-700 text-emerald-100">
+                  <SelectValue placeholder="Select winning team" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900/80 border-gray-700">
+                  {allTeams.map((team) => (
+                    <SelectItem key={team.id} value={team.id} className="text-emerald-100">
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="winning-amount" className="text-emerald-300 font-semibold">
+                Winning Amount ($)
+              </Label>
+              <Input
+                id="winning-amount"
+                type="number"
+                value={offlineWinningAmount}
+                onChange={(e) => setOfflineWinningAmount(Number(e.target.value))}
+                min={1}
+                className="bg-gray-900/80 border-gray-700 text-emerald-100"
+              />
+            </div>
+            <Button
+              onClick={handleOfflineAuctionComplete}
+              disabled={!offlineWinningTeam || offlineWinningAmount <= 0 || !partySocket}
+              className="w-full bg-gradient-to-br from-green-900/80 to-green-700/80 border-2 border-green-400 shadow-md text-green-100 font-bold px-4 py-2"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Complete Auction
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        // Live Mode Bidding Interface
+        <div className="flex flex-col items-center mb-4 sm:mb-6">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
+              onClick={() => setBidAmount((prev) => Math.max(minBid, prev - 1))}
+              disabled={bidAmount <= minBid}
+            >
+              <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+            </Button>
+            <Button
+              className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-4 sm:px-6 lg:px-8 py-2 sm:py-3 text-base sm:text-lg"
+              disabled={!canBid}
+              onClick={() => {
+                if (!canBid) return;
+                partySocket.send(
+                  JSON.stringify({
+                    type: "placeBid",
+                    data: {
+                      teamId: userTeam!.id,
+                      amount: bidAmount,
+                    },
+                  })
+                );
+              }}
+            >
+              Bid ${bidAmount}
+            </Button>
+            <Button
+              size="sm"
+              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
+              onClick={() => setBidAmount((prev) => prev + 1)}
+            >
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Bid History */}
-      {bidHistory.length > 0 && (
+      {/* Bid History - Only show in live mode */}
+      {!isOfflineMode && bidHistory.length > 0 && (
         <div className="mt-4 sm:mt-6">
           <div className="text-lg sm:text-xl font-semibold text-emerald-300 mb-2 sm:mb-3">
             Bid History
@@ -219,8 +300,8 @@ export default function AuctionStage({
         </div>
       )}
 
-      {/* Countdown Trigger */}
-      {canTriggerCountdown && (
+      {/* Countdown Trigger - Only show in live mode */}
+      {!isOfflineMode && canTriggerCountdown && (
         <div className="mt-4 sm:mt-6 text-center">
           <Button
             onClick={() => {

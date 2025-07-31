@@ -201,6 +201,40 @@ export function SettingsTab({
               rows={3}
             />
           </div>
+          {/* Draft Mode */}
+          <div className="space-y-3">
+            <Label className="text-emerald-300">Draft Mode</Label>
+            <div className="flex items-center space-x-4">
+              <label className="text-gray-50 flex items-center space-x-2">
+                <input
+                  className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
+                  type="radio"
+                  id="live"
+                  name="draftMode"
+                  value="live"
+                  checked={(localSettings.draftMode || "live") === "live"}
+                  onChange={(e) =>
+                    handleInputChange("draftMode", e.target.value)
+                  }
+                />
+                <span>Live Draft</span>
+              </label>
+              <label className="text-gray-50 flex items-center space-x-2">
+                <input
+                  className="bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50"
+                  type="radio"
+                  id="offline"
+                  name="draftMode"
+                  value="offline"
+                  checked={(localSettings.draftMode || "live") === "offline"}
+                  onChange={(e) =>
+                    handleInputChange("draftMode", e.target.value)
+                  }
+                />
+                <span>Offline Draft</span>
+              </label>
+            </div>
+          </div>
           {/* Nomination Type */}
           <div className="space-y-3">
             <Label className="text-emerald-300">Nomination Type</Label>
