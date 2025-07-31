@@ -614,6 +614,14 @@ class PartyRoom implements Party.Server {
             teams: this.state.teams,
           });
 
+          // Send draftStarted message to trigger database save
+          this.room.broadcast(
+            JSON.stringify({
+              type: "draftStarted",
+              data: this.state,
+            })
+          );
+
           this.hasLoadedFromDB = true;
           break;
         case "pauseDraft":

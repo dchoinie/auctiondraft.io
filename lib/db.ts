@@ -23,9 +23,6 @@ const client = postgres(connectionString, {
   onnotice: (notice) => {
     console.log("Database notice:", notice);
   },
-  onparameter: (parameterStatus) => {
-    console.log("Database parameter change:", parameterStatus);
-  },
 });
 
 // Create the database instance

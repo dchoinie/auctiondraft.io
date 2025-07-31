@@ -171,24 +171,26 @@ export default function AuctionStage({
             </div>
           )}
         </div>
-        {/* Current Highest Bid */}
-        <div className="flex-1 text-center lg:text-right">
-          <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
-            Current Highest Bid
-          </div>
-          {currentBid ? (
-            <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
-              ${currentBid.amount}
-              <div className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold mt-1">
-                by {highestBidTeamName}
+        {/* Current Highest Bid - Hidden in offline mode */}
+        {!isOfflineMode && (
+          <div className="flex-1 text-center lg:text-right">
+            <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
+              Current Highest Bid
+            </div>
+            {currentBid ? (
+              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
+                ${currentBid.amount}
+                <div className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold mt-1">
+                  by {highestBidTeamName}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-yellow-200 italic text-sm sm:text-base">
-              No bids yet.
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="text-yellow-200 italic text-sm sm:text-base">
+                No bids yet.
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {/* Bidding Interface */}
       {isOfflineMode ? (

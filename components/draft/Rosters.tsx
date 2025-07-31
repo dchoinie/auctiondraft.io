@@ -2,6 +2,7 @@ import React from "react";
 import { useParams } from "next/navigation";
 import { useLeagueTeams, Team } from "@/stores/teamStore";
 import { useLeagueSettings } from "@/stores/leagueStore";
+import { useOfflineTeamStore, OfflineTeam } from "@/stores/offlineTeamStore";
 import {
   useDraftedPlayersAuto,
   DraftedPlayer,
@@ -108,8 +109,19 @@ export default function Rosters() {
     loading: settingsLoading,
     error: settingsError,
   } = useLeagueSettings(league_id);
+  const { teams: offlineTeams, fetchTeams: fetchOfflineTeams } = useOfflineTeamStore();
   const draftedPlayers = useDraftedPlayersAuto(league_id);
   const getPlayerById = usePlayersStore((state) => state.getPlayerById);
+
+  // Check if league is in offline mode
+  const isOfflineMode = settings?.draftMode === "offline";
+
+  // Fetch offline teams when in offline mode
+  React.useEffect(() => {
+    if (isOfflineMode && league_id) {
+      fetchOfflineTeams(league_id);
+    }
+  }, [isOfflineMode, league_id, fetchOfflineTeams]);
 
   if (teamsLoading || settingsLoading)
     return (
@@ -121,7 +133,7 @@ export default function Rosters() {
         Error loading rosters: {teamsError || settingsError}
       </div>
     );
-  if (!settings || !teams.length)
+  if (!settings || (!teams.length && !offlineTeams.length))
     return (
       <div className="p-4 sm:p-6 text-emerald-100">
         No teams or settings found.
@@ -130,15 +142,18 @@ export default function Rosters() {
 
   const slots = buildRosterSlots(settings);
 
+  // Get all teams (live + offline) for offline mode
+  const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
+
   // Build a map: teamId -> drafted players
   const teamPlayers: Record<string, DraftedPlayer[]> = {};
-  teams.forEach((team) => {
+  allTeams.forEach((team) => {
     teamPlayers[team.id] = draftedPlayers.filter((p) => p.teamId === team.id);
   });
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-      {teams.map((team) => {
+      {allTeams.map((team) => {
         const players = teamPlayers[team.id] || [];
         const assigned = assignPlayersToSlots(slots, players, getPlayerById);
         return (

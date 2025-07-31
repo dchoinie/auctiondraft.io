@@ -56,6 +56,7 @@ export default function DraftPage() {
     leagues,
     loading: leaguesLoading,
     error: leaguesError,
+    refetch: refetchLeagues,
   } = useLeagueMembership();
   const { teams: offlineTeams, fetchTeams: fetchOfflineTeams } = useOfflineTeamStore();
   const draftState = useDraftState(league_id as string);
@@ -181,6 +182,9 @@ export default function DraftPage() {
                   }),
                 });
                 console.log("Draft started - state saved to database");
+                
+                // Refresh league data to update isDraftStarted flag
+                refetchLeagues();
               } catch (error) {
                 console.error(
                   "Error saving draft started state to database:",
@@ -357,6 +361,9 @@ export default function DraftPage() {
         setTimeout(() => {
           useDraftedPlayersStore.getState().resetLeague(league_id as string);
         }, 100);
+
+        // Refresh league data to update isDraftStarted flag
+        refetchLeagues();
 
         console.log(
           "Draft completely reset - all data cleared and initial state saved"

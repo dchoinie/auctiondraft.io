@@ -32,7 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Users, Crown, Mail, Trash2, Loader2, AlertCircle, Plus, GripVertical, Eye } from "lucide-react";
+import { Users, Crown, Mail, Trash2, Loader2, AlertCircle, Plus, GripVertical, Eye, Shuffle } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { LeagueSettings } from "@/stores/leagueStore";
 import { Team, useLeagueTeams } from "@/stores/teamStore";
@@ -139,8 +139,8 @@ export function TeamsTab(props: TeamsTabProps) {
   const { league_id } = useParams();
   const { userId } = useAuth();
   const { user } = useUser();
-  const { createTeam } = useLeagueTeams(settings?.id);
-  const { teams: offlineTeams, loading: offlineTeamsLoading, error: offlineTeamsError, fetchTeams: fetchOfflineTeams, createTeam: createOfflineTeam, deleteTeam: deleteOfflineTeam, updateTeam: updateOfflineTeam } = useOfflineTeamStore();
+  const { createTeam, updateTeam, fetchTeams } = useLeagueTeams(settings?.id);
+  const { teams: offlineTeams, loading: offlineTeamsLoading, error: offlineTeamsError, fetchTeams: fetchOfflineTeams, createTeam: createOfflineTeam, deleteTeam: deleteOfflineTeam, updateTeam: updateOfflineTeam, deleteAllTeams: deleteAllOfflineTeams } = useOfflineTeamStore();
 
   // Team creation state
   const [showCreateTeamDialog, setShowCreateTeamDialog] = useState(false);
@@ -151,7 +151,6 @@ export function TeamsTab(props: TeamsTabProps) {
   // Offline team creation state
   const [showCreateOfflineTeamDialog, setShowCreateOfflineTeamDialog] = useState(false);
   const [offlineTeamName, setOfflineTeamName] = useState("");
-  const [offlineTeamBudget, setOfflineTeamBudget] = useState(settings?.startingBudget || 200);
   const [isCreatingOfflineTeam, setIsCreatingOfflineTeam] = useState(false);
   const [createOfflineTeamError, setCreateOfflineTeamError] = useState<string | null>(null);
 
@@ -165,6 +164,10 @@ export function TeamsTab(props: TeamsTabProps) {
   const [rosterData, setRosterData] = useState<OfflineTeamRoster | null>(null);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
+
+  // Bulk delete state
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Check if current user has a team in this league (for live mode)
   const userHasTeam = teams.some(team => team.ownerId === user?.id);
@@ -215,8 +218,8 @@ export function TeamsTab(props: TeamsTabProps) {
       return;
     }
 
-    if (!offlineTeamBudget || offlineTeamBudget <= 0) {
-      setCreateOfflineTeamError("Valid budget is required");
+    if (!settings?.startingBudget || settings.startingBudget <= 0) {
+      setCreateOfflineTeamError("League starting budget is not set");
       return;
     }
 
@@ -224,15 +227,14 @@ export function TeamsTab(props: TeamsTabProps) {
     setCreateOfflineTeamError(null);
 
     try {
-      const success = await createOfflineTeam(settings?.id || "", {
+      const success = await createOfflineTeam(settings.id, {
         name: offlineTeamName.trim(),
-        budget: offlineTeamBudget,
+        budget: settings.startingBudget,
       });
 
       if (success) {
         setShowCreateOfflineTeamDialog(false);
         setOfflineTeamName("");
-        setOfflineTeamBudget(settings?.startingBudget || 200);
         // Show success message
         alert("Offline team created successfully!");
       } else {
@@ -267,6 +269,63 @@ export function TeamsTab(props: TeamsTabProps) {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!settings?.id) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const success = await deleteAllOfflineTeams(settings.id);
+      if (success) {
+        setShowBulkDeleteDialog(false);
+        alert(`Successfully deleted all ${offlineTeams.length} offline teams!`);
+      } else {
+        alert("Failed to delete offline teams. Please try again.");
+      }
+    } catch (error) {
+      alert("An unexpected error occurred while deleting teams.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleRandomizeDraftOrder = async () => {
+    if (!settings?.id) return;
+
+    const allTeams = [...offlineTeams, ...teams];
+    if (allTeams.length < 2) return;
+
+    // Create a shuffled array of team IDs
+    const shuffledTeamIds = allTeams.map(team => team.id).sort(() => Math.random() - 0.5);
+    
+    try {
+      // Update draft orders for all teams
+      const updatePromises = shuffledTeamIds.map(async (teamId, index) => {
+        const draftOrder = index + 1;
+        
+        // Check if it's an offline team or regular team
+        const isOfflineTeam = offlineTeams.some(team => team.id === teamId);
+        
+        if (isOfflineTeam) {
+          return updateOfflineTeam(teamId, { draftOrder });
+        } else {
+          // For regular teams, use the store's updateTeam method
+          return updateTeam(teamId, { draftOrder });
+        }
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh both teams lists
+      await fetchOfflineTeams(settings.id);
+      await fetchTeams(); // Refresh regular teams from the store
+      
+      alert("Draft order randomized successfully!");
+    } catch (error) {
+      console.error("Error randomizing draft order:", error);
+      alert("Failed to randomize draft order. Please try again.");
+    }
+  };
+
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, teamId: string) => {
     setDraggedTeamId(teamId);
@@ -290,10 +349,10 @@ export function TeamsTab(props: TeamsTabProps) {
     setIsReordering(true);
     
     try {
-      // Get current teams and their draft orders
-      const currentTeams = [...offlineTeams];
-      const draggedTeam = currentTeams.find(team => team.id === draggedTeamId);
-      const targetTeam = currentTeams.find(team => team.id === targetTeamId);
+      // Get all teams (offline + regular) and their draft orders
+      const allTeams = [...offlineTeams, ...teams];
+      const draggedTeam = allTeams.find(team => team.id === draggedTeamId);
+      const targetTeam = allTeams.find(team => team.id === targetTeamId);
       
       if (!draggedTeam || !targetTeam) {
         setDraggedTeamId(null);
@@ -302,11 +361,11 @@ export function TeamsTab(props: TeamsTabProps) {
       }
 
       // Calculate new draft orders
-      const draggedIndex = currentTeams.findIndex(team => team.id === draggedTeamId);
-      const targetIndex = currentTeams.findIndex(team => team.id === targetTeamId);
+      const draggedIndex = allTeams.findIndex(team => team.id === draggedTeamId);
+      const targetIndex = allTeams.findIndex(team => team.id === targetTeamId);
       
       // Reorder the teams array
-      const reorderedTeams = [...currentTeams];
+      const reorderedTeams = [...allTeams];
       const [movedTeam] = reorderedTeams.splice(draggedIndex, 1);
       reorderedTeams.splice(targetIndex, 0, movedTeam);
       
@@ -316,16 +375,23 @@ export function TeamsTab(props: TeamsTabProps) {
         draftOrder: index + 1
       }));
 
-      // Update all offline teams with new draft orders
+      // Update all teams with new draft orders
       const updatePromises = updatedTeams.map(async (team) => {
-        // Only update offline teams (admin teams are handled separately)
-        return updateOfflineTeam(team.id, { draftOrder: team.draftOrder });
+        const isOfflineTeam = offlineTeams.some(offlineTeam => offlineTeam.id === team.id);
+        
+        if (isOfflineTeam) {
+          return updateOfflineTeam(team.id, { draftOrder: team.draftOrder });
+        } else {
+          // For regular teams, use the store's updateTeam method
+          return updateTeam(team.id, { draftOrder: team.draftOrder });
+        }
       });
       
       await Promise.all(updatePromises);
       
-      // Refresh the teams list
+      // Refresh both teams lists
       await fetchOfflineTeams(settings?.id || "");
+      await fetchTeams(); // Refresh regular teams from the store
       
     } catch (error) {
       console.error("Error reordering teams:", error);
@@ -368,29 +434,52 @@ export function TeamsTab(props: TeamsTabProps) {
             </p>
           </div>
 
-          {/* Offline Teams Management */}
+          {/* All Teams Management */}
           <Card className="bg-gradient-to-br from-blue-900/90 to-gray-900/90 border-2 border-blue-800 text-blue-100">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-blue-300">
                     <Users className="h-5 w-5" />
-                    Offline Teams
+                    All Teams
                   </CardTitle>
                   <CardDescription className="text-gray-300">
-                    {offlineTeams.length === 0
-                      ? "No offline teams have been created yet. Add teams for the offline draft."
-                      : `${offlineTeams.length} team${offlineTeams.length === 1 ? "" : "s"} in this offline draft`}
+                    {offlineTeams.length === 0 && teams.length === 0
+                      ? "No teams have been created yet. Add teams for the draft."
+                      : `${offlineTeams.length + teams.length} team${offlineTeams.length + teams.length === 1 ? "" : "s"} in this draft`}
                   </CardDescription>
                 </div>
-                {isOwner && offlineTeams.length < (settings.leagueSize || 10) && (
-                  <Button
-                    onClick={() => setShowCreateOfflineTeamDialog(true)}
-                    className="bg-gradient-to-br from-blue-800/80 to-blue-600/80 border-2 border-blue-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Team
-                  </Button>
+                {isOwner && (
+                  <div className="flex gap-2">
+                    {offlineTeams.length < (settings.leagueSize || 10) && (
+                      <Button
+                        onClick={() => setShowCreateOfflineTeamDialog(true)}
+                        className="bg-gradient-to-br from-blue-800/80 to-blue-600/80 border-2 border-blue-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Team
+                      </Button>
+                    )}
+                    {offlineTeams.length > 0 && (
+                      <Button
+                        onClick={() => setShowBulkDeleteDialog(true)}
+                        variant="destructive"
+                        className="bg-gradient-to-br from-red-800/80 to-red-600/80 border-2 border-red-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete All
+                      </Button>
+                    )}
+                    {offlineTeams.length + teams.length > 1 && (
+                      <Button
+                        onClick={handleRandomizeDraftOrder}
+                        className="bg-gradient-to-br from-purple-800/80 to-purple-600/80 border-2 border-purple-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                      >
+                        <Shuffle className="h-4 w-4 mr-2" />
+                        Randomize Order
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </CardHeader>
@@ -398,76 +487,98 @@ export function TeamsTab(props: TeamsTabProps) {
               {offlineTeamsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                  <span>Loading offline teams...</span>
+                  <span>Loading teams...</span>
                 </div>
               ) : offlineTeamsError ? (
                 <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-100">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{offlineTeamsError}</AlertDescription>
                 </Alert>
-              ) : offlineTeams.length === 0 ? (
+              ) : offlineTeams.length === 0 && teams.length === 0 ? (
                 <div className="text-center py-8 text-blue-100/70">
                   <Users className="h-12 w-12 mx-auto mb-4 text-blue-900/60" />
-                  <p className="text-lg font-medium">No offline teams yet</p>
-                  <p>Add teams to get started with the offline draft</p>
+                  <p className="text-lg font-medium">No teams yet</p>
+                  <p>Add teams to get started with the draft</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {offlineTeams.map((team: OfflineTeam) => (
-                    <div
-                      key={team.id}
-                      draggable={isOwner && !isReordering}
-                      onDragStart={(e) => handleDragStart(e, team.id)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, team.id)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700 cursor-pointer transition-all duration-200 ${
-                        draggedTeamId === team.id 
-                          ? "opacity-50 scale-95 border-blue-400" 
-                          : "hover:border-blue-400 hover:bg-gray-800/80"
-                      } ${isReordering ? "pointer-events-none" : ""}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        {isOwner && (
-                          <div className="text-blue-400 hover:text-blue-300 cursor-grab active:cursor-grabbing">
-                            <GripVertical className="h-5 w-5" />
+                  {/* Combine and sort all teams by draft order */}
+                  {[...offlineTeams, ...teams]
+                    .sort((a, b) => (a.draftOrder || 999) - (b.draftOrder || 999))
+                    .map((team) => {
+                      const isOfflineTeam = 'leagueId' in team; // Check if it's an offline team
+                      
+                      return (
+                        <div
+                          key={team.id}
+                          draggable={isOwner && !isReordering}
+                          onDragStart={(e) => handleDragStart(e, team.id)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, team.id)}
+                          onDragEnd={handleDragEnd}
+                          className={`flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700 cursor-pointer transition-all duration-200 ${
+                            draggedTeamId === team.id 
+                              ? "opacity-50 scale-95 border-blue-400" 
+                              : "hover:border-blue-400 hover:bg-gray-800/80"
+                          } ${isReordering ? "pointer-events-none" : ""}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            {isOwner && (
+                              <div className="text-blue-400 hover:text-blue-300 cursor-grab active:cursor-grabbing">
+                                <GripVertical className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className={`w-10 h-10 border-2 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold ${
+                              isOfflineTeam 
+                                ? "bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-blue-400"
+                                : "bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-yellow-400"
+                            }`}>
+                              {team.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold flex items-center gap-2 text-blue-300 leading-none">
+                                {team.name}
+                                {!isOfflineTeam && team.ownerId === settings.ownerId && (
+                                  <Crown className="h-4 w-4 text-yellow-400" />
+                                )}
+                              </h3>
+                              <p className="text-sm text-gray-300 tracking-wide">
+                                {isOfflineTeam 
+                                  ? `Budget: $${(team as OfflineTeam).budget} • Draft Order: ${team.draftOrder || "TBD"}`
+                                  : `${(team as Team).ownerFirstName && (team as Team).ownerLastName
+                                      ? `${(team as Team).ownerFirstName} ${(team as Team).ownerLastName}`
+                                      : (team as Team).ownerEmail || "Unknown Owner"} • Draft Order: ${team.draftOrder || "TBD"}`
+                                }
+                              </p>
+                            </div>
                           </div>
-                        )}
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
-                          {team.name.charAt(0).toUpperCase()}
+                          {isOwner && (
+                            <div className="flex items-center gap-2">
+                              {isOfflineTeam && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
+                                    onClick={() => handleViewRoster(team as OfflineTeam)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                                    onClick={() => deleteOfflineTeam(team.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <h3 className="font-semibold flex items-center gap-2 text-blue-300 leading-none">
-                            {team.name}
-                          </h3>
-                          <p className="text-sm text-gray-300 tracking-wide">
-                            Budget: ${team.budget} • Draft Order: {team.draftOrder || "TBD"}
-                          </p>
-
-                        </div>
-                      </div>
-                      {isOwner && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
-                            onClick={() => handleViewRoster(team)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
-                            onClick={() => deleteOfflineTeam(team.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </CardContent>
@@ -506,22 +617,9 @@ export function TeamsTab(props: TeamsTabProps) {
                     className="bg-gray-900/80 border-gray-700 text-blue-100 placeholder:text-blue-200/50"
                     maxLength={50}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="offline-team-budget" className="text-blue-200">
-                    Starting Budget ($)
-                  </Label>
-                  <Input
-                    id="offline-team-budget"
-                    type="number"
-                    value={offlineTeamBudget}
-                    onChange={(e) => setOfflineTeamBudget(Number(e.target.value))}
-                    placeholder="Enter starting budget"
-                    disabled={isCreatingOfflineTeam}
-                    className="bg-gray-900/80 border-gray-700 text-blue-100 placeholder:text-blue-200/50"
-                    min={1}
-                    max={1000}
-                  />
+                  <p className="text-xs text-blue-200/70">
+                    This team will start with ${settings?.startingBudget || 200} budget (from league settings)
+                  </p>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -532,11 +630,11 @@ export function TeamsTab(props: TeamsTabProps) {
                   >
                     Cancel
                   </Button>
-                  <Button
-                    onClick={handleCreateOfflineTeam}
-                    disabled={isCreatingOfflineTeam || !offlineTeamName.trim() || offlineTeamBudget <= 0}
-                    className="bg-gradient-to-br from-blue-800/80 to-blue-600/80 border-2 border-blue-400 shadow-md hover:shadow-xl hover:text-gray-300"
-                  >
+                                     <Button
+                     onClick={handleCreateOfflineTeam}
+                     disabled={isCreatingOfflineTeam || !offlineTeamName.trim()}
+                     className="bg-gradient-to-br from-blue-800/80 to-blue-600/80 border-2 border-blue-400 shadow-md hover:shadow-xl hover:text-gray-300"
+                   >
                     {isCreatingOfflineTeam ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -553,6 +651,50 @@ export function TeamsTab(props: TeamsTabProps) {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Bulk Delete Confirmation Dialog */}
+          <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+            <AlertDialogContent className="bg-gradient-to-br from-gray-900/90 to-red-950/90 border-2 border-red-800 text-red-100">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete All Offline Teams</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete all {offlineTeams.length} offline team{offlineTeams.length === 1 ? "" : "s"}? 
+                  <br /><br />
+                  This action cannot be undone. All team data, roster information, and draft history will be permanently removed.
+                  <br /><br />
+                  <strong>This will delete:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>All offline teams ({offlineTeams.length} team{offlineTeams.length === 1 ? "" : "s"})</li>
+                    <li>All drafted players for these teams</li>
+                    <li>All draft history and auction data</li>
+                    <li>All roster information</li>
+                  </ul>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  disabled={isBulkDeleting}
+                  className="bg-gray-800 text-gray-200 border-gray-700"
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="bg-red-700 text-red-100 hover:bg-red-800"
+                >
+                  {isBulkDeleting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting All Teams...
+                    </>
+                  ) : (
+                    "Delete All Teams"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ) : (
         <>
@@ -591,7 +733,7 @@ export function TeamsTab(props: TeamsTabProps) {
           )}
 
           {/* Admin Teams Section for Offline Mode */}
-          {isOfflineMode && teams.length > 0 && (
+          {isOfflineMode && (
             <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-yellow-200">
@@ -603,34 +745,42 @@ export function TeamsTab(props: TeamsTabProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {teams.map((team: Team) => (
-                    <div
-                      key={team.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
-                          {team.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold flex items-center gap-2 text-yellow-300 leading-none">
-                            {team.name}
-                            {team.ownerId === settings.ownerId && (
-                              <Crown className="h-4 w-4 text-yellow-400" />
-                            )}
-                          </h3>
-                          <p className="text-sm text-gray-300 tracking-wide">
-                            {team.ownerFirstName && team.ownerLastName
-                              ? `${team.ownerFirstName} ${team.ownerLastName}`
-                              : team.ownerEmail || "Unknown Owner"}
-                            {team.draftOrder && ` • Draft Order: ${team.draftOrder}`}
-                          </p>
+                {teams.length === 0 ? (
+                  <div className="text-center py-8 text-yellow-100/70">
+                    <Crown className="h-12 w-12 mx-auto mb-4 text-yellow-900/60" />
+                    <p className="text-lg font-medium">No admin teams yet</p>
+                    <p>Admin teams will appear here when created</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {teams.map((team: Team) => (
+                      <div
+                        key={team.id}
+                        className="flex items-center justify-between p-4 border rounded-lg bg-gray-900/80 border-gray-700"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md hover:shadow-xl rounded-full flex items-center justify-center text-white font-bold">
+                            {team.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold flex items-center gap-2 text-yellow-300 leading-none">
+                              {team.name}
+                              {team.ownerId === settings.ownerId && (
+                                <Crown className="h-4 w-4 text-yellow-400" />
+                              )}
+                            </h3>
+                            <p className="text-sm text-gray-300 tracking-wide">
+                              {team.ownerFirstName && team.ownerLastName
+                                ? `${team.ownerFirstName} ${team.ownerLastName}`
+                                : team.ownerEmail || "Unknown Owner"}
+                              {team.draftOrder && ` • Draft Order: ${team.draftOrder}`}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

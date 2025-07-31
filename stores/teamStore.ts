@@ -44,7 +44,7 @@ interface TeamState {
   updateTeam: (
     leagueId: string,
     teamId: string,
-    name: string
+    updates: { name?: string; draftOrder?: number }
   ) => Promise<boolean>;
   deleteTeam: (leagueId: string, teamId: string) => Promise<boolean>;
 
@@ -147,7 +147,7 @@ export const useTeamStore = create<TeamState>()(
       updateTeam: async (
         leagueId: string,
         teamId: string,
-        name: string
+        updates: { name?: string; draftOrder?: number }
       ): Promise<boolean> => {
         try {
           get().setTeamLoading(teamId, true);
@@ -158,7 +158,7 @@ export const useTeamStore = create<TeamState>()(
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name }),
+              body: JSON.stringify(updates),
             }
           );
 
@@ -168,7 +168,7 @@ export const useTeamStore = create<TeamState>()(
             // Update team in the teams list
             const currentTeams = get().teams[leagueId] || [];
             const updatedTeams = currentTeams.map((team) =>
-              team.id === teamId ? { ...team, name } : team
+              team.id === teamId ? { ...team, ...updates } : team
             );
             get().setTeams(leagueId, updatedTeams);
             return true;
@@ -304,9 +304,9 @@ export function useLeagueTeams(leagueId?: string) {
   );
 
   const updateTeam = useCallback(
-    async (teamId: string, name: string) => {
+    async (teamId: string, updates: { name?: string; draftOrder?: number }) => {
       if (leagueId) {
-        return useTeamStore.getState().updateTeam(leagueId, teamId, name);
+        return useTeamStore.getState().updateTeam(leagueId, teamId, updates);
       }
       return false;
     },

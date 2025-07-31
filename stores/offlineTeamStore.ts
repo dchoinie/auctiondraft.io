@@ -27,6 +27,7 @@ interface OfflineTeamState {
   createTeam: (leagueId: string, teamData: { name: string; budget: number }) => Promise<boolean>;
   updateTeam: (teamId: string, updates: Partial<OfflineTeam>) => Promise<boolean>;
   deleteTeam: (teamId: string) => Promise<boolean>;
+  deleteAllTeams: (leagueId: string) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -145,6 +146,30 @@ export const useOfflineTeamStore = create<OfflineTeamState>()(
           }
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : "Failed to delete offline team";
+          set({ error: errorMessage });
+          return false;
+        }
+      },
+
+      deleteAllTeams: async (leagueId: string): Promise<boolean> => {
+        try {
+          set({ error: null });
+          const response = await fetch(`/api/leagues/${leagueId}/offline-teams/bulk-delete`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Clear all teams from local state
+            set({ teams: [] });
+            return true;
+          } else {
+            set({ error: data.error || "Failed to delete all offline teams" });
+            return false;
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "Failed to delete all offline teams";
           set({ error: errorMessage });
           return false;
         }

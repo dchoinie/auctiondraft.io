@@ -7,6 +7,7 @@ import { useLeagueKeepers } from "@/stores/keepersStore";
 import { useDraftedPlayersAuto } from "@/stores/draftedPlayersStore";
 import { useDraftStateStore } from "@/stores/draftRoomStore";
 import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
+import { useOfflineTeamStore, OfflineTeam } from "@/stores/offlineTeamStore";
 
 interface UseDraftHydrationProps {
   leagueId: string;
@@ -46,23 +47,39 @@ export function useDraftHydration({
         const response = await fetch(`/api/leagues/${leagueId}/draft/state`);
         if (response.ok) {
           const { draftState: savedDraftState } = await response.json();
+          
+          // Only restore the draft state if the draft was actually in progress
+          // Check if there are drafted players or if the draft was actively running
           if (savedDraftState && savedDraftState.draftPhase === "live") {
-            console.log("Found saved draft state, restoring...", {
-              draftPhase: savedDraftState.draftPhase,
-              currentRound: savedDraftState.currentRound,
-              totalPicks: savedDraftState.totalPicks,
-            });
+            // Check if there are actually drafted players or if the draft was actively running
+            const hasDraftedPlayers = savedDraftState.totalPicks > 0;
+            const hasActiveTeams = savedDraftState.teams && Object.keys(savedDraftState.teams).length > 0;
+            
+            if (hasDraftedPlayers || hasActiveTeams) {
+              console.log("Found active draft state, restoring...", {
+                draftPhase: savedDraftState.draftPhase,
+                currentRound: savedDraftState.currentRound,
+                totalPicks: savedDraftState.totalPicks,
+                hasDraftedPlayers,
+                hasActiveTeams,
+              });
 
-            // Set the draft state locally first
-            setDraftState(leagueId, savedDraftState);
+              // Set the draft state locally first
+              setDraftState(leagueId, savedDraftState);
 
-            // Send the restored state to PartyKit immediately
-            partySocket.send(
-              JSON.stringify({ type: "restoreState", data: savedDraftState })
-            );
+              // Send the restored state to PartyKit immediately
+              partySocket.send(
+                JSON.stringify({ type: "restoreState", data: savedDraftState })
+              );
 
-            // Mark as hydrated immediately since we have the state
-            hasHydrated.current = true;
+              // Mark as hydrated immediately since we have the state
+              hasHydrated.current = true;
+            } else {
+              console.log("Found saved draft state but no active draft in progress, starting fresh");
+              // If there's a saved state but no active draft, don't restore it
+              // Mark as hydrated so the draft can start fresh
+              hasHydrated.current = true;
+            }
           } else {
             console.log("No saved draft state found or draft not started");
             // If no saved state, mark as hydrated so the draft can start
@@ -83,6 +100,7 @@ export function useDraftHydration({
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
   const { leagues, loading: leaguesLoading } = useLeagueMembership();
   const { keepers, loading: keepersLoading } = useLeagueKeepers(leagueId);
+  const { teams: offlineTeams, fetchTeams: fetchOfflineTeams } = useOfflineTeamStore();
   const draftedPlayers = useDraftedPlayersAuto(leagueId);
   const draftedPlayersLoading = useDraftedPlayersStore(
     (state) => state.loading[leagueId] ?? false
@@ -93,6 +111,16 @@ export function useDraftHydration({
 
   // Find the league
   const league = leagues.find((league: League) => league.id === leagueId);
+  
+  // Check if league is in offline mode
+  const isOfflineMode = league?.settings?.draftMode === "offline";
+
+  // Fetch offline teams when in offline mode
+  React.useEffect(() => {
+    if (isOfflineMode && leagueId) {
+      fetchOfflineTeams(leagueId);
+    }
+  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
 
   useEffect(() => {
     console.log("Hydration useEffect triggered", {
@@ -117,7 +145,7 @@ export function useDraftHydration({
       draftedPlayersLoading ||
       !partySocket ||
       !draftState ||
-      !teams.length ||
+      (!teams.length && !offlineTeams.length) ||
       !league ||
       !draftedPlayersLoaded
     ) {
@@ -168,6 +196,7 @@ export function useDraftHydration({
 
     console.log("Hydrating draft state with league-specific data", {
       teamsCount: teams.length,
+      offlineTeamsCount: offlineTeams.length,
       keepersCount: keepers?.length || 0,
       draftedPlayersCount: draftedPlayers.length,
       totalRosterSpots,
@@ -184,8 +213,11 @@ export function useDraftHydration({
 
     console.log("Keeper costs by team:", keeperCostByTeam);
 
+    // Get all teams (live + offline) for offline mode
+    const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
+
     // Build hydrated teams state
-    const hydratedTeams: Record<string, TeamDraftState> = teams.reduce(
+    const hydratedTeams: Record<string, TeamDraftState> = allTeams.reduce(
       (acc, team) => {
         const keeperCost = keeperCostByTeam[team.id] || 0;
         const teamDraftedPlayers = draftedPlayers.filter(
@@ -255,14 +287,14 @@ export function useDraftHydration({
       (dp) => !keeperPlayerIds.has(dp.playerId)
     );
     const totalDraftPicks = actualDraftPicks.length;
-    const totalTeams = teams.length;
+    const totalTeams = allTeams.length;
     const currentRound = Math.floor(totalDraftPicks / totalTeams) + 1;
     const currentPick = (totalDraftPicks % totalTeams) + 1;
 
     // Build nomination order based on team draft order
-    const nominationOrder = teams
+    const nominationOrder = allTeams
       .sort((a, b) => (a.draftOrder || 0) - (b.draftOrder || 0))
-      .map((team: Team) => team.id);
+      .map((team: Team | OfflineTeam) => team.id);
 
     // Calculate the correct current nominator team ID based on currentNominationIndex
     const currentNominatorTeamId =
@@ -325,11 +357,13 @@ export function useDraftHydration({
     draftedPlayersLoading,
     draftedPlayersLoaded,
     teams,
+    offlineTeams,
     league,
     keepers,
     draftedPlayers,
     partySocket,
     setDraftState,
+    isOfflineMode,
   ]);
 
   // Reset hydration flag when draft state is reset or when draft phase changes
