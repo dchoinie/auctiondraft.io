@@ -45,27 +45,48 @@ export async function GET() {
         
         // Fetch the user again after sync
         dbUser = await getUserFromDatabase(userId);
+        
+        if (!dbUser) {
+          console.error("❌ User still not found after sync attempt");
+          throw new Error("Failed to sync user to database");
+        }
       } catch (syncError) {
         console.error("❌ Error syncing user:", syncError);
-        // Continue without database user data
+        return NextResponse.json(
+          { success: false, error: "Failed to sync user to database" },
+          { status: 500 }
+        );
       }
     }
 
-    // Return user data
+    // Return user data from database (not from Clerk)
+    const userData = {
+      id: userId,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      leagueCredits: dbUser.leagueCredits || 0,
+      stripeCustomerId: dbUser.stripeCustomerId,
+      stripeSubscriptionId: dbUser.stripeSubscriptionId,
+      isAdmin: false, // Default to false
+      createdAt: dbUser.createdAt?.toISOString(),
+      updatedAt: dbUser.updatedAt?.toISOString(),
+    };
+
+    console.log("📋 Returning user data from database:", {
+      userId,
+      dbUserExists: !!dbUser,
+      dbFirstName: dbUser.firstName,
+      dbLastName: dbUser.lastName,
+      clerkFirstName: clerkUser.firstName,
+      clerkLastName: clerkUser.lastName,
+      finalFirstName: userData.firstName,
+      finalLastName: userData.lastName,
+    });
+
     return NextResponse.json({
       success: true,
-      user: {
-        id: userId,
-        email: clerkUser.emailAddresses?.[0]?.emailAddress,
-        firstName: clerkUser.firstName,
-        lastName: clerkUser.lastName,
-        leagueCredits: dbUser?.leagueCredits || 0,
-        stripeCustomerId: dbUser?.stripeCustomerId,
-        stripeSubscriptionId: dbUser?.stripeSubscriptionId,
-        isAdmin: false, // Default to false
-        createdAt: dbUser?.createdAt?.toISOString(),
-        updatedAt: dbUser?.updatedAt?.toISOString(),
-      },
+      user: userData,
     });
   } catch (error) {
     console.error("Error in /api/user/current:", error);

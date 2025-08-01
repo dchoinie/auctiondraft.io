@@ -74,15 +74,31 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Update the user profile in the database
-    await db
-      .update(userProfiles)
-      .set({
+    // Check if user exists in database
+    const existingUser = await getUserFromDatabase(userId);
+
+    if (existingUser) {
+      // Update existing user
+      await db
+        .update(userProfiles)
+        .set({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          updatedAt: new Date(),
+        })
+        .where(eq(userProfiles.id, userId));
+    } else {
+      // Create new user if they don't exist
+      console.log("🔄 Creating new user in profile update");
+      await db.insert(userProfiles).values({
+        id: userId,
+        email: "", // Will be updated by sync later
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        createdAt: new Date(),
         updatedAt: new Date(),
-      })
-      .where(eq(userProfiles.id, userId));
+      });
+    }
 
     return NextResponse.json({
       success: true,
