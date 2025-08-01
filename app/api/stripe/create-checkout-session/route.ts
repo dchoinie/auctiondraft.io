@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
+      allow_promotion_codes: true, // Enable coupon/discount codes
       success_url: `${baseUrl}/dashboard?payment=success`,
       cancel_url: `${baseUrl}/dashboard?payment=cancelled`,
       metadata: {
