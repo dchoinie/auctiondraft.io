@@ -8,11 +8,12 @@ import {
   Trophy,
   LogInIcon,
   UserPlusIcon,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Home: NextPage = () => {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,6 +21,18 @@ const Home: NextPage = () => {
       router.push("/dashboard");
     }
   }, [isSignedIn, router]);
+
+  // Show loading spinner while Clerk is loading
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-300 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900">
