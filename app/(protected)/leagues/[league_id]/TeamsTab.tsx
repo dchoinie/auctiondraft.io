@@ -169,7 +169,7 @@ export function TeamsTab(props: TeamsTabProps) {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  // Check if current user has a team in this league (for live mode)
+  // Check if current user has a team in this league (for both live and offline mode)
   const userHasTeam = teams.some(team => team.ownerId === user?.id);
 
   // Check if league is in offline mode
