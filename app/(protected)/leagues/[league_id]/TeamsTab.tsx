@@ -698,8 +698,8 @@ export function TeamsTab(props: TeamsTabProps) {
         </div>
       ) : (
         <>
-          {/* Admin Team Creation Section */}
-          {isOwner && !userHasTeam && (
+          {/* Admin Team Creation Section for Live Mode */}
+          {!isOfflineMode && isOwner && !userHasTeam && (
             <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-yellow-200">
@@ -781,6 +781,40 @@ export function TeamsTab(props: TeamsTabProps) {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Admin Team Creation Section for Offline Mode */}
+          {isOfflineMode && isOwner && !userHasTeam && (
+            <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-200">
+                  <Crown className="h-5 w-5" />
+                  Create Your Team
+                </CardTitle>
+                <CardDescription className="text-yellow-100/80">
+                  As the league admin, you need to create your own team to participate in the league.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-100 mb-2">
+                      You haven&apos;t created your team yet. Click the button below to create your team and start participating in the league.
+                    </p>
+                    <p className="text-sm text-yellow-200/70">
+                      Starting budget: ${settings.startingBudget || 200}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowCreateTeamDialog(true)}
+                    className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create My Team
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
