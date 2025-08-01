@@ -503,7 +503,7 @@ export function TeamsTab(props: TeamsTabProps) {
               ) : (
                 <div className="space-y-4">
                   {/* Combine and sort all teams by draft order */}
-                  {[...offlineTeams, ...teams]
+                  {([...offlineTeams, ...teams] as (OfflineTeam | Team)[])
                     .sort((a, b) => (a.draftOrder || 999) - (b.draftOrder || 999))
                     .map((team) => {
                       const isOfflineTeam = 'leagueId' in team; // Check if it's an offline team
@@ -538,16 +538,16 @@ export function TeamsTab(props: TeamsTabProps) {
                             <div>
                               <h3 className="font-semibold flex items-center gap-2 text-blue-300 leading-none">
                                 {team.name}
-                                {!isOfflineTeam && team.ownerId === settings.ownerId && (
+                                {!isOfflineTeam && (team as Team).ownerId === settings.ownerId && (
                                   <Crown className="h-4 w-4 text-yellow-400" />
                                 )}
                               </h3>
                               <p className="text-sm text-gray-300 tracking-wide">
                                 {isOfflineTeam 
-                                  ? `Budget: $${(team as OfflineTeam).budget} • Draft Order: ${team.draftOrder || "TBD"}`
+                                  ? `Budget: $${(team as OfflineTeam).budget} • Draft Order: ${(team as OfflineTeam).draftOrder || "TBD"}`
                                   : `${(team as Team).ownerFirstName && (team as Team).ownerLastName
                                       ? `${(team as Team).ownerFirstName} ${(team as Team).ownerLastName}`
-                                      : (team as Team).ownerEmail || "Unknown Owner"} • Draft Order: ${team.draftOrder || "TBD"}`
+                                      : (team as Team).ownerEmail || "Unknown Owner"} • Draft Order: ${(team as Team).draftOrder || "TBD"}`
                                 }
                               </p>
                             </div>

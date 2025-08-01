@@ -9,6 +9,7 @@ interface Team {
   ownerId: string; // add ownerId for online check
   ownerFirstName: string | null;
   ownerLastName: string | null;
+  draftOrder: number | null;
 }
 
 interface TeamTrackerProps {

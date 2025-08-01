@@ -48,6 +48,7 @@ const PlayerRow = React.memo(function PlayerRow({
   partySocket,
   user,
   userTeam,
+  teams,
   maxBid,
   isCurrentNominator,
   isOfflineMode = false,
@@ -56,6 +57,7 @@ const PlayerRow = React.memo(function PlayerRow({
   partySocket: PartySocket | null;
   user: { id: string } | null;
   userTeam: Team | null;
+  teams: Team[];
   maxBid: number;
   isCurrentNominator: boolean;
   isOfflineMode?: boolean;
@@ -355,6 +357,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                        partySocket={partySocket}
                        user={user}
                        userTeam={userTeam}
+                       teams={teams}
                        maxBid={maxBid}
                        isCurrentNominator={isCurrentNominator}
                        isOfflineMode={isOfflineMode}

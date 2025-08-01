@@ -52,14 +52,14 @@ export async function GET(
 
     // Calculate roster information based on league settings
     const rosterInfo = calculateRosterInfo({
-      qbSlots: league[0].qbSlots,
-      rbSlots: league[0].rbSlots,
-      wrSlots: league[0].wrSlots,
-      teSlots: league[0].teSlots,
-      flexSlots: league[0].flexSlots,
-      dstSlots: league[0].dstSlots,
-      kSlots: league[0].kSlots,
-      benchSlots: league[0].benchSlots,
+      qbSlots: league[0].qbSlots || 0,
+      rbSlots: league[0].rbSlots || 0,
+      wrSlots: league[0].wrSlots || 0,
+      teSlots: league[0].teSlots || 0,
+      flexSlots: league[0].flexSlots || 0,
+      dstSlots: league[0].dstSlots || 0,
+      kSlots: league[0].kSlots || 0,
+      benchSlots: league[0].benchSlots || 0,
     });
 
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function GET(
         leagueId: team.leagueId,
         budget: team.budget,
         draftOrder: team.draftOrder,
-        createdAt: team.createdAt.toISOString(),
+        createdAt: team.createdAt?.toISOString() || new Date().toISOString(),
         roster: rosterInfo,
       })),
     });
@@ -165,27 +165,37 @@ export async function POST(
       })
       .returning();
 
+    const leagueData = league[0];
+    const teamData = newTeam[0];
+    
+    if (!leagueData || !teamData) {
+      return NextResponse.json(
+        { success: false, error: "Failed to create team or league data not found" },
+        { status: 500 }
+      );
+    }
+
     // Calculate roster information based on league settings
     const rosterInfo = calculateRosterInfo({
-      qbSlots: league[0].qbSlots,
-      rbSlots: league[0].rbSlots,
-      wrSlots: league[0].wrSlots,
-      teSlots: league[0].teSlots,
-      flexSlots: league[0].flexSlots,
-      dstSlots: league[0].dstSlots,
-      kSlots: league[0].kSlots,
-      benchSlots: league[0].benchSlots,
+      qbSlots: leagueData.qbSlots || 0,
+      rbSlots: leagueData.rbSlots || 0,
+      wrSlots: leagueData.wrSlots || 0,
+      teSlots: leagueData.teSlots || 0,
+      flexSlots: leagueData.flexSlots || 0,
+      dstSlots: leagueData.dstSlots || 0,
+      kSlots: leagueData.kSlots || 0,
+      benchSlots: leagueData.benchSlots || 0,
     });
 
     return NextResponse.json({
       success: true,
       team: {
-        id: newTeam[0].id,
-        name: newTeam[0].name,
-        leagueId: newTeam[0].leagueId,
-        budget: newTeam[0].budget,
-        draftOrder: newTeam[0].draftOrder,
-        createdAt: newTeam[0].createdAt.toISOString(),
+        id: teamData.id,
+        name: teamData.name,
+        leagueId: teamData.leagueId,
+        budget: teamData.budget || 0,
+        draftOrder: teamData.draftOrder,
+        createdAt: teamData.createdAt?.toISOString() || new Date().toISOString(),
         roster: rosterInfo,
       },
     });

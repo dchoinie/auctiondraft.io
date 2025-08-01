@@ -159,6 +159,16 @@ export async function POST(
           lastName: lastName.trim(),
         })
         .where(eq(userProfiles.id, userId));
+      const leagueData = league[0];
+      const userData = user[0];
+      
+      if (!leagueData || !userData) {
+        return NextResponse.json(
+          { success: false, error: "League or user data not found" },
+          { status: 500 }
+        );
+      }
+
       // Create the team
       const newTeam = await db
         .insert(teams)
@@ -166,9 +176,17 @@ export async function POST(
           name: teamName.trim(),
           ownerId: userId,
           leagueId: leagueId,
-          budget: league[0].startingBudget || 200,
+          budget: leagueData.startingBudget || 200,
         })
         .returning();
+
+      const teamData = newTeam[0];
+      if (!teamData) {
+        return NextResponse.json(
+          { success: false, error: "Failed to create team" },
+          { status: 500 }
+        );
+      }
 
       // Update invitation status
       await db
@@ -181,14 +199,14 @@ export async function POST(
       return NextResponse.json({
         success: true,
         team: {
-          ...newTeam[0],
-          ownerFirstName: user[0].firstName,
-          ownerLastName: user[0].lastName,
-          ownerEmail: user[0].email,
+          ...teamData,
+          ownerFirstName: userData.firstName,
+          ownerLastName: userData.lastName,
+          ownerEmail: userData.email,
         },
         league: {
-          id: league[0].id,
-          name: league[0].name,
+          id: leagueData.id,
+          name: leagueData.name,
         },
         message: "Successfully joined league!",
       });

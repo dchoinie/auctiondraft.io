@@ -37,6 +37,13 @@ export async function PUT(
     }
 
     // Verify league exists and user is owner
+    if (!team[0].leagueId) {
+      return NextResponse.json(
+        { success: false, error: "Offline team has no associated league" },
+        { status: 400 }
+      );
+    }
+
     const league = await db
       .select()
       .from(leagues)
@@ -114,6 +121,13 @@ export async function DELETE(
     }
 
     // Verify league exists and user is owner
+    if (!team[0].leagueId) {
+      return NextResponse.json(
+        { success: false, error: "Offline team has no associated league" },
+        { status: 400 }
+      );
+    }
+
     const league = await db
       .select()
       .from(leagues)

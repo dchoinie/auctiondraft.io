@@ -219,6 +219,7 @@ export default function DraftPage() {
                 totalPicks: 0,
                 teams: {},
                 bidHistory: [],
+                chatMessages: [],
               };
               setDraftState(league_id as string, resetDraftState);
               useDraftedPlayersStore
@@ -339,6 +340,7 @@ export default function DraftPage() {
       totalPicks: 0,
       teams: {},
       bidHistory: [],
+      chatMessages: [],
     };
     
     // Update local state immediately

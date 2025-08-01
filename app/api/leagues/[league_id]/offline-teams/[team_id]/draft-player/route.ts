@@ -95,7 +95,8 @@ export async function POST(
     }
 
     // Check if team has enough budget
-    if (draftPrice > offlineTeam[0].budget) {
+    const team = offlineTeam[0];
+    if (!team || !team.budget || draftPrice > team.budget) {
       return NextResponse.json(
         { success: false, error: "Team does not have enough budget" },
         { status: 400 }
@@ -114,22 +115,30 @@ export async function POST(
       })
       .returning();
 
+    if (!draftedPlayer[0]) {
+      return NextResponse.json(
+        { success: false, error: "Failed to create drafted player record" },
+        { status: 500 }
+      );
+    }
+
     // Update team budget
     await db
       .update(offlineTeams)
-      .set({ budget: offlineTeam[0].budget - draftPrice })
+      .set({ budget: team.budget! - draftPrice })
       .where(eq(offlineTeams.id, teamId));
 
+    const draftedPlayerRecord = draftedPlayer[0];
     return NextResponse.json({
       success: true,
       draftedPlayer: {
-        id: draftedPlayer[0].id,
-        teamId: draftedPlayer[0].teamId,
-        playerId: draftedPlayer[0].playerId,
-        leagueId: draftedPlayer[0].leagueId,
-        draftPrice: draftedPlayer[0].draftPrice,
-        teamType: draftedPlayer[0].teamType,
-        createdAt: draftedPlayer[0].createdAt.toISOString(),
+        id: draftedPlayerRecord.id,
+        teamId: draftedPlayerRecord.teamId,
+        playerId: draftedPlayerRecord.playerId,
+        leagueId: draftedPlayerRecord.leagueId,
+        draftPrice: draftedPlayerRecord.draftPrice,
+        teamType: draftedPlayerRecord.teamType,
+        createdAt: draftedPlayerRecord.createdAt?.toISOString() || new Date().toISOString(),
       },
     });
   } catch (error) {

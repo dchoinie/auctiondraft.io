@@ -83,21 +83,31 @@ export async function GET(
         )
       );
 
+    const leagueData = league[0];
+    const teamData = offlineTeam[0];
+    
+    if (!leagueData || !teamData) {
+      return NextResponse.json(
+        { success: false, error: "League or team data not found" },
+        { status: 404 }
+      );
+    }
+
     // Calculate roster information
     const rosterInfo = calculateRosterInfo({
-      qbSlots: league[0].qbSlots,
-      rbSlots: league[0].rbSlots,
-      wrSlots: league[0].wrSlots,
-      teSlots: league[0].teSlots,
-      flexSlots: league[0].flexSlots,
-      dstSlots: league[0].dstSlots,
-      kSlots: league[0].kSlots,
-      benchSlots: league[0].benchSlots,
+      qbSlots: leagueData.qbSlots || 0,
+      rbSlots: leagueData.rbSlots || 0,
+      wrSlots: leagueData.wrSlots || 0,
+      teSlots: leagueData.teSlots || 0,
+      flexSlots: leagueData.flexSlots || 0,
+      dstSlots: leagueData.dstSlots || 0,
+      kSlots: leagueData.kSlots || 0,
+      benchSlots: leagueData.benchSlots || 0,
     });
 
     // Calculate remaining budget
     const totalSpent = draftedPlayersList.reduce((sum, player) => sum + player.draftPrice, 0);
-    const remainingBudget = offlineTeam[0].budget - totalSpent;
+    const remainingBudget = (teamData.budget || 0) - totalSpent;
 
     // Calculate roster spots filled by position
     const positionCounts = {
@@ -122,18 +132,18 @@ export async function GET(
       success: true,
       roster: {
         team: {
-          id: offlineTeam[0].id,
-          name: offlineTeam[0].name,
-          budget: offlineTeam[0].budget,
+          id: teamData.id,
+          name: teamData.name,
+          budget: teamData.budget || 0,
           remainingBudget,
-          draftOrder: offlineTeam[0].draftOrder,
+          draftOrder: teamData.draftOrder,
         },
         rosterInfo,
         draftedPlayers: draftedPlayersList.map((player) => ({
           id: player.id,
           playerId: player.playerId,
           draftPrice: player.draftPrice,
-          createdAt: player.createdAt.toISOString(),
+          createdAt: player.createdAt?.toISOString() || new Date().toISOString(),
           player: {
             firstName: player.firstName,
             lastName: player.lastName,

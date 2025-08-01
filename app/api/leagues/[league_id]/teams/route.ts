@@ -169,6 +169,16 @@ export async function POST(
       );
     }
 
+    const leagueData = league[0];
+    const ownerData = owner[0];
+    
+    if (!leagueData || !ownerData) {
+      return NextResponse.json(
+        { success: false, error: "League or owner data not found" },
+        { status: 500 }
+      );
+    }
+
     // Create the team
     const newTeam = await db
       .insert(teams)
@@ -176,17 +186,25 @@ export async function POST(
         name: name.trim(),
         ownerId: ownerId,
         leagueId: leagueId,
-        budget: league[0].startingBudget || 200,
+        budget: leagueData.startingBudget || 200,
       })
       .returning();
+
+    const teamData = newTeam[0];
+    if (!teamData) {
+      return NextResponse.json(
+        { success: false, error: "Failed to create team" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       team: {
-        ...newTeam[0],
-        ownerFirstName: owner[0].firstName,
-        ownerLastName: owner[0].lastName,
-        ownerEmail: owner[0].email,
+        ...teamData,
+        ownerFirstName: ownerData.firstName,
+        ownerLastName: ownerData.lastName,
+        ownerEmail: ownerData.email,
       },
       message: "Team created successfully",
     });
