@@ -43,7 +43,7 @@ export async function GET() {
         firstName: user?.firstName,
         lastName: user?.lastName
       },
-      database: {
+      databaseUser: {
         userExists: !!dbUser,
         user: dbUser
       }
