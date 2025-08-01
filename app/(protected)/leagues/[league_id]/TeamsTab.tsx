@@ -175,6 +175,17 @@ export function TeamsTab(props: TeamsTabProps) {
   // Check if league is in offline mode
   const isOfflineMode = settings?.draftMode === "offline";
 
+  // Debug logging
+  console.log("🔍 TeamsTab Debug:", {
+    userId: user?.id,
+    teams: teams.map(t => ({ id: t.id, name: t.name, ownerId: t.ownerId })),
+    userHasTeam,
+    isOwner,
+    isOfflineMode,
+    shouldShowPrompt: isOwner && !userHasTeam,
+    shouldShowOfflinePrompt: isOfflineMode && isOwner && !userHasTeam
+  });
+
   // Fetch offline teams when in offline mode
   useEffect(() => {
     if (isOfflineMode && settings?.id) {
@@ -697,7 +708,7 @@ export function TeamsTab(props: TeamsTabProps) {
       ) : (
         <>
           {/* Admin Team Creation Section for Live Mode */}
-          {!isOfflineMode && isOwner && !userHasTeam && (
+          {isOwner && !userHasTeam && (
             <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-yellow-200">
