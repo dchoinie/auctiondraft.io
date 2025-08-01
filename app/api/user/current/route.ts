@@ -1,57 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getUserFromDatabase } from "@/lib/userSync";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth();
 
     if (!userId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Not authenticated",
-        },
+        { error: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    const user = await getUserFromDatabase(userId);
-
-    if (!user) {
+    // Get user from Clerk
+    const clerkUser = await currentUser();
+    
+    if (!clerkUser) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "User not found",
-        },
-        { status: 404 }
+        { error: "Failed to get user data" },
+        { status: 500 }
       );
     }
 
-    // Get admin status from Clerk metadata
-    const clerk = await clerkClient();
-    const clerkUser = await clerk.users.getUser(userId);
-    const isAdmin = clerkUser.privateMetadata?.isAdmin === true;
+    // Get user from database
+    const dbUser = await getUserFromDatabase(userId);
 
     return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        leagueCredits: user.leagueCredits || 0,
-        stripeCustomerId: user.stripeCustomerId,
-        stripeSubscriptionId: user.stripeSubscriptionId,
-        isAdmin,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      id: userId,
+      email: clerkUser.emailAddresses?.[0]?.emailAddress,
+      firstName: clerkUser.firstName,
+      lastName: clerkUser.lastName,
+      // Include database user data if it exists
+      leagueCredits: dbUser?.leagueCredits || 0,
+      stripeCustomerId: dbUser?.stripeCustomerId,
+      stripeSubscriptionId: dbUser?.stripeSubscriptionId,
+      // Flag to indicate if user exists in database
+      existsInDatabase: !!dbUser,
     });
   } catch (error) {
-    console.error("Error fetching current user:", error);
+    console.error("Error in /api/user/current:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch user data" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
