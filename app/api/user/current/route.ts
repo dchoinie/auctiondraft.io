@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { getUserFromDatabase } from "@/lib/userSync";
+import { getUserFromDatabase, syncClerkUserToDatabase } from "@/lib/userSync";
 
 export async function GET() {
   try {
@@ -8,7 +8,7 @@ export async function GET() {
 
     if (!userId) {
       return NextResponse.json(
-        { error: "Not authenticated" },
+        { success: false, error: "Not authenticated" },
         { status: 401 }
       );
     }
@@ -18,30 +18,59 @@ export async function GET() {
     
     if (!clerkUser) {
       return NextResponse.json(
-        { error: "Failed to get user data" },
+        { success: false, error: "Failed to get user data" },
         { status: 500 }
       );
     }
 
     // Get user from database
-    const dbUser = await getUserFromDatabase(userId);
+    let dbUser = await getUserFromDatabase(userId);
 
+    // If user doesn't exist in database, sync them using the same logic as /api/sync-user
+    if (!dbUser) {
+      console.log("🔄 User not found in database, syncing...");
+      try {
+        // Use the same logic as /api/sync-user endpoint
+        const clerkUserData = {
+          id: userId,
+          email_addresses: clerkUser.emailAddresses?.map((email) => ({
+            email_address: email.emailAddress,
+          })) || [],
+          first_name: clerkUser.firstName || null,
+          last_name: clerkUser.lastName || null,
+        };
+        
+        await syncClerkUserToDatabase(clerkUserData);
+        console.log("✅ User synced successfully");
+        
+        // Fetch the user again after sync
+        dbUser = await getUserFromDatabase(userId);
+      } catch (syncError) {
+        console.error("❌ Error syncing user:", syncError);
+        // Continue without database user data
+      }
+    }
+
+    // Return user data
     return NextResponse.json({
-      id: userId,
-      email: clerkUser.emailAddresses?.[0]?.emailAddress,
-      firstName: clerkUser.firstName,
-      lastName: clerkUser.lastName,
-      // Include database user data if it exists
-      leagueCredits: dbUser?.leagueCredits || 0,
-      stripeCustomerId: dbUser?.stripeCustomerId,
-      stripeSubscriptionId: dbUser?.stripeSubscriptionId,
-      // Flag to indicate if user exists in database
-      existsInDatabase: !!dbUser,
+      success: true,
+      user: {
+        id: userId,
+        email: clerkUser.emailAddresses?.[0]?.emailAddress,
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        leagueCredits: dbUser?.leagueCredits || 0,
+        stripeCustomerId: dbUser?.stripeCustomerId,
+        stripeSubscriptionId: dbUser?.stripeSubscriptionId,
+        isAdmin: false, // Default to false
+        createdAt: dbUser?.createdAt?.toISOString(),
+        updatedAt: dbUser?.updatedAt?.toISOString(),
+      },
     });
   } catch (error) {
     console.error("Error in /api/user/current:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
