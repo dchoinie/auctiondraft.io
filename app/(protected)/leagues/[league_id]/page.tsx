@@ -16,6 +16,7 @@ import { RostersTab } from "./RostersTab";
 import { SettingsTab } from "./SettingsTab";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Tab {
   value: string;
@@ -230,7 +231,7 @@ export default function LeaguePage() {
         setInviteEmail("");
         // Refresh invitations list
         fetchPendingInvitations();
-        alert(
+        toast.success(
           `Invitation email sent to ${inviteEmail.trim()}! They will receive an email with a link to join the league.`
         );
       } else {
@@ -259,12 +260,12 @@ export default function LeaguePage() {
         );
         setShowCancelDialog(false);
         setInvitationToCancel(null);
-        alert(`Invitation to ${invitationToCancel.email} has been cancelled.`);
+        toast.success(`Invitation to ${invitationToCancel.email} has been cancelled.`);
       } else {
-        alert(`Failed to cancel invitation: ${data.error}`);
+        toast.error(`Failed to cancel invitation: ${data.error}`);
       }
     } catch (error) {
-      alert("Failed to cancel invitation. Please try again.");
+      toast.error("Failed to cancel invitation. Please try again.");
     } finally {
       setCancellingInvitation(null);
     }

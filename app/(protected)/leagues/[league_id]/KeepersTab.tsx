@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/stores/userStore";
 import { useParams } from "next/navigation";
 import { useLeagueStore } from "@/stores/leagueStore";
+import { toast } from "sonner";
 
 interface KeepersTabProps {
   leagueId: string;
@@ -122,10 +123,12 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
     try {
       const success = await deleteKeeper(keeperId);
       if (!success) {
-        alert("Failed to delete keeper");
+        toast.error("Failed to delete keeper");
+      } else {
+        toast.success("Keeper deleted successfully!");
       }
     } catch {
-      alert("Failed to delete keeper");
+      toast.error("Failed to delete keeper");
     }
   };
 
@@ -153,13 +156,16 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
         })
       );
       setSuccess("Keepers saved successfully!");
+      toast.success("Keepers saved successfully!");
       // Clear selections after successful save
       setKeeperSelections({});
     } catch (e: unknown) {
       if (e instanceof Error) {
         setError(e.message);
+        toast.error(e.message);
       } else {
         setError("Failed to save keepers");
+        toast.error("Failed to save keepers");
       }
     } finally {
       setSaving(false);

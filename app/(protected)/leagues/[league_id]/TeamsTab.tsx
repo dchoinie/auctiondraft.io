@@ -46,6 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RosterInfo } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface TeamsTabProps {
   cancellingInvitation: string | null;
@@ -137,7 +138,6 @@ export function TeamsTab(props: TeamsTabProps) {
   } = props;
 
   const { league_id } = useParams();
-  const { userId } = useAuth();
   const { user } = useUser();
   const { createTeam, updateTeam, fetchTeams } = useLeagueTeams(settings?.id);
   const { teams: offlineTeams, loading: offlineTeamsLoading, error: offlineTeamsError, fetchTeams: fetchOfflineTeams, createTeam: createOfflineTeam, deleteTeam: deleteOfflineTeam, updateTeam: updateOfflineTeam, deleteAllTeams: deleteAllOfflineTeams } = useOfflineTeamStore();
@@ -200,8 +200,7 @@ export function TeamsTab(props: TeamsTabProps) {
       if (success) {
         setShowCreateTeamDialog(false);
         setTeamName("");
-        // Show success message
-        alert("Team created successfully!");
+        toast.success("Team created successfully!");
       } else {
         setCreateTeamError("Failed to create team. Please try again.");
       }
@@ -235,8 +234,7 @@ export function TeamsTab(props: TeamsTabProps) {
       if (success) {
         setShowCreateOfflineTeamDialog(false);
         setOfflineTeamName("");
-        // Show success message
-        alert("Offline team created successfully!");
+        toast.success("Offline team created successfully!");
       } else {
         setCreateOfflineTeamError("Failed to create offline team. Please try again.");
       }
@@ -277,12 +275,12 @@ export function TeamsTab(props: TeamsTabProps) {
       const success = await deleteAllOfflineTeams(settings.id);
       if (success) {
         setShowBulkDeleteDialog(false);
-        alert(`Successfully deleted all ${offlineTeams.length} offline teams!`);
+        toast.success(`Successfully deleted all ${offlineTeams.length} offline teams!`);
       } else {
-        alert("Failed to delete offline teams. Please try again.");
+        toast.error("Failed to delete offline teams. Please try again.");
       }
     } catch (error) {
-      alert("An unexpected error occurred while deleting teams.");
+      toast.error("An unexpected error occurred while deleting teams.");
     } finally {
       setIsBulkDeleting(false);
     }
@@ -319,10 +317,10 @@ export function TeamsTab(props: TeamsTabProps) {
       await fetchOfflineTeams(settings.id);
       await fetchTeams(); // Refresh regular teams from the store
       
-      alert("Draft order randomized successfully!");
+      toast.success("Draft order randomized successfully!");
     } catch (error) {
       console.error("Error randomizing draft order:", error);
-      alert("Failed to randomize draft order. Please try again.");
+      toast.error("Failed to randomize draft order. Please try again.");
     }
   };
 
