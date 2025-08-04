@@ -297,6 +297,8 @@ export function TeamsTab(props: TeamsTabProps) {
     }
   };
 
+
+
   const handleRandomizeDraftOrder = async () => {
     if (!settings?.id) return;
 
@@ -430,6 +432,37 @@ export function TeamsTab(props: TeamsTabProps) {
       ) : isOfflineMode ? (
         // Offline Draft Mode UI
         <div className="space-y-6">
+          {/* Admin Team Creation Section for Offline Mode */}
+          {isOwner && !userHasTeam && (
+            <Card className="bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-200">
+                  <Crown className="h-5 w-5" />
+                  Create Your Team
+                </CardTitle>
+                <CardDescription className="text-yellow-100/80">
+                  As the league admin, you need to create your own team to participate in the league.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-100 mb-2">
+                      You haven&apos;t created your team yet. Click the button below to create your team and start participating in the league.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowCreateTeamDialog(true)}
+                    className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create My Team
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Drag and Drop Instructions */}
           <div className="p-4 bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
@@ -708,7 +741,7 @@ export function TeamsTab(props: TeamsTabProps) {
       ) : (
         <>
           {/* Admin Team Creation Section for Live Mode */}
-          {isOwner && !userHasTeam && (
+          {!isOfflineMode && isOwner && !userHasTeam && (
             <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-yellow-200">
@@ -790,40 +823,6 @@ export function TeamsTab(props: TeamsTabProps) {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Admin Team Creation Section for Offline Mode */}
-          {isOfflineMode && isOwner && !userHasTeam && (
-            <Card className="mb-6 bg-gradient-to-br from-yellow-900/90 to-yellow-700/90 border-2 border-yellow-400">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-yellow-200">
-                  <Crown className="h-5 w-5" />
-                  Create Your Team
-                </CardTitle>
-                <CardDescription className="text-yellow-100/80">
-                  As the league admin, you need to create your own team to participate in the league.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-yellow-100 mb-2">
-                      You haven&apos;t created your team yet. Click the button below to create your team and start participating in the league.
-                    </p>
-                    <p className="text-sm text-yellow-200/70">
-                      Starting budget: ${settings.startingBudget || 200}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => setShowCreateTeamDialog(true)}
-                    className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create My Team
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -1309,6 +1308,246 @@ export function TeamsTab(props: TeamsTabProps) {
               </Card>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Team Dialog */}
+      <Dialog open={showCreateTeamDialog} onOpenChange={setShowCreateTeamDialog}>
+        <DialogContent className="bg-gradient-to-br from-yellow-900/90 to-gray-900/90 border-2 border-yellow-400 text-yellow-100">
+          <DialogHeader>
+            <DialogTitle>Create Your Team</DialogTitle>
+            <DialogDescription className="text-yellow-200/80">
+              Create your team to participate in the league.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="teamName" className="text-yellow-200">
+                Team Name
+              </Label>
+              <Input
+                id="teamName"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Enter your team name"
+                className="bg-gray-900/80 border-yellow-700 text-yellow-100 placeholder:text-yellow-200/50"
+              />
+            </div>
+            {createTeamError && (
+              <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-100">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{createTeamError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateTeamDialog(false)}
+                className="border-yellow-700 text-yellow-200 hover:bg-yellow-900/30"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateTeam}
+                disabled={isCreatingTeam || !teamName.trim()}
+                className="bg-gradient-to-br from-yellow-800/80 to-yellow-600/80 border-2 border-yellow-300 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+              >
+                {isCreatingTeam ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Team
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Offline Team Dialog */}
+      <Dialog open={showCreateOfflineTeamDialog} onOpenChange={setShowCreateOfflineTeamDialog}>
+        <DialogContent className="bg-gradient-to-br from-blue-900/90 to-gray-900/90 border-2 border-blue-400 text-blue-100">
+          <DialogHeader>
+            <DialogTitle>Add Offline Team</DialogTitle>
+            <DialogDescription className="text-blue-200/80">
+              Create an offline team for the draft.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="offlineTeamName" className="text-blue-200">
+                Team Name
+              </Label>
+              <Input
+                id="offlineTeamName"
+                value={offlineTeamName}
+                onChange={(e) => setOfflineTeamName(e.target.value)}
+                placeholder="Enter team name"
+                className="bg-gray-900/80 border-blue-700 text-blue-100 placeholder:text-blue-200/50"
+              />
+            </div>
+            <div className="text-sm text-blue-200/70">
+              Starting Budget: ${settings?.startingBudget || 200}
+            </div>
+            {createOfflineTeamError && (
+              <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-100">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{createOfflineTeamError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateOfflineTeamDialog(false)}
+                className="border-blue-700 text-blue-200 hover:bg-blue-900/30"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateOfflineTeam}
+                disabled={isCreatingOfflineTeam || !offlineTeamName.trim()}
+                className="bg-gradient-to-br from-blue-800/80 to-blue-600/80 border-2 border-blue-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+              >
+                {isCreatingOfflineTeam ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Team
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent className="bg-gradient-to-br from-red-900/90 to-gray-900/90 border-2 border-red-400 text-red-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Offline Teams</AlertDialogTitle>
+            <AlertDialogDescription className="text-red-200/80">
+              Are you sure you want to delete all offline teams? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-red-700 text-red-200 hover:bg-red-900/30">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-gradient-to-br from-red-800/80 to-red-600/80 border-2 border-red-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete All Teams"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Invitation Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent className="bg-gradient-to-br from-orange-900/90 to-gray-900/90 border-2 border-orange-400 text-orange-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
+            <AlertDialogDescription className="text-orange-200/80">
+              Are you sure you want to cancel the invitation to {invitationToCancel?.email}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-orange-700 text-orange-200 hover:bg-orange-900/30">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelInvitation}
+              disabled={cancellingInvitation === invitationToCancel?.id}
+              className="bg-gradient-to-br from-orange-800/80 to-orange-600/80 border-2 border-orange-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+            >
+              {cancellingInvitation === invitationToCancel?.id ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Cancel Invitation"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send Invitation Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent className="bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-400 text-emerald-100">
+          <DialogHeader>
+            <DialogTitle>Send Invitation</DialogTitle>
+            <DialogDescription className="text-emerald-200/80">
+              Invite someone to join your league by sending them an email invitation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="inviteEmail" className="text-emerald-200">
+                Email Address
+              </Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Enter email address"
+                className="bg-gray-900/80 border-emerald-700 text-emerald-100 placeholder:text-emerald-200/50"
+              />
+            </div>
+            {inviteError && (
+              <Alert variant="destructive" className="bg-red-900/80 border-red-700 text-red-100">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{inviteError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowInviteDialog(false)}
+                className="border-emerald-700 text-emerald-200 hover:bg-emerald-900/30"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendInvitation}
+                disabled={isSendingInvite || !inviteEmail.trim()}
+                className="bg-gradient-to-br from-emerald-800/80 to-emerald-600/80 border-2 border-emerald-400 shadow-md hover:shadow-xl text-gray-50 hover:text-gray-300"
+              >
+                {isSendingInvite ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Invitation
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -93,19 +93,19 @@ export default function SoundManager({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <Button
         variant="ghost"
         size="sm"
         onClick={toggleSpeech}
-        className={`p-2 rounded-full ${
+        className={`p-1.5 sm:p-2 rounded-full ${
           speechEnabled
             ? "bg-green-900/60 text-green-300 border-green-400"
             : "bg-gray-900/60 text-gray-400 border-gray-600"
         } border`}
         title={speechEnabled ? "Disable speech" : "Enable speech"}
       >
-        {speechEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        {speechEnabled ? <Volume2 size={14} className="sm:w-4 sm:h-4" /> : <VolumeX size={14} className="sm:w-4 sm:h-4" />}
       </Button>
 
       {speechEnabled && (
@@ -113,14 +113,14 @@ export default function SoundManager({
           variant="ghost"
           size="sm"
           onClick={toggleMute}
-          className={`p-2 rounded-full ${
+          className={`p-1.5 sm:p-2 rounded-full ${
             !isMuted
               ? "bg-blue-900/60 text-blue-300 border-blue-400"
               : "bg-red-900/60 text-red-300 border-red-400"
           } border`}
           title={isMuted ? "Unmute" : "Mute"}
         >
-          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {isMuted ? <VolumeX size={14} className="sm:w-4 sm:h-4" /> : <Volume2 size={14} className="sm:w-4 sm:h-4" />}
         </Button>
       )}
     </div>

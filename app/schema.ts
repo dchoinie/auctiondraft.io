@@ -118,7 +118,7 @@ export const payments = pgTable("payments", {
 export const keepers = pgTable("keepers", {
   id: uuid("id").primaryKey().defaultRandom(),
   leagueId: uuid("league_id").references(() => leagues.id),
-  teamId: uuid("team_id").references(() => teams.id),
+  teamId: uuid("team_id"), // Can reference either teams.id or offlineTeams.id
   playerId: uuid("player_id").references(() => nflPlayers.id),
   keeperPrice: integer("keeper_price").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

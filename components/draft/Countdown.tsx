@@ -98,26 +98,26 @@ export default function Countdown({
               repeatType: "reverse",
             },
           }}
-          className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 flex justify-center items-center"
+          className="fixed top-12 sm:top-16 left-1/2 transform -translate-x-1/2 z-50 flex justify-center items-center"
           style={{ pointerEvents: "none" }}
         >
           {/* Glow effect */}
-          <div className="absolute inset-0 blur-2xl opacity-50">
+          <div className="absolute inset-0 blur-xl sm:blur-2xl opacity-50">
             <div
-              className={`w-full h-full rounded-3xl ${phaseColors[auctionPhase].split(" ")[0]} ${phaseColors[auctionPhase].split(" ")[1]}`}
+              className={`w-full h-full rounded-2xl sm:rounded-3xl ${phaseColors[auctionPhase].split(" ")[0]} ${phaseColors[auctionPhase].split(" ")[1]}`}
             />
           </div>
 
           {/* Main countdown box */}
           <motion.div
-            className={`relative border-4 rounded-3xl px-16 py-10 shadow-2xl text-5xl font-black tracking-wider select-none ${phaseColors[auctionPhase]} backdrop-blur-sm`}
+            className={`relative border-2 sm:border-4 rounded-2xl sm:rounded-3xl px-8 sm:px-12 lg:px-16 py-6 sm:py-8 lg:py-10 shadow-xl sm:shadow-2xl text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-wider select-none ${phaseColors[auctionPhase]} backdrop-blur-sm`}
             style={{
-              boxShadow: `0 0 40px ${auctionPhase === "goingOnce" ? "#fbbf24" : auctionPhase === "goingTwice" ? "#fb923c" : "#ef4444"}40`,
+              boxShadow: `0 0 20px sm:0 0 40px ${auctionPhase === "goingOnce" ? "#fbbf24" : auctionPhase === "goingTwice" ? "#fb923c" : "#ef4444"}40`,
             }}
           >
             {/* Animated border */}
             <motion.div
-              className="absolute inset-0 rounded-3xl border-4 border-white/30"
+              className="absolute inset-0 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-white/30"
               animate={{
                 scale: [1, 1.05, 1],
                 opacity: [0.3, 0.6, 0.3],
@@ -149,7 +149,7 @@ export default function Countdown({
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="text-3xl font-bold mt-2 text-white/90"
+                  className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1 sm:mt-2 text-white/90"
                 >
                   {timeLeft}s
                 </motion.div>
@@ -162,7 +162,7 @@ export default function Countdown({
                 {[...Array(8)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="absolute w-2 h-2 bg-yellow-300 rounded-full"
+                    className="absolute w-1.5 sm:w-2 h-1.5 sm:h-2 bg-yellow-300 rounded-full"
                     initial={{
                       x: 0,
                       y: 0,
@@ -170,8 +170,8 @@ export default function Countdown({
                       scale: 0,
                     }}
                     animate={{
-                      x: Math.cos((i * 45 * Math.PI) / 180) * 100,
-                      y: Math.sin((i * 45 * Math.PI) / 180) * 100,
+                      x: Math.cos((i * 45 * Math.PI) / 180) * (60 + (window.innerWidth > 640 ? 40 : 0)),
+                      y: Math.sin((i * 45 * Math.PI) / 180) * (60 + (window.innerWidth > 640 ? 40 : 0)),
                       opacity: 0,
                       scale: 1,
                     }}

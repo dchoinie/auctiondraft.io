@@ -2,15 +2,17 @@ import { useState, useEffect } from "react";
 import { useLeagueTeams } from "@/stores/teamStore";
 import { useLeagueKeepers, Keeper } from "@/stores/keepersStore";
 import { usePlayers, Player } from "@/stores/playersStore";
+import { useOfflineTeamStore, OfflineTeam } from "@/stores/offlineTeamStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Trash2, Shield, Loader2 } from "lucide-react";
+import { Save, Trash2, Shield, Loader2, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/stores/userStore";
 import { useParams } from "next/navigation";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface KeepersTabProps {
   leagueId: string;
@@ -25,6 +27,9 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
   // Check if user is league admin
   const isAdmin = user?.id === league?.ownerId;
 
+  // Check if league is in offline mode
+  const isOfflineMode = league?.settings?.draftMode === "offline";
+
   // All hooks must be called before any conditional returns
   const { teams, loading: teamsLoading } = useLeagueTeams(leagueId);
   const {
@@ -37,23 +42,50 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
     players,
     loading: playersLoading,
     fetchPlayersPage,
+    error: playersError,
   } = usePlayers(1, 1000);
+  const { 
+    teams: offlineTeams, 
+    loading: offlineTeamsLoading, 
+    fetchTeams: fetchOfflineTeams 
+  } = useOfflineTeamStore();
+  
   const [keeperSelections, setKeeperSelections] = useState<{
     [teamId: string]: Array<{ playerId: string; amount: string }>;
   }>({});
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   // Fetch all players on mount if not already loaded
   useEffect(() => {
     if (players.length === 0 && !playersLoading) {
+      console.log("KeepersTab: Fetching players...");
       fetchPlayersPage();
     }
   }, [players, playersLoading, fetchPlayersPage]);
 
+  // Fetch offline teams when in offline mode
+  useEffect(() => {
+    if (isOfflineMode && leagueId) {
+      fetchOfflineTeams(leagueId);
+    }
+  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
+
+  // Debug effect to log player data
+  useEffect(() => {
+    console.log("KeepersTab Debug:", {
+      playersCount: players.length,
+      playersLoading,
+      playersError,
+      firstFewPlayers: players.slice(0, 3).map(p => `${p.firstName} ${p.lastName} (${p.position})`)
+    });
+    setDebugInfo(`Players loaded: ${players.length}, Loading: ${playersLoading}, Error: ${playersError || 'none'}`);
+  }, [players, playersLoading, playersError]);
+
   // Show loading state while data is being fetched
-  if (teamsLoading || keepersLoading || playersLoading) {
+  if (teamsLoading || keepersLoading || playersLoading || (isOfflineMode && offlineTeamsLoading)) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="text-center">
@@ -80,6 +112,12 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
       </div>
     );
   }
+
+  // Combine regular teams and offline teams
+  const allTeams = [
+    ...teams.map(team => ({ ...team, isOffline: false })),
+    ...offlineTeams.map(team => ({ ...team, isOffline: true }))
+  ];
 
   const handleSelectChange = (
     teamId: string,
@@ -136,37 +174,85 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
     setSaving(true);
     setSuccess(null);
     setError(null);
+    
     try {
-      const results = await Promise.all(
-        teams.flatMap((team) => {
-          const selections = keeperSelections[team.id] || [];
-          return selections
-            .filter((sel) => sel.playerId && sel.amount)
-            .map(async (selection) => {
-              const success = await createKeeper({
-                team_id: team.id,
-                league_id: leagueId,
-                player_id: selection.playerId,
-                amount: Number(selection.amount),
-              });
-              if (!success)
-                throw new Error(`Failed to save keeper for ${team.name}`);
-              return success;
+      // Collect all keeper operations
+      const keeperOperations: Array<{
+        team: any;
+        selection: { playerId: string; amount: string };
+        operation: Promise<boolean>;
+      }> = [];
+
+      // Build all keeper operations
+      allTeams.forEach((team) => {
+        const selections = keeperSelections[team.id] || [];
+        selections
+          .filter((sel) => sel.playerId && sel.amount)
+          .forEach((selection) => {
+            console.log(`Adding keeper operation for team ${team.name}:`, {
+              team_id: team.id,
+              league_id: leagueId,
+              player_id: selection.playerId,
+              amount: Number(selection.amount),
             });
-        })
-      );
-      setSuccess("Keepers saved successfully!");
-      toast.success("Keepers saved successfully!");
-      // Clear selections after successful save
-      setKeeperSelections({});
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        setError(e.message);
-        toast.error(e.message);
-      } else {
-        setError("Failed to save keepers");
-        toast.error("Failed to save keepers");
+            
+            const operation = createKeeper({
+              team_id: team.id,
+              league_id: leagueId,
+              player_id: selection.playerId,
+              amount: Number(selection.amount),
+            });
+            
+            keeperOperations.push({
+              team,
+              selection,
+              operation,
+            });
+          });
+      });
+
+      console.log(`Total keeper operations to execute: ${keeperOperations.length}`);
+
+      if (keeperOperations.length === 0) {
+        setError("No keepers to save");
+        toast.error("No keepers to save");
+        return;
       }
+
+      // Execute all operations and track results
+      console.log("Starting to execute keeper operations...");
+      const results = await Promise.allSettled(
+        keeperOperations.map((op) => op.operation)
+      );
+      console.log("Keeper operations completed. Results:", results);
+
+      // Analyze results
+      const successful = results.filter((result) => result.status === "fulfilled" && result.value).length;
+      const failed = results.filter((result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value)).length;
+
+      console.log(`Analysis: ${successful} successful, ${failed} failed`);
+
+      if (failed === 0) {
+        // All keepers saved successfully
+        setSuccess(`All ${successful} keepers saved successfully!`);
+        toast.success(`All ${successful} keepers saved successfully!`);
+        setKeeperSelections({});
+      } else if (successful > 0) {
+        // Some keepers saved, some failed
+        const errorMessage = `${successful} keepers saved, ${failed} failed to save`;
+        setSuccess(errorMessage);
+        toast.success(errorMessage);
+        setKeeperSelections({});
+      } else {
+        // All keepers failed
+        const errorMessage = "Failed to save any keepers (" + failed + " attempts)";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Failed to save keepers";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -193,7 +279,28 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
 
   return (
     <div className="space-y-8">
-      {teams.map((team) => {
+      {/* Debug Information */}
+      {debugInfo && (
+        <Alert className="bg-blue-900/80 border-blue-700 text-blue-100">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Debug: {debugInfo}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* No Players Warning */}
+      {players.length === 0 && !playersLoading && (
+        <Alert className="bg-yellow-900/80 border-yellow-700 text-yellow-100">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No NFL players found in the database. This may indicate that the player database hasn&apos;t been seeded yet. 
+            Please contact an administrator to seed the NFL players data.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {allTeams.map((team) => {
         const teamKeepers = existingKeepers.filter(
           (k: Keeper) => k.teamId === team.id
         );
@@ -203,11 +310,17 @@ export function KeepersTab({ leagueId }: KeepersTabProps) {
             : [{ playerId: "", amount: "" }];
         return (
           <div key={team.id} className="border-b pb-6 mb-6">
-            <div className="font-semibold text-emerald-300">
+            <div className="font-semibold text-emerald-300 flex items-center gap-2">
               {team.name}
-              {team.ownerFirstName && team.ownerLastName
-                ? ` - ${team.ownerFirstName} ${team.ownerLastName}`
-                : ""}
+              {team.isOffline ? (
+                <span className="text-xs bg-blue-900/80 text-blue-200 px-2 py-1 rounded">
+                  Offline Team
+                </span>
+              ) : (
+                !team.isOffline && 'ownerFirstName' in team && 'ownerLastName' in team && team.ownerFirstName && team.ownerLastName
+                  ? ` - ${team.ownerFirstName} ${team.ownerLastName}`
+                  : ""
+              )}
             </div>
             {teamKeepers.length > 0 && (
               <div className="mb-2">

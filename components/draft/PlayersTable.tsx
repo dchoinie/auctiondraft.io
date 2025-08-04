@@ -67,10 +67,10 @@ const PlayerRow = React.memo(function PlayerRow({
 
   return (
     <TableRow key={player.id}>
-      <TableCell className="text-xs sm:text-sm">{player.firstName}</TableCell>
-      <TableCell className="text-xs sm:text-sm">{player.lastName}</TableCell>
-      <TableCell className="text-xs sm:text-sm">{player.position}</TableCell>
-      <TableCell className="text-xs sm:text-sm">
+      <TableCell className="text-xs sm:text-sm lg:text-base">{player.firstName}</TableCell>
+      <TableCell className="text-xs sm:text-sm lg:text-base">{player.lastName}</TableCell>
+      <TableCell className="text-xs sm:text-sm lg:text-base">{player.position}</TableCell>
+      <TableCell className="text-xs sm:text-sm lg:text-base">
         {player.team || "FA"}
       </TableCell>
       <TableCell>
@@ -79,18 +79,18 @@ const PlayerRow = React.memo(function PlayerRow({
             <>
               <Button
                 size="sm"
-                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 p-0"
                 onClick={() => setAmount((prev) => Math.max(minAmount, prev - 1))}
                 disabled={amount <= minAmount}
               >
-                <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+                <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 text-emerald-100" />
               </Button>
             </>
           )}
           <Button
             size="sm"
             variant="default"
-            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+            className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-xs sm:text-sm lg:text-base px-1.5 sm:px-2 lg:px-3 py-1 sm:py-1.5 lg:py-2"
             disabled={!partySocket || !user || (!isCurrentNominator)}
             onClick={() => {
               if (!partySocket || !user) return;
@@ -123,10 +123,10 @@ const PlayerRow = React.memo(function PlayerRow({
             <>
               <Button
                 size="sm"
-                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                className="bg-gray-900/80 border-gray-700 text-emerald-100 h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 p-0"
                 onClick={() => setAmount((prev) => prev + 1)}
               >
-                <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+                <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 text-emerald-100" />
               </Button>
             </>
           )}
@@ -245,33 +245,33 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
 
   if (debouncedSearch && searchLoading) {
     return (
-      <div className="p-4 sm:p-6 text-emerald-100">
+      <div className="p-3 sm:p-4 lg:p-6 text-emerald-100">
         <Loader2 className="w-4 h-4 animate-spin" />
-        Searching players...
+        <span className="text-sm sm:text-base">Searching players...</span>
       </div>
     );
   }
   if (debouncedSearch && searchError) {
-    return <div className="p-4 sm:p-6 text-red-500">Error: {searchError}</div>;
+    return <div className="p-3 sm:p-4 lg:p-6 text-red-500 text-sm sm:text-base">Error: {searchError}</div>;
   }
   if (!debouncedSearch && loading) {
     return (
-      <div className="p-4 sm:p-6">
-        <div className="p-4 sm:p-6 text-emerald-100">
+      <div className="p-3 sm:p-4 lg:p-6">
+        <div className="p-3 sm:p-4 lg:p-6 text-emerald-100">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Loading players...
+          <span className="text-sm sm:text-base">Loading players...</span>
         </div>
       </div>
     );
   }
   if (!debouncedSearch && error) {
-    return <div className="p-4 sm:p-6 text-red-500">Error: {error}</div>;
+    return <div className="p-3 sm:p-4 lg:p-6 text-red-500 text-sm sm:text-base">Error: {error}</div>;
   }
 
   return (
     <div>
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
           <div className="relative w-full sm:w-80">
             <Input
               type="text"
@@ -281,7 +281,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-10 text-sm sm:text-base"
+              className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 placeholder:text-emerald-200/50 pr-8 sm:pr-10 text-xs sm:text-sm lg:text-base"
               autoComplete="off"
               id="players-search-input"
             />
@@ -301,7 +301,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200 hover:text-emerald-400 focus:outline-none"
                 tabIndex={0}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             )}
           </div>
@@ -313,7 +313,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 text-sm sm:text-base">
+              <SelectTrigger className="w-full bg-gray-900/80 border-gray-700 text-emerald-100 text-xs sm:text-sm lg:text-base">
                 <SelectValue placeholder="Filter by position" />
               </SelectTrigger>
               <SelectContent>
@@ -332,19 +332,19 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
          <Table className="bg-gradient-to-br from-gray-900/80 to-gray-700/80 text-emerald-100 placeholder:text-emerald-200/50 shadow-md min-w-full">
            <TableHeader>
              <TableRow>
-               <TableHead className="text-gray-50 text-xs sm:text-sm">
+               <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                  First Name
                </TableHead>
-               <TableHead className="text-gray-50 text-xs sm:text-sm">
+               <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                  Last Name
                </TableHead>
-               <TableHead className="text-gray-50 text-xs sm:text-sm">
+               <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                  Position
                </TableHead>
-               <TableHead className="text-gray-50 text-xs sm:text-sm">
+               <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                  Team
                </TableHead>
-               <TableHead className="text-gray-50 text-xs sm:text-sm">
+               <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                  Actions
                </TableHead>
              </TableRow>
@@ -370,32 +370,32 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
          {draftedPlayersLoading && (
            <div className="absolute inset-0 bg-gray-900/80 flex items-center justify-center z-10">
              <div className="flex flex-col items-center gap-2">
-               <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
-               <span className="text-emerald-200 text-sm">Updating player list...</span>
+               <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-emerald-400" />
+               <span className="text-emerald-200 text-xs sm:text-sm">Updating player list...</span>
              </div>
            </div>
          )}
        </div>
 
       {filteredPlayers.length === 0 && (
-        <div className="text-center py-8 text-emerald-200">
+        <div className="text-center py-6 sm:py-8 text-emerald-200 text-sm sm:text-base">
           No players found matching your criteria.
         </div>
       )}
 
       {filteredPlayers.length > PAGE_SIZE && (
-        <div className="mt-4 flex justify-center">
+        <div className="mt-3 sm:mt-4 flex justify-center">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 text-xs sm:text-sm"
             >
               Previous
             </Button>
-            <span className="flex items-center px-3 text-emerald-200">
+            <span className="flex items-center px-2 sm:px-3 text-emerald-200 text-xs sm:text-sm">
               Page {currentPage}
             </span>
             <Button
@@ -403,7 +403,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={filteredPlayers.length <= PAGE_SIZE}
-              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 text-xs sm:text-sm"
             >
               Next
             </Button>

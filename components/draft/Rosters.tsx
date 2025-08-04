@@ -125,17 +125,17 @@ export default function Rosters() {
 
   if (teamsLoading || settingsLoading)
     return (
-      <div className="p-4 sm:p-6 text-emerald-100">Loading rosters...</div>
+      <div className="p-3 sm:p-4 lg:p-6 text-emerald-100 text-sm sm:text-base">Loading rosters...</div>
     );
   if (teamsError || settingsError)
     return (
-      <div className="p-4 sm:p-6 text-red-500">
+      <div className="p-3 sm:p-4 lg:p-6 text-red-500 text-sm sm:text-base">
         Error loading rosters: {teamsError || settingsError}
       </div>
     );
   if (!settings || (!teams.length && !offlineTeams.length))
     return (
-      <div className="p-4 sm:p-6 text-emerald-100">
+      <div className="p-3 sm:p-4 lg:p-6 text-emerald-100 text-sm sm:text-base">
         No teams or settings found.
       </div>
     );
@@ -152,7 +152,7 @@ export default function Rosters() {
   });
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
       {allTeams.map((team) => {
         const players = teamPlayers[team.id] || [];
         const assigned = assignPlayersToSlots(slots, players, getPlayerById);
@@ -161,23 +161,23 @@ export default function Rosters() {
             key={team.id}
             className="h-full bg-gradient-to-br from-emerald-900/90 to-gray-900/90 border-2 border-emerald-800 text-emerald-100"
           >
-            <CardHeader className="pb-3 sm:pb-4">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
+            <CardHeader className="pb-2 sm:pb-3 lg:pb-4">
+              <CardTitle className="text-sm sm:text-base lg:text-lg xl:text-xl">
                 {team.name}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-1 sm:p-2 lg:p-4">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-gray-50 text-xs sm:text-sm">
+                      <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                         Slot
                       </TableHead>
-                      <TableHead className="text-gray-50 text-xs sm:text-sm">
+                      <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                         Player
                       </TableHead>
-                      <TableHead className="text-gray-50 text-xs sm:text-sm">
+                      <TableHead className="text-gray-50 text-xs sm:text-sm lg:text-base">
                         Price
                       </TableHead>
                     </TableRow>
@@ -187,10 +187,10 @@ export default function Rosters() {
                       const player = assigned[i];
                       return (
                         <TableRow key={i}>
-                          <TableCell className="font-semibold text-xs sm:text-sm">
+                          <TableCell className="font-semibold text-xs sm:text-sm lg:text-base">
                             {slot}
                           </TableCell>
-                          <TableCell className="text-xs sm:text-sm">
+                          <TableCell className="text-xs sm:text-sm lg:text-base">
                             {player ? (
                               <span className="font-medium text-emerald-300">
                                 {player.playerFirstName} {player.playerLastName}
@@ -199,7 +199,7 @@ export default function Rosters() {
                               <span className="text-gray-400">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs sm:text-sm">
+                          <TableCell className="text-xs sm:text-sm lg:text-base">
                             {player ? (
                               <span className="text-emerald-300">
                                 ${player.draftPrice}

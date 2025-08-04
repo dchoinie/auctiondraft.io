@@ -98,6 +98,8 @@ export const useKeepersStore = create<KeepersState>()(
         }
       ): Promise<boolean> => {
         try {
+          console.log(`Making API call to create keeper:`, keeperData);
+          
           const response = await fetch(`/api/leagues/${leagueId}/keepers`, {
             method: "POST",
             headers: {
@@ -107,15 +109,19 @@ export const useKeepersStore = create<KeepersState>()(
           });
 
           const data = await response.json();
+          console.log(`API response for keeper creation:`, { status: response.status, data });
 
           if (response.ok && data.success) {
+            console.log(`Keeper created successfully, refreshing keepers list`);
             // Refresh keepers after creating
             get().fetchKeepers(leagueId);
             return true;
           } else {
+            console.log(`Keeper creation failed:`, data);
             return false;
           }
         } catch (err) {
+          console.log(`Keeper creation error:`, err);
           return false;
         }
       },

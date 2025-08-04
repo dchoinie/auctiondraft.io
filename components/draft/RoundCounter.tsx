@@ -17,24 +17,24 @@ export default function RoundCounter({
   const progressPercentage = (totalPicks / (totalTeams * 16)) * 100;
 
   return (
-    <div className="bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 rounded-lg p-4 shadow-lg">
+    <div className="bg-gradient-to-br from-blue-900/80 to-blue-700/80 border-2 border-blue-400 rounded-lg p-3 sm:p-4 lg:p-6 shadow-lg">
       <div className="text-center">
-        <div className="text-2xl font-bold text-blue-100 mb-2">
+        <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-blue-100 mb-1 sm:mb-2">
           Round {currentRound} • Pick {currentPick}
         </div>
-        <div className="text-sm text-blue-200 mb-3">
+        <div className="text-xs sm:text-sm lg:text-base text-blue-200 mb-2 sm:mb-3">
           {totalPicks} picks completed • {totalTeams} teams
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-blue-800 rounded-full h-2 mb-2">
+        <div className="w-full bg-blue-800 rounded-full h-1.5 sm:h-2 mb-1 sm:mb-2">
           <div
-            className="bg-blue-400 h-2 rounded-full transition-all duration-300"
+            className="bg-blue-400 h-1.5 sm:h-2 rounded-full transition-all duration-300"
             style={{ width: `${Math.min(progressPercentage, 100)}%` }}
           ></div>
         </div>
 
-        <div className="text-xs text-blue-300">
+        <div className="text-xs sm:text-sm text-blue-300">
           {Math.round(progressPercentage)}% complete
         </div>
       </div>

@@ -285,10 +285,9 @@ class PartyRoom implements Party.Server {
 
     if (this.state.draftType === "snake") {
       // Snake draft: reverse direction every round
-      const currentRound = Math.floor(
-        this.state.currentNominationIndex / totalTeams
-      );
-      const isReverseRound = currentRound % 2 === 1; // Odd rounds (1, 3, 5...) go in reverse
+      // Calculate which round we're in based on total picks completed
+      const currentRound = Math.floor(this.state.totalPicks / totalTeams) + 1;
+      const isReverseRound = currentRound % 2 === 0; // Even rounds (2, 4, 6...) go in reverse
 
       if (isReverseRound) {
         // Going backwards in this round
@@ -535,9 +534,9 @@ class PartyRoom implements Party.Server {
             // Calculate snake draft direction for debugging
             const totalTeams = message.data.nominationOrder?.length || 0;
             const currentRoundFromIndex = Math.floor(
-              message.data.currentNominationIndex / totalTeams
-            );
-            const isReverseRound = currentRoundFromIndex % 2 === 1;
+              message.data.totalPicks / totalTeams
+            ) + 1;
+            const isReverseRound = currentRoundFromIndex % 2 === 0; // Even rounds (2, 4, 6...) go in reverse
             const positionInRound =
               message.data.currentNominationIndex % totalTeams;
 
@@ -801,10 +800,9 @@ class PartyRoom implements Party.Server {
 
             if (this.state.draftType === "snake") {
               // Snake draft: reverse direction every round
-              const currentRound = Math.floor(
-                this.state.currentNominationIndex / totalTeams
-              );
-              const isReverseRound = currentRound % 2 === 1; // Odd rounds (1, 3, 5...) go in reverse
+              // Calculate which round we're in based on total picks completed
+              const currentRound = Math.floor(this.state.totalPicks / totalTeams) + 1;
+              const isReverseRound = currentRound % 2 === 0; // Even rounds (2, 4, 6...) go in reverse
 
               if (isReverseRound) {
                 // Going backwards in this round

@@ -56,7 +56,7 @@ export default function TeamTracker({
   });
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
+    <div className="flex flex-col gap-2 sm:gap-3 lg:gap-4">
       {sortedTeams.map((team: Team | OfflineTeam) => {
         const teamState = draftState.teams[team.id];
 
@@ -90,17 +90,17 @@ export default function TeamTracker({
                 : "border-gray-700 bg-gray-900/60"
             )}
           >
-            <CardContent className="flex flex-row items-center gap-2 sm:gap-4 py-3 sm:py-4">
+            <CardContent className="flex flex-row items-center gap-2 sm:gap-3 lg:gap-4 py-2 sm:py-3 lg:py-4">
               {/* Online dot */}
               <span
                 className={cn(
-                  "w-2 h-2 sm:w-3 sm:h-3 rounded-full border border-white flex-shrink-0",
+                  "w-1.5 h-1.5 sm:w-2 sm:h-2 lg:w-3 lg:h-3 rounded-full border border-white flex-shrink-0",
                   isOnline ? "bg-green-500" : "bg-red-500"
                 )}
                 title={isOnline ? "Online" : "Offline"}
               />
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm sm:text-lg text-white flex items-center gap-1 sm:gap-2 flex-wrap">
+                <div className="font-bold text-xs sm:text-sm lg:text-lg text-white flex items-center gap-1 sm:gap-2 flex-wrap">
                   <span className="truncate">{team.name}</span>
                   {isTurn && (
                     <span className="ml-1 sm:ml-2 px-1 sm:px-2 py-0.5 rounded bg-yellow-400 text-yellow-900 text-xs font-semibold whitespace-nowrap">
@@ -108,28 +108,28 @@ export default function TeamTracker({
                     </span>
                   )}
                 </div>
-                <div className="text-xs sm:text-sm text-gray-300 truncate">
+                <div className="text-xs sm:text-sm lg:text-base text-gray-300 truncate">
                   {'ownerFirstName' in team ? `${team.ownerFirstName} ${team.ownerLastName}` : 'Offline Team'}
                 </div>
               </div>
               {teamState && (
-                <div className="flex flex-col gap-1 text-right min-w-[80px] sm:min-w-[120px] flex-shrink-0">
+                <div className="flex flex-col gap-1 text-right min-w-[70px] sm:min-w-[80px] lg:min-w-[120px] flex-shrink-0">
                   <div className="text-xs text-gray-400">Budget</div>
-                  <div className="font-mono text-green-300 text-xs sm:text-sm">
+                  <div className="font-mono text-green-300 text-xs sm:text-sm lg:text-base">
                     ${teamState.remainingBudget}
                   </div>
                   <div className="text-xs text-gray-400">Spots</div>
-                  <div className="font-mono text-blue-300 text-xs sm:text-sm">
+                  <div className="font-mono text-blue-300 text-xs sm:text-sm lg:text-base">
                     {teamState.remainingRosterSpots}
                   </div>
                   <div className="text-xs text-gray-400">Max Bid</div>
-                  <div className="font-mono text-yellow-300 text-xs sm:text-sm">
+                  <div className="font-mono text-yellow-300 text-xs sm:text-sm lg:text-base">
                     ${teamState.maxBid}
                   </div>
                 </div>
               )}
               {!teamState && (
-                <div className="flex flex-col gap-1 text-right min-w-[80px] sm:min-w-[120px] flex-shrink-0">
+                <div className="flex flex-col gap-1 text-right min-w-[70px] sm:min-w-[80px] lg:min-w-[120px] flex-shrink-0">
                   <div className="text-xs text-gray-400">No Data</div>
                   <div className="text-xs text-gray-500">-</div>
                   <div className="text-xs text-gray-500">-</div>

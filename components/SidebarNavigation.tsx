@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { League } from "@/stores/leagueStore";
 import { useUserStore } from "@/stores/userStore";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { Button } from "./ui/button";
-import { Home, Plus, Users } from "lucide-react";
+import { Home, Plus, Users, Shield } from "lucide-react";
 import { Badge } from "./ui/badge";
 
 interface NavItem {
@@ -37,6 +38,23 @@ export function SidebarNavigation() {
   const { leagues } = useLeagueStore();
   const { user } = useUserStore();
   const pathname = usePathname();
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  // Check if user is platform admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const response = await fetch("/api/admin/player-data-info");
+        setIsPlatformAdmin(response.status !== 403);
+      } catch (error) {
+        setIsPlatformAdmin(false);
+      }
+    };
+
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user]);
 
   const rosterSize = (league: League) => {
     return (
@@ -70,6 +88,19 @@ export function SidebarNavigation() {
             </Link>
           </Button>
         ))}
+        
+        {/* Platform Admin Link - Only visible to platform admins */}
+        {isPlatformAdmin && (
+          <Button
+            asChild
+            className="bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md hover:shadow-xl"
+          >
+            <Link href="/admin">
+              <Shield className="h-4 w-4 mr-2" />
+              Platform Admin
+            </Link>
+          </Button>
+        )}
       </div>
       <div className="flex flex-col gap-3 mt-3">
         <h5 className="text-gray-50 text-sm my-3">My Leagues</h5>

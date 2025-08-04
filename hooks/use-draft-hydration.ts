@@ -332,9 +332,9 @@ export function useDraftHydration({
 
     // Calculate snake draft direction for debugging
     const currentRoundFromIndex = Math.floor(
-      draftState.currentNominationIndex / totalTeams
-    );
-    const isReverseRound = currentRoundFromIndex % 2 === 1;
+      draftState.totalPicks / totalTeams
+    ) + 1;
+    const isReverseRound = currentRoundFromIndex % 2 === 0; // Even rounds (2, 4, 6...) go in reverse
     const positionInRound = draftState.currentNominationIndex % totalTeams;
 
     console.log("Hydration - nomination details:", {

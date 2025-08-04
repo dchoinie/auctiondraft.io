@@ -682,14 +682,12 @@ export default function DraftPage() {
                   >
                     Draft
                   </TabsTrigger>
-                  {!isOfflineMode && (
-                    <TabsTrigger
-                      value="rosters"
-                      className="flex-1 text-sm sm:text-base"
-                    >
-                      Rosters
-                    </TabsTrigger>
-                  )}
+                  <TabsTrigger
+                    value="rosters"
+                    className="flex-1 text-sm sm:text-base"
+                  >
+                    Rosters
+                  </TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value="draft">
@@ -715,11 +713,9 @@ export default function DraftPage() {
                   </div>
                 </div>
               </TabsContent>
-              {!isOfflineMode && (
-                <TabsContent value="rosters">
-                  <Rosters />
-                </TabsContent>
-              )}
+              <TabsContent value="rosters">
+                <Rosters />
+              </TabsContent>
             </Tabs>
           </div>
         </StaggeredItem>

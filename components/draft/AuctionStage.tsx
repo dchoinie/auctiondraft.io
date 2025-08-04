@@ -114,7 +114,7 @@ export default function AuctionStage({
   const allTeams = isOfflineMode ? [...teams, ...offlineTeams] : teams;
 
   return (
-    <div className="mb-4 sm:mb-8 w-full p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
+    <div className="mb-4 sm:mb-6 lg:mb-8 w-full p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-900/80 to-gray-700/80 border-2 border-gray-400 shadow-md rounded-xl">
       {/* Volume Control */}
       <div className="flex justify-end mb-3 sm:mb-4">
         <Button
@@ -140,7 +140,7 @@ export default function AuctionStage({
 
       {/* Round and Pick Info */}
       <div className="flex justify-center mb-3 sm:mb-4">
-        <div className="text-lg sm:text-xl font-semibold text-emerald-300">
+        <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold text-emerald-300">
           Round {currentRound || 1} • Pick {currentPick || 1}
         </div>
       </div>
@@ -155,13 +155,13 @@ export default function AuctionStage({
       {/* Nominated Player */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex-1">
-          <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
+          <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold text-emerald-300 mb-1 sm:mb-2">
             Nominated Player
           </div>
           {nominatedPlayer ? (
-            <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl text-yellow-100 font-extrabold drop-shadow-lg">
+            <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-yellow-100 font-extrabold drop-shadow-lg">
               {nominatedPlayer.name}{" "}
-              <span className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold">
+              <span className="text-yellow-400 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold">
                 ({nominatedPlayer.team} - {nominatedPlayer.position})
               </span>
             </div>
@@ -174,13 +174,13 @@ export default function AuctionStage({
         {/* Current Highest Bid - Hidden in offline mode */}
         {!isOfflineMode && (
           <div className="flex-1 text-center lg:text-right">
-            <div className="text-lg sm:text-xl lg:text-2xl font-semibold text-emerald-300 mb-1">
+            <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold text-emerald-300 mb-1 sm:mb-2">
               Current Highest Bid
             </div>
             {currentBid ? (
-              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
+              <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-extrabold text-yellow-100 drop-shadow-lg">
                 ${currentBid.amount}
-                <div className="text-yellow-400 text-sm sm:text-lg lg:text-xl xl:text-2xl font-semibold mt-1">
+                <div className="text-yellow-400 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold mt-1">
                   by {highestBidTeamName}
                 </div>
               </div>
@@ -196,16 +196,16 @@ export default function AuctionStage({
       {isOfflineMode ? (
         // Offline Mode Bidding Interface
         <div className="flex flex-col items-center mb-4 sm:mb-6">
-          <div className="w-full max-w-md space-y-4">
+          <div className="w-full max-w-sm sm:max-w-md space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="winning-team" className="text-emerald-300 font-semibold">
+              <Label htmlFor="winning-team" className="text-emerald-300 font-semibold text-sm sm:text-base">
                 Winning Team
               </Label>
               <Select value={offlineWinningTeam} onValueChange={setOfflineWinningTeam}>
-                <SelectTrigger className="bg-gray-900/80 border-gray-700 text-emerald-100">
+                <SelectTrigger className="bg-gray-900/80 border-gray-700 text-emerald-100 text-sm sm:text-base">
                   <SelectValue placeholder="Select winning team" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900/80 border-gray-700">
+                <SelectContent className="bg-gray-900 border-gray-700">
                   {allTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id} className="text-emerald-100">
                       {team.name}
@@ -215,7 +215,7 @@ export default function AuctionStage({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="winning-amount" className="text-emerald-300 font-semibold">
+              <Label htmlFor="winning-amount" className="text-emerald-300 font-semibold text-sm sm:text-base">
                 Winning Amount ($)
               </Label>
               <Input
@@ -224,13 +224,13 @@ export default function AuctionStage({
                 value={offlineWinningAmount}
                 onChange={(e) => setOfflineWinningAmount(Number(e.target.value))}
                 min={1}
-                className="bg-gray-900/80 border-gray-700 text-emerald-100"
+                className="bg-gray-900/80 border-gray-700 text-emerald-100 text-sm sm:text-base"
               />
             </div>
             <Button
               onClick={handleOfflineAuctionComplete}
               disabled={!offlineWinningTeam || offlineWinningAmount <= 0 || !partySocket}
-              className="w-full bg-gradient-to-br from-green-900/80 to-green-700/80 border-2 border-green-400 shadow-md text-green-100 font-bold px-4 py-2"
+              className="w-full bg-gradient-to-br from-green-900/80 to-green-700/80 border-2 border-green-400 shadow-md text-green-100 font-bold px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base"
             >
               <Check className="w-4 h-4 mr-2" />
               Complete Auction
@@ -240,17 +240,17 @@ export default function AuctionStage({
       ) : (
         // Live Mode Bidding Interface
         <div className="flex flex-col items-center mb-4 sm:mb-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               size="sm"
-              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
+              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12"
               onClick={() => setBidAmount((prev) => Math.max(minBid, prev - 1))}
               disabled={bidAmount <= minBid}
             >
-              <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+              <Minus className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-emerald-100" />
             </Button>
             <Button
-              className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-4 sm:px-6 lg:px-8 py-2 sm:py-3 text-base sm:text-lg"
+              className="bg-gradient-to-br from-yellow-900/80 to-yellow-700/80 border-2 border-yellow-400 shadow-md text-yellow-100 font-bold px-3 sm:px-4 lg:px-6 xl:px-8 py-2 sm:py-3 text-sm sm:text-base lg:text-lg"
               disabled={!canBid}
               onClick={() => {
                 if (!canBid) return;
@@ -269,10 +269,10 @@ export default function AuctionStage({
             </Button>
             <Button
               size="sm"
-              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10"
+              className="bg-gray-900/80 border-gray-700 text-emerald-100 h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12"
               onClick={() => setBidAmount((prev) => prev + 1)}
             >
-              <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-100" />
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-emerald-100" />
             </Button>
           </div>
         </div>
@@ -281,14 +281,14 @@ export default function AuctionStage({
       {/* Bid History - Only show in live mode */}
       {!isOfflineMode && bidHistory.length > 0 && (
         <div className="mt-4 sm:mt-6">
-          <div className="text-lg sm:text-xl font-semibold text-emerald-300 mb-2 sm:mb-3">
+          <div className="text-base sm:text-lg lg:text-xl font-semibold text-emerald-300 mb-2 sm:mb-3">
             Bid History
           </div>
-          <div className="max-h-32 sm:max-h-40 overflow-y-auto bg-gray-800/50 rounded-lg p-2 sm:p-3">
+          <div className="max-h-24 sm:max-h-32 lg:max-h-40 overflow-y-auto bg-gray-800/50 rounded-lg p-2 sm:p-3">
             {bidHistory.slice(-10).map((bid, index) => (
               <div
                 key={index}
-                className="flex justify-between items-center py-1 text-sm sm:text-base"
+                className="flex justify-between items-center py-1 text-xs sm:text-sm lg:text-base"
               >
                 <span className="text-gray-300">
                   {getTeamName(bid.teamId)}: ${bid.amount}
@@ -309,7 +309,7 @@ export default function AuctionStage({
             onClick={() => {
               partySocket.send(JSON.stringify({ type: "triggerCountdown" }));
             }}
-            className="bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md text-red-100 font-bold px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base"
+            className="bg-gradient-to-br from-red-900/80 to-red-700/80 border-2 border-red-400 shadow-md text-red-100 font-bold px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-sm sm:text-base lg:text-lg"
           >
             Start Countdown
           </Button>

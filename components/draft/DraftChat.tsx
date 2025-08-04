@@ -160,25 +160,25 @@ export default function DraftChat({
       {/* Floating Chat Button */}
       <Button
         onClick={onToggle}
-        className={`fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg transition-all duration-200 ${
+        className={`fixed bottom-3 sm:bottom-4 right-3 sm:right-4 z-50 h-10 w-10 sm:h-12 sm:w-12 rounded-full shadow-lg transition-all duration-200 ${
           isOpen
             ? "bg-red-600 hover:bg-red-700"
             : "bg-emerald-600 hover:bg-emerald-700"
         }`}
         title={isOpen ? "Close Chat" : "Open Chat"}
       >
-        {isOpen ? <X size={20} /> : <MessageCircle size={20} />}
+        {isOpen ? <X size={18} className="sm:w-5 sm:h-5" /> : <MessageCircle size={18} className="sm:w-5 sm:h-5" />}
       </Button>
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed bottom-20 right-4 z-40 w-80 h-96 shadow-xl border-2 border-gray-400 bg-gradient-to-br from-gray-900/95 to-gray-800/95">
+        <Card className="fixed bottom-16 sm:bottom-20 right-3 sm:right-4 z-40 w-72 sm:w-80 h-80 sm:h-96 shadow-xl border-2 border-gray-400 bg-gradient-to-br from-gray-900/95 to-gray-800/95">
           <CardHeader className="pb-2">
-            <CardTitle className="text-emerald-300 text-sm flex items-center justify-between">
+            <CardTitle className="text-emerald-300 text-sm sm:text-base flex items-center justify-between">
               <span>Draft Chat</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-                <span className="text-xs text-gray-400">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
+                <span className="text-xs sm:text-sm text-gray-400">
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
@@ -187,21 +187,21 @@ export default function DraftChat({
           
           <CardContent className="p-0 h-full flex flex-col">
             {/* Messages Area */}
-            <ScrollArea className="flex-1 px-3 pb-2" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 px-2 sm:px-3 pb-2" ref={scrollAreaRef}>
               <div className="space-y-2">
                 {messages.length === 0 ? (
-                  <div className="text-center text-gray-400 text-sm py-4">
+                  <div className="text-center text-gray-400 text-xs sm:text-sm py-4">
                     No messages yet. Start the conversation!
                   </div>
                 ) : (
                   messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex gap-2 ${
+                      className={`flex gap-1 sm:gap-2 ${
                         msg.userId === user?.id ? "flex-row-reverse" : ""
                       }`}
                     >
-                      <Avatar className="h-6 w-6 flex-shrink-0">
+                      <Avatar className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0">
                         <AvatarFallback className="text-xs bg-emerald-600 text-white">
                           {getUserInitials(msg.userName)}
                         </AvatarFallback>
@@ -212,9 +212,9 @@ export default function DraftChat({
                           msg.userId === user?.id
                             ? "bg-emerald-600 text-white"
                             : "bg-gray-700 text-gray-200"
-                        } rounded-lg px-3 py-2 text-sm`}
+                        } rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm`}
                       >
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-1 sm:gap-2 mb-1">
                           <span className="font-medium text-xs">
                             {msg.userName}
                           </span>
@@ -231,24 +231,24 @@ export default function DraftChat({
             </ScrollArea>
 
             {/* Input Area */}
-            <div className="p-3 border-t border-gray-600">
-              <div className="flex gap-2">
+            <div className="p-2 sm:p-3 border-t border-gray-600">
+              <div className="flex gap-1 sm:gap-2">
                 <Input
                   ref={inputRef}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  className="flex-1 bg-gray-800 border-gray-600 text-gray-200 placeholder:text-gray-400"
+                  className="flex-1 bg-gray-800 border-gray-600 text-gray-200 placeholder:text-gray-400 text-xs sm:text-sm"
                   disabled={!isConnected}
                 />
                 <Button
                   onClick={sendMessage}
                   disabled={!inputMessage.trim() || !isConnected}
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-emerald-600 hover:bg-emerald-700 h-8 w-8 sm:h-9 sm:w-9 p-0"
                 >
-                  <Send size={16} />
+                  <Send size={14} className="sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </div>
