@@ -107,11 +107,9 @@ export function RostersTab() {
     (s) => s.loading[leagueId] ?? false
   );
 
-  // Check if league is in offline mode - add null check for settings
-  const isOfflineMode = league?.settings?.draftMode === "offline";
-
   // Hydration guard
   useEffect(() => {
+    console.log("🔍 RostersTab Hydration: Setting isHydrated to true");
     setIsHydrated(true);
   }, []);
 
@@ -121,15 +119,16 @@ export function RostersTab() {
     }
   }, [leagueId]);
 
-  // Fetch offline teams when in offline mode
-  useEffect(() => {
-    if (isOfflineMode && leagueId) {
-      fetchOfflineTeams(leagueId);
-    }
-  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
-
   // Add hydration guard - check if we have all required data
-  if (!isHydrated || !leagueId || teamsLoading || (isOfflineMode && offlineTeamsLoading) || draftedLoading) {
+  if (!isHydrated || !leagueId || teamsLoading || draftedLoading) {
+    console.log("🔍 RostersTab Hydration: Missing required data, returning early", {
+      isHydrated,
+      leagueId,
+      teamsLoading,
+      draftedLoading,
+      league: !!league,
+      leagueSettings: !!league?.settings
+    });
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -139,6 +138,25 @@ export function RostersTab() {
   
   if (!league || !league.settings) {
     return <div>Unable to load league data.</div>;
+  }
+
+  // Check if league is in offline mode - moved after hydration guard
+  const isOfflineMode = league.settings.draftMode === "offline";
+
+  // Fetch offline teams when in offline mode
+  useEffect(() => {
+    if (isOfflineMode && leagueId) {
+      fetchOfflineTeams(leagueId);
+    }
+  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
+
+  // Check offline teams loading after determining offline mode
+  if (isOfflineMode && offlineTeamsLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
   }
 
   // Build slot counts for each slot type
