@@ -237,7 +237,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600 mb-4">
-              Admin privileges are managed through Clerk's private metadata.
+              Admin privileges are managed through Clerk&apos;s private metadata.
             </p>
             <Button variant="outline" className="w-full" disabled>
               Manage Admins
