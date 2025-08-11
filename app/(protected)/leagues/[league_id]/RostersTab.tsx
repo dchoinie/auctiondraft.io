@@ -198,11 +198,11 @@ export function RostersTab() {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h2 className="text-xl font-bold text-emerald-300">{team.name}</h2>
-                {team.ownerFirstName && team.ownerLastName ? (
+                {'ownerFirstName' in team && 'ownerLastName' in team && team.ownerFirstName && team.ownerLastName ? (
                   <h6 className="text-gray-400 text-sm">
                     {team.ownerFirstName} {team.ownerLastName}
                   </h6>
-                ) : team.ownerEmail ? (
+                ) : 'ownerEmail' in team && team.ownerEmail ? (
                   <h6 className="text-gray-400 text-sm">{team.ownerEmail}</h6>
                 ) : isOfflineMode ? (
                   <h6 className="text-gray-400 text-sm">Offline Team</h6>
