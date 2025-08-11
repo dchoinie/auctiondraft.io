@@ -107,6 +107,9 @@ export function RostersTab() {
     (s) => s.loading[leagueId] ?? false
   );
 
+  // Check if league is in offline mode - use optional chaining to avoid errors
+  const isOfflineMode = league?.settings?.draftMode === "offline";
+
   // Hydration guard
   useEffect(() => {
     console.log("🔍 RostersTab Hydration: Setting isHydrated to true");
@@ -118,6 +121,13 @@ export function RostersTab() {
       useDraftedPlayersStore.getState().fetchDraftedPlayers(leagueId);
     }
   }, [leagueId]);
+
+  // Fetch offline teams when in offline mode
+  useEffect(() => {
+    if (isOfflineMode && leagueId) {
+      fetchOfflineTeams(leagueId);
+    }
+  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
 
   // Add hydration guard - check if we have all required data
   if (!isHydrated || !leagueId || teamsLoading || draftedLoading) {
@@ -139,16 +149,6 @@ export function RostersTab() {
   if (!league || !league.settings) {
     return <div>Unable to load league data.</div>;
   }
-
-  // Check if league is in offline mode - moved after hydration guard
-  const isOfflineMode = league.settings.draftMode === "offline";
-
-  // Fetch offline teams when in offline mode
-  useEffect(() => {
-    if (isOfflineMode && leagueId) {
-      fetchOfflineTeams(leagueId);
-    }
-  }, [isOfflineMode, leagueId, fetchOfflineTeams]);
 
   // Check offline teams loading after determining offline mode
   if (isOfflineMode && offlineTeamsLoading) {
