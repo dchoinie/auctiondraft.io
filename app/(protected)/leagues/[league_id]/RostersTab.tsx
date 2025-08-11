@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { useLeagueTeams } from "@/stores/teamStore";
@@ -96,6 +96,7 @@ function assignRosterSlots(
 }
 
 export function RostersTab() {
+  const [isHydrated, setIsHydrated] = useState(false);
   const params = useParams();
   const leagueId = params.league_id as string;
   const league = useLeagueStore((s) => s.leagues.find(l => l.id === leagueId));
@@ -106,8 +107,13 @@ export function RostersTab() {
     (s) => s.loading[leagueId] ?? false
   );
 
-  // Check if league is in offline mode
+  // Check if league is in offline mode - add null check for settings
   const isOfflineMode = league?.settings?.draftMode === "offline";
+
+  // Hydration guard
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (leagueId) {
@@ -122,14 +128,16 @@ export function RostersTab() {
     }
   }, [isOfflineMode, leagueId, fetchOfflineTeams]);
 
-  if (teamsLoading || (isOfflineMode && offlineTeamsLoading) || draftedLoading) {
+  // Add hydration guard - check if we have all required data
+  if (!isHydrated || !leagueId || teamsLoading || (isOfflineMode && offlineTeamsLoading) || draftedLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
-  if (!league) {
+  
+  if (!league || !league.settings) {
     return <div>Unable to load league data.</div>;
   }
 
