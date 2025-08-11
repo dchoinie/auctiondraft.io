@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useLeagueStore } from "@/stores/leagueStore";
 import { useLeagueTeams } from "@/stores/teamStore";
@@ -96,7 +96,6 @@ function assignRosterSlots(
 }
 
 export function RostersTab() {
-  const [isHydrated, setIsHydrated] = useState(false);
   const params = useParams();
   const leagueId = params.league_id as string;
   const league = useLeagueStore((s) => s.leagues.find(l => l.id === leagueId));
@@ -109,12 +108,6 @@ export function RostersTab() {
 
   // Check if league is in offline mode - use optional chaining to avoid errors
   const isOfflineMode = league?.settings?.draftMode === "offline";
-
-  // Hydration guard
-  useEffect(() => {
-    console.log("🔍 RostersTab Hydration: Setting isHydrated to true");
-    setIsHydrated(true);
-  }, []);
 
   useEffect(() => {
     if (leagueId) {
@@ -129,16 +122,8 @@ export function RostersTab() {
     }
   }, [isOfflineMode, leagueId, fetchOfflineTeams]);
 
-  // Add hydration guard - check if we have all required data
-  if (!isHydrated || !leagueId || teamsLoading || draftedLoading) {
-    console.log("🔍 RostersTab Hydration: Missing required data, returning early", {
-      isHydrated,
-      leagueId,
-      teamsLoading,
-      draftedLoading,
-      league: !!league,
-      leagueSettings: !!league?.settings
-    });
+  // Simple loading guard - only check for essential data
+  if (!leagueId || !league || !league.settings) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -148,15 +133,6 @@ export function RostersTab() {
   
   if (!league || !league.settings) {
     return <div>Unable to load league data.</div>;
-  }
-
-  // Check offline teams loading after determining offline mode
-  if (isOfflineMode && offlineTeamsLoading) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
   }
 
   // Build slot counts for each slot type
