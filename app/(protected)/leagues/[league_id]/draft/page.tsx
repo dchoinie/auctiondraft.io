@@ -23,6 +23,7 @@ import PlayersTable from "@/components/draft/PlayersTable";
 import AuctionStage from "@/components/draft/AuctionStage";
 import Countdown from "@/components/draft/Countdown";
 import DraftChat from "@/components/draft/DraftChat";
+import OfflineDraft from "@/components/draft/OfflineDraft";
 import {
   PageContent,
   StaggeredContent,
@@ -94,8 +95,12 @@ export default function DraftPage() {
     }
   }, [isOfflineMode, league_id, fetchOfflineTeams]);
 
-  // Connect PartySocket and set up listeners
+  // Connect PartySocket and set up listeners (skip in offline mode)
   useEffect(() => {
+    if (isOfflineMode) {
+      setPartySocket(null);
+      return;
+    }
     let socket: PartySocket | null = null;
 
     async function connectPartySocket() {
@@ -272,7 +277,7 @@ export default function DraftPage() {
         setPartySocket(null);
       }
     };
-  }, [league_id]); // Only depend on league_id to prevent re-runs
+  }, [league_id, isOfflineMode, getToken]);
 
   // Send 'startDraft' when Start Draft is clicked
   const handleStartDraft = async (): Promise<void> => {
@@ -319,48 +324,12 @@ export default function DraftPage() {
 
   // Handler to send resetDraft event
   const handleResetDraft = async () => {
-    // Immediately update local state to "pre" phase
-    const resetDraftState = {
-      draftPhase: "pre" as const,
-      currentNominatorTeamId: null,
-      nominatedPlayer: null,
-      startingBidAmount: 0,
-      currentBid: null,
-      bidTimer: null,
-      bidTimerExpiresAt: null,
-      auctionPhase: "idle" as const,
-      nominationOrder: [],
-      currentNominationIndex: 0,
-      draftType: "linear" as const,
-      timerEnabled: false,
-      timerDuration: 60,
-      autoStartTimer: true,
-      currentRound: 1,
-      currentPick: 1,
-      totalPicks: 0,
-      teams: {},
-      bidHistory: [],
-      chatMessages: [],
-    };
+    console.log("Starting draft reset process...");
     
-    // Update local state immediately
-    setDraftState(league_id as string, resetDraftState);
-
-    // Send reset message to PartyKit if socket is available
-    if (partySocket) {
-      partySocket.send(JSON.stringify({ type: "resetDraft" }));
-    }
-
-    // Force re-hydration by resetting the hydration flag
-    // This ensures that when the draft state changes to "pre", 
-    // the hydration will run again and populate the teams data
-    setTimeout(() => {
-      console.log("Forcing re-hydration after reset...");
-      // The hydration hook will detect the "pre" phase and reset the hydration flag
-    }, 100);
-
-      // Clear all draft data from database
-      try {
+    try {
+      // Step 1: Clear database data first (before changing local state)
+      console.log("Step 1: Clearing database data...");
+      
         // Clear drafted players (but preserve keepers)
         await fetch(`/api/leagues/${league_id}/draft/state`, {
           method: "POST",
@@ -381,7 +350,47 @@ export default function DraftPage() {
           }),
         });
 
-        // Save initial draft state to database after reset
+      // Step 2: Reset stores to clear local data
+      console.log("Step 2: Resetting stores...");
+      useDraftedPlayersStore.getState().resetLeague(league_id as string);
+
+      // Step 3: Send reset message to PartyKit first
+      console.log("Step 3: Sending reset to PartyKit...");
+      if (partySocket) {
+        partySocket.send(JSON.stringify({ type: "resetDraft" }));
+        
+        // Wait a moment for PartyKit to process the reset
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      // Step 4: Create reset state with preserved team structure
+      console.log("Step 4: Creating reset state...");
+      const resetDraftState = {
+        draftPhase: "pre" as const,
+        currentNominatorTeamId: null,
+        nominatedPlayer: null,
+        startingBidAmount: 0,
+        currentBid: null,
+        bidTimer: null,
+        bidTimerExpiresAt: null,
+        auctionPhase: "idle" as const,
+        nominationOrder: [],
+        currentNominationIndex: 0,
+        draftType: "linear" as const,
+        timerEnabled: false,
+        timerDuration: 60,
+        autoStartTimer: true,
+        currentRound: 1,
+        currentPick: 1,
+        totalPicks: 0,
+        // Don't clear teams immediately - let hydration handle this
+        teams: draftState?.teams || {},
+        bidHistory: [],
+        chatMessages: [],
+      };
+
+      // Step 5: Save initial draft state to database
+      console.log("Step 5: Saving reset state to database...");
         await fetch(`/api/leagues/${league_id}/draft/state`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -395,20 +404,21 @@ export default function DraftPage() {
           }),
         });
 
-        // Reset drafted players store after a small delay to ensure database operations complete
-        setTimeout(() => {
-          useDraftedPlayersStore.getState().resetLeague(league_id as string);
-        }, 100);
+      // Step 6: Update local state last (after everything else is ready)
+      console.log("Step 6: Updating local state...");
+      setDraftState(league_id as string, resetDraftState);
 
-        // Refresh league data to update isDraftStarted flag
-        console.log("Refreshing league data after reset...");
+      // Step 7: Refresh league data
+      console.log("Step 7: Refreshing league data...");
         refetchLeagues();
 
-        console.log(
-          "Draft completely reset - all data cleared and initial state saved"
-        );
+      console.log("Draft reset completed successfully");
+      
       } catch (error) {
-        console.error("Error resetting draft state in database:", error);
+      console.error("Error during draft reset:", error);
+      // If there's an error, try to recover by refreshing the page
+      console.log("Attempting to recover from reset error...");
+      window.location.reload();
       }
   };
 
@@ -422,6 +432,26 @@ export default function DraftPage() {
     leaguesLoading,
     leaguesCount: leagues.length,
   });
+
+  // Offline mode: render simplified offline draft UI with no PartyKit
+  if (isOfflineMode) {
+    return (
+      <PageContent>
+        <StaggeredContent>
+          <StaggeredItem>
+            <div className="my-4 sm:my-6 px-4 sm:px-6 lg:px-8">
+              <OfflineDraft leagueId={league_id as string} />
+            </div>
+          </StaggeredItem>
+          <StaggeredItem>
+            <div className="my-4 sm:my-6 px-4 sm:px-6 lg:px-8">
+              <Rosters />
+            </div>
+          </StaggeredItem>
+        </StaggeredContent>
+      </PageContent>
+    );
+  }
 
   // Show waiting message if draft hasn't started or hydration isn't complete
   if (!isLive || !isHydrated) {

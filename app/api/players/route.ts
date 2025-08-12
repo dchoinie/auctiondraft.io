@@ -11,10 +11,15 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const search = searchParams.get("search")?.trim() || "";
+    const position = searchParams.get("position")?.trim() || "";
 
     let whereClause = undefined;
     if (search) {
-      whereClause = sql`LOWER(${nflPlayers.firstName}) LIKE LOWER('%' || ${search} || '%') OR LOWER(${nflPlayers.lastName}) LIKE LOWER('%' || ${search} || '%')`;
+      whereClause = sql`(LOWER(${nflPlayers.firstName}) LIKE LOWER('%' || ${search} || '%') OR LOWER(${nflPlayers.lastName}) LIKE LOWER('%' || ${search} || '%'))`;
+    }
+    if (position && position !== "ALL") {
+      const positionClause = sql`${nflPlayers.position} = ${position}`;
+      whereClause = whereClause ? sql`${whereClause} AND ${positionClause}` : positionClause;
     }
 
     // Get total count with search filter

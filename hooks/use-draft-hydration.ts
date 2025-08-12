@@ -171,6 +171,15 @@ export function useDraftHydration({
       }
     }
 
+    // Special handling for reset scenarios - if we're in pre phase and have no teams,
+    // but we have teams data from the stores, we should hydrate
+    if (draftState.draftPhase === "pre" && (!draftState.teams || Object.keys(draftState.teams).length === 0)) {
+      const hasTeamsFromStore = teams.length > 0 || offlineTeams.length > 0;
+      if (hasTeamsFromStore) {
+        console.log("Reset scenario detected - pre phase with no teams but store has teams, will hydrate");
+      }
+    }
+
     // Validate that we have a complete draft state before proceeding
     if (!isDraftStateComplete(draftState)) {
       console.log("PartyKit: Draft state incomplete, skipping hydration", {
@@ -411,6 +420,12 @@ export function useDraftHydration({
     if (!draftState || draftState.draftPhase === "pre") {
       console.log("Resetting hydration flag - draft phase is pre or no draft state");
       hasHydrated.current = false;
+      
+      // If we're in pre phase and have teams data, we should re-hydrate
+      // This handles the case where reset happens but teams are preserved
+      if (draftState?.draftPhase === "pre" && draftState.teams && Object.keys(draftState.teams).length > 0) {
+        console.log("Pre phase with teams data detected - will re-hydrate");
+      }
     }
   }, [draftState?.draftPhase]);
 
