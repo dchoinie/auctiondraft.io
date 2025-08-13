@@ -7,6 +7,7 @@ import {
   teams,
   leagues,
   userProfiles,
+  offlineTeams,
 } from "@/app/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -36,8 +37,8 @@ export async function GET(
 
     const leagueData = league[0];
 
-    // Get all teams with owner information
-    const allTeams = await db
+    // Get all regular teams with owner information
+    const regularTeams = await db
       .select({
         id: teams.id,
         name: teams.name,
@@ -46,14 +47,35 @@ export async function GET(
         draftOrder: teams.draftOrder,
         ownerFirstName: userProfiles.firstName,
         ownerLastName: userProfiles.lastName,
+        isOffline: false,
       })
       .from(teams)
       .leftJoin(userProfiles, eq(teams.ownerId, userProfiles.id))
       .where(eq(teams.leagueId, leagueId))
       .orderBy(teams.draftOrder);
 
+    // Get all offline teams
+    const offlineTeamsList = await db
+      .select({
+        id: offlineTeams.id,
+        name: offlineTeams.name,
+        ownerId: null,
+        budget: offlineTeams.budget,
+        draftOrder: offlineTeams.draftOrder,
+        ownerFirstName: null,
+        ownerLastName: null,
+        isOffline: true,
+      })
+      .from(offlineTeams)
+      .where(eq(offlineTeams.leagueId, leagueId))
+      .orderBy(offlineTeams.draftOrder);
+
+    // Combine all teams
+    const allTeams = [...regularTeams, ...offlineTeamsList];
+
     // Get all drafted players with player and team info, ordered by creation time
-    const allDraftedPlayers = await db
+    // First get players drafted to regular teams
+    const regularTeamDraftedPlayers = await db
       .select({
         id: draftedPlayers.id,
         draftPrice: draftedPlayers.draftPrice,
@@ -69,11 +91,42 @@ export async function GET(
       .from(draftedPlayers)
       .leftJoin(nflPlayers, eq(draftedPlayers.playerId, nflPlayers.id))
       .leftJoin(teams, eq(draftedPlayers.teamId, teams.id))
-      .where(eq(draftedPlayers.leagueId, leagueId))
+      .where(and(
+        eq(draftedPlayers.leagueId, leagueId),
+        eq(draftedPlayers.teamType, 'regular')
+      ))
       .orderBy(draftedPlayers.createdAt);
+
+    // Then get players drafted to offline teams
+    const offlineTeamDraftedPlayers = await db
+      .select({
+        id: draftedPlayers.id,
+        draftPrice: draftedPlayers.draftPrice,
+        teamId: draftedPlayers.teamId,
+        playerId: draftedPlayers.playerId,
+        createdAt: draftedPlayers.createdAt,
+        teamName: offlineTeams.name,
+        playerFirstName: nflPlayers.firstName,
+        playerLastName: nflPlayers.lastName,
+        playerPosition: nflPlayers.position,
+        playerTeam: nflPlayers.team,
+      })
+      .from(draftedPlayers)
+      .leftJoin(nflPlayers, eq(draftedPlayers.playerId, nflPlayers.id))
+      .leftJoin(offlineTeams, eq(draftedPlayers.teamId, offlineTeams.id))
+      .where(and(
+        eq(draftedPlayers.leagueId, leagueId),
+        eq(draftedPlayers.teamType, 'offline')
+      ))
+      .orderBy(draftedPlayers.createdAt);
+
+    // Combine all drafted players
+    const allDraftedPlayers = [...regularTeamDraftedPlayers, ...offlineTeamDraftedPlayers];
 
     console.log(`Found ${allDraftedPlayers.length} drafted players for league ${leagueId}`);
     console.log(`Found ${allTeams.length} teams for league ${leagueId}`);
+    console.log(`Regular teams: ${regularTeams.length}, Offline teams: ${offlineTeamsList.length}`);
+    console.log(`Regular team drafted players: ${regularTeamDraftedPlayers.length}, Offline team drafted players: ${offlineTeamDraftedPlayers.length}`);
 
     // Validate that we have data to export
     if (allDraftedPlayers.length === 0) {
@@ -191,7 +244,9 @@ export async function GET(
       const teamPlayers = allDraftedPlayers.filter((p) => p.teamId === team.id);
       const rosterSlots = assignPlayersToSlots(teamPlayers, slotCounts);
       
-      const ownerName = `${team.ownerFirstName || ""} ${team.ownerLastName || ""}`.trim() || "Unknown Owner";
+      const ownerName = team.isOffline 
+        ? "Offline Team" 
+        : `${team.ownerFirstName || ""} ${team.ownerLastName || ""}`.trim() || "Unknown Owner";
       const teamName = team.name || "Unknown Team";
       csvContent += `"${teamName}","${ownerName}",`;
       
