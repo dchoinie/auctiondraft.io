@@ -90,6 +90,9 @@ export default function DraftPage() {
   const isDataError = teamsError || leaguesError || userError;
   const isLoadingData = teamsLoading || leaguesLoading || userLoading;
 
+  // Get drafted players for completion check
+  const draftedPlayers = useDraftedPlayersAuto(league_id as string);
+
   // Check if offline draft is complete (all teams have filled rosters)
   const isOfflineDraftComplete = React.useMemo(() => {
     if (!isOfflineMode || !league?.settings) return false;
@@ -109,12 +112,32 @@ export default function DraftPage() {
     const allTeams = [...teams, ...offlineTeams];
     
     // Check if all teams have filled their rosters
-    return allTeams.length > 0 && allTeams.every((team) => {
-      const teamDraftedPlayers = useDraftedPlayersStore.getState().draftedPlayers[league_id as string] || [];
-      const teamPlayers = teamDraftedPlayers.filter((p) => p.teamId === team.id);
-      return teamPlayers.length >= totalRosterSpots;
+    const allTeamsComplete = allTeams.length > 0 && allTeams.every((team) => {
+      const teamPlayers = draftedPlayers.filter((p) => p.teamId === team.id);
+      const isComplete = teamPlayers.length >= totalRosterSpots;
+      
+      // Debug logging
+      console.log(`Team ${team.name} (${team.id}): ${teamPlayers.length}/${totalRosterSpots} players - ${isComplete ? 'COMPLETE' : 'INCOMPLETE'}`);
+      
+      return isComplete;
     });
-  }, [isOfflineMode, league?.settings, teams, offlineTeams, league_id]);
+
+    console.log('Offline draft completion check:', {
+      isOfflineMode,
+      totalRosterSpots,
+      totalTeams: allTeams.length,
+      totalDraftedPlayers: draftedPlayers.length,
+      allTeamsComplete,
+      teamBreakdown: allTeams.map(team => ({
+        name: team.name,
+        id: team.id,
+        players: draftedPlayers.filter(p => p.teamId === team.id).length,
+        needed: totalRosterSpots
+      }))
+    });
+
+    return allTeamsComplete;
+  }, [isOfflineMode, league?.settings, teams, offlineTeams, league_id, draftedPlayers]);
 
   // Fetch offline teams when in offline mode
   useEffect(() => {
