@@ -231,43 +231,47 @@ export async function GET(
     // Generate CSV content
     let csvContent = "";
 
-    // Sheet 1: Team Rosters
+    // Sheet 1: Team Rosters (Positions as rows, Teams as columns)
     csvContent += "Team Rosters\n\n";
     
-    // Header for team rosters
-    csvContent += "Team Name,Owner Name,";
-    slotOrder.forEach((slot) => {
-      for (let i = 0; i < slotCounts[slot]; i++) {
-        csvContent += `${slot}${i + 1},`;
-      }
-    });
-    csvContent = csvContent.slice(0, -1) + "\n"; // Remove last comma and add newline
-
-    // Add team rosters
+    // Header row with team names and owners
+    csvContent += "Position,";
     allTeams.forEach((team) => {
-      const teamPlayers = allDraftedPlayers.filter((p) => p.teamId === team.id);
-      const rosterSlots = assignPlayersToSlots(teamPlayers, slotCounts);
-      
       const ownerName = team.isOffline 
         ? "Offline Team" 
         : `${team.ownerFirstName || ""} ${team.ownerLastName || ""}`.trim() || "Unknown Owner";
       const teamName = team.name || "Unknown Team";
-      csvContent += `"${teamName}","${ownerName}",`;
-      
-      slotOrder.forEach((slot) => {
-        for (let i = 0; i < slotCounts[slot]; i++) {
-          const player = rosterSlots[slot][i];
+      csvContent += `"${teamName} (${ownerName})",`;
+    });
+    csvContent = csvContent.slice(0, -1) + "\n"; // Remove last comma and add newline
+
+    // Generate roster data for each team
+    const teamRosters: Record<string, Record<string, (typeof allDraftedPlayers[0] | null)[]>> = {};
+    allTeams.forEach((team) => {
+      const teamPlayers = allDraftedPlayers.filter((p) => p.teamId === team.id);
+      teamRosters[team.id] = assignPlayersToSlots(teamPlayers, slotCounts);
+    });
+
+    // Add rows for each position slot
+    slotOrder.forEach((slot) => {
+      for (let i = 0; i < slotCounts[slot]; i++) {
+        const slotLabel = slotCounts[slot] > 1 ? `${slot}${i + 1}` : slot;
+        csvContent += `${slotLabel},`;
+        
+        allTeams.forEach((team) => {
+          const player = teamRosters[team.id][slot][i];
           if (player) {
             const playerName = `${player.playerFirstName || ""} ${player.playerLastName || ""}`.trim();
             const position = player.playerPosition || "Unknown";
             const team = player.playerTeam || "FA";
-            csvContent += `"${playerName} (${position} - ${team})",`;
+            const price = player.draftPrice || 0;
+            csvContent += `"${playerName} (${position} - ${team}) $${price}",`;
           } else {
             csvContent += ",";
           }
-        }
-      });
-      csvContent = csvContent.slice(0, -1) + "\n"; // Remove last comma and add newline
+        });
+        csvContent = csvContent.slice(0, -1) + "\n"; // Remove last comma and add newline
+      }
     });
 
     // Sheet 2: Draft Recap
