@@ -27,14 +27,14 @@ export function calculateRosterInfo(leagueSettings: {
   kSlots?: number;
   benchSlots?: number;
 }): RosterInfo {
-  const qbSlots = leagueSettings.qbSlots || 1;
-  const rbSlots = leagueSettings.rbSlots || 2;
-  const wrSlots = leagueSettings.wrSlots || 2;
-  const teSlots = leagueSettings.teSlots || 1;
-  const flexSlots = leagueSettings.flexSlots || 1;
-  const dstSlots = leagueSettings.dstSlots || 1;
-  const kSlots = leagueSettings.kSlots || 1;
-  const benchSlots = leagueSettings.benchSlots || 7;
+  const qbSlots = leagueSettings.qbSlots ?? 1;
+  const rbSlots = leagueSettings.rbSlots ?? 2;
+  const wrSlots = leagueSettings.wrSlots ?? 2;
+  const teSlots = leagueSettings.teSlots ?? 1;
+  const flexSlots = leagueSettings.flexSlots ?? 1;
+  const dstSlots = leagueSettings.dstSlots ?? 1;
+  const kSlots = leagueSettings.kSlots ?? 1;
+  const benchSlots = leagueSettings.benchSlots ?? 7;
 
   const totalRosterSize = qbSlots + rbSlots + wrSlots + teSlots + flexSlots + dstSlots + kSlots + benchSlots;
 
