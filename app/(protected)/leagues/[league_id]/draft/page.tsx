@@ -97,7 +97,7 @@ export default function DraftPage() {
   // Fetch drafted players when in offline mode
   useEffect(() => {
     if (isOfflineMode && league_id) {
-      fetchDraftedPlayers(league_id);
+      fetchDraftedPlayers(league_id as string);
     }
   }, [isOfflineMode, league_id, fetchDraftedPlayers]);
 

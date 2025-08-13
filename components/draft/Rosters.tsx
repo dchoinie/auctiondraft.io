@@ -51,12 +51,8 @@ function assignPlayersToSlots(
   const filled: (DraftedPlayer | null)[] = Array(slots.length).fill(null);
   const used: boolean[] = Array(players.length).fill(false);
 
-  // Sort players by draft order (createdAt timestamp) to ensure consistent assignment
-  const sortedPlayers = [...players].sort((a, b) => {
-    const aTime = new Date(a.createdAt).getTime();
-    const bTime = new Date(b.createdAt).getTime();
-    return aTime - bTime;
-  });
+  // Use players in the order they come from the database
+  const sortedPlayers = [...players];
 
   // First pass: assign players to their primary position slots
   ["QB", "RB", "WR", "TE", "DST", "K"].forEach((pos) => {
