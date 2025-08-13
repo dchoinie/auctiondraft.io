@@ -51,25 +51,34 @@ function assignPlayersToSlots(
   const filled: (DraftedPlayer | null)[] = Array(slots.length).fill(null);
   const used: boolean[] = Array(players.length).fill(false);
 
+  // Sort players by draft order (createdAt timestamp) to ensure consistent assignment
+  const sortedPlayers = [...players].sort((a, b) => {
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+    return aTime - bTime;
+  });
+
+  // First pass: assign players to their primary position slots
   ["QB", "RB", "WR", "TE", "DST", "K"].forEach((pos) => {
     for (let i = 0; i < slots.length; i++) {
       if (slots[i] === pos && !filled[i]) {
-        const idx = players.findIndex(
+        const idx = sortedPlayers.findIndex(
           (p: DraftedPlayer, j: number) =>
             !used[j] &&
             getPlayerPosition(p, getPlayerById).toUpperCase() === pos
         );
         if (idx !== -1) {
-          filled[i] = players[idx];
+          filled[i] = sortedPlayers[idx];
           used[idx] = true;
         }
       }
     }
   });
 
+  // Second pass: assign remaining players to FLEX slots
   for (let i = 0; i < slots.length; i++) {
     if (slots[i] === "FLEX" && !filled[i]) {
-      const idx = players.findIndex(
+      const idx = sortedPlayers.findIndex(
         (p: DraftedPlayer, j: number) =>
           !used[j] &&
           ["RB", "WR", "TE"].includes(
@@ -77,17 +86,18 @@ function assignPlayersToSlots(
           )
       );
       if (idx !== -1) {
-        filled[i] = players[idx];
+        filled[i] = sortedPlayers[idx];
         used[idx] = true;
       }
     }
   }
 
+  // Third pass: assign remaining players to BENCH slots
   for (let i = 0; i < slots.length; i++) {
     if (slots[i] === "BENCH" && !filled[i]) {
-      const idx = players.findIndex((_: DraftedPlayer, j: number) => !used[j]);
+      const idx = sortedPlayers.findIndex((_: DraftedPlayer, j: number) => !used[j]);
       if (idx !== -1) {
-        filled[i] = players[idx];
+        filled[i] = sortedPlayers[idx];
         used[idx] = true;
       }
     }

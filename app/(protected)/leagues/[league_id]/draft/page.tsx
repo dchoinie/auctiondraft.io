@@ -81,12 +81,40 @@ export default function DraftPage() {
   const { isPreDraft, isLive, isPaused, isComplete, isActive } =
     useDraftPhase(draftState);
 
+
+
   const playersStore = usePlayersStore();
 
   const league = leagues.find((league: League) => league.id === league_id);
   const isOfflineMode = league?.settings?.draftMode === "offline";
   const isDataError = teamsError || leaguesError || userError;
   const isLoadingData = teamsLoading || leaguesLoading || userLoading;
+
+  // Check if offline draft is complete (all teams have filled rosters)
+  const isOfflineDraftComplete = React.useMemo(() => {
+    if (!isOfflineMode || !league?.settings) return false;
+    
+    // Calculate total roster spots for the league
+    const totalRosterSpots =
+      (league.settings.qbSlots || 0) +
+      (league.settings.rbSlots || 0) +
+      (league.settings.wrSlots || 0) +
+      (league.settings.teSlots || 0) +
+      (league.settings.flexSlots || 0) +
+      (league.settings.dstSlots || 0) +
+      (league.settings.kSlots || 0) +
+      (league.settings.benchSlots || 0);
+
+    // Get all teams (live + offline)
+    const allTeams = [...teams, ...offlineTeams];
+    
+    // Check if all teams have filled their rosters
+    return allTeams.length > 0 && allTeams.every((team) => {
+      const teamDraftedPlayers = useDraftedPlayersStore.getState().draftedPlayers[league_id as string] || [];
+      const teamPlayers = teamDraftedPlayers.filter((p) => p.teamId === team.id);
+      return teamPlayers.length >= totalRosterSpots;
+    });
+  }, [isOfflineMode, league?.settings, teams, offlineTeams, league_id]);
 
   // Fetch offline teams when in offline mode
   useEffect(() => {
@@ -435,6 +463,59 @@ export default function DraftPage() {
 
   // Offline mode: render simplified offline draft UI with no PartyKit
   if (isOfflineMode) {
+    // Show completion page if all rosters are full
+    if (isOfflineDraftComplete) {
+      return (
+        <PageContent>
+          <StaggeredContent>
+            <StaggeredItem>
+              <div className="flex flex-col items-center justify-center min-h-[50vh] sm:min-h-[60vh] lg:min-h-screen text-emerald-200 px-4">
+                <SlideUp delay={0.2}>
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 text-center">
+                    Draft Complete! 🎉
+                  </div>
+                </SlideUp>
+                <FadeIn delay={0.4}>
+                  <div className="text-sm sm:text-base mt-4 text-center max-w-md mb-8">
+                    Congratulations! The draft has been completed successfully.
+                  </div>
+                </FadeIn>
+                <FadeIn delay={0.6}>
+                  <a
+                    href={`/api/leagues/${league_id}/draft/csv`}
+                    download
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Download CSV
+                  </a>
+                </FadeIn>
+                <FadeIn delay={0.8}>
+                  <div className="text-xs mt-4 text-gray-400 text-center max-w-sm">
+                    The CSV contains team rosters and draft recap with all player information and prices.
+                  </div>
+                </FadeIn>
+              </div>
+            </StaggeredItem>
+          </StaggeredContent>
+        </PageContent>
+      );
+    }
+
+    // Show regular offline draft UI
     return (
       <PageContent>
         <StaggeredContent>
