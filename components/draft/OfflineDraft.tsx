@@ -133,12 +133,12 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
     if (!selectedPlayerId) setSelectedDetails(null);
   }, [selectedPlayerId]);
 
-  // Ensure selected team remains valid (exclude online admin team from selection)
+  // Ensure selected team remains valid
   React.useEffect(() => {
-    if (selectedTeamId && !offlineTeams.some((t) => t.id === selectedTeamId)) {
+    if (selectedTeamId && !combinedTeams.some((t) => t.id === selectedTeamId)) {
       setSelectedTeamId("");
     }
-  }, [offlineTeams, selectedTeamId]);
+  }, [combinedTeams, selectedTeamId]);
 
   // Derived values
   const totalRosterSpots = React.useMemo(() => {
@@ -254,7 +254,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
       toast.error("Enter a valid bid amount");
       return;
     }
-    const team = offlineTeams.find((t) => t.id === selectedTeamId);
+    const team = combinedTeams.find((t) => t.id === selectedTeamId);
     if (!team) {
       toast.error("Invalid team selected");
       return;
@@ -274,7 +274,14 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
 
     try {
       setIsSaving(true);
-      const res = await fetch(`/api/leagues/${leagueId}/offline-teams/${team.id}/draft-player`, {
+      
+      // Determine if this is an offline team or regular team
+      const isOfflineTeam = offlineTeams.some(t => t.id === team.id);
+      const endpoint = isOfflineTeam 
+        ? `/api/leagues/${leagueId}/offline-teams/${team.id}/draft-player`
+        : `/api/leagues/${leagueId}/teams/${team.id}/draft-player`;
+      
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId: selectedPlayerId, draftPrice: price }),
@@ -296,6 +303,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
       await Promise.all([
         fetchDraftedPlayers(leagueId),
         fetchOfflineTeams(leagueId),
+        // Note: Regular teams are fetched via useLeagueTeams hook which should auto-refresh
       ]);
 
       // Refresh player list view so the drafted player disappears from table immediately
@@ -436,10 +444,10 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
               <Label className="text-emerald-300">Winning Team</Label>
               <Select onValueChange={setSelectedTeamId} value={selectedTeamId || undefined}>
                 <SelectTrigger className="w-full bg-emerald-950/40 text-emerald-100 border-emerald-800/50">
-                  <SelectValue placeholder="Select offline team" className="text-emerald-100" />
+                  <SelectValue placeholder="Select team" className="text-emerald-100" />
                 </SelectTrigger>
                 <SelectContent className="bg-emerald-950/95 border border-emerald-800/50 text-emerald-100">
-                  {offlineTeams.map((t) => (
+                  {combinedTeams.map((t) => (
                       <SelectItem key={t.id} value={t.id} className="text-emerald-100 focus:bg-emerald-900/40 focus:text-emerald-100">
                         {t.name}
                       </SelectItem>
