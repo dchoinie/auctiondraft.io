@@ -47,7 +47,6 @@ export async function GET(
         draftOrder: teams.draftOrder,
         ownerFirstName: userProfiles.firstName,
         ownerLastName: userProfiles.lastName,
-        isOffline: false,
       })
       .from(teams)
       .leftJoin(userProfiles, eq(teams.ownerId, userProfiles.id))
@@ -59,19 +58,24 @@ export async function GET(
       .select({
         id: offlineTeams.id,
         name: offlineTeams.name,
-        ownerId: null,
         budget: offlineTeams.budget,
         draftOrder: offlineTeams.draftOrder,
-        ownerFirstName: null,
-        ownerLastName: null,
-        isOffline: true,
       })
       .from(offlineTeams)
       .where(eq(offlineTeams.leagueId, leagueId))
       .orderBy(offlineTeams.draftOrder);
 
-    // Combine all teams
-    const allTeams = [...regularTeams, ...offlineTeamsList];
+    // Combine all teams and add isOffline flag
+    const allTeams = [
+      ...regularTeams.map(team => ({ ...team, isOffline: false })),
+      ...offlineTeamsList.map(team => ({ 
+        ...team, 
+        ownerId: null,
+        ownerFirstName: null,
+        ownerLastName: null,
+        isOffline: true 
+      }))
+    ];
 
     // Get all drafted players with player and team info, ordered by creation time
     // First get players drafted to regular teams
