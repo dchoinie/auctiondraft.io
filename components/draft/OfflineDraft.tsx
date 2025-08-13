@@ -48,6 +48,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
   // Players table state
   const [positionFilter, setPositionFilter] = React.useState<string>("ALL");
   const [page, setPage] = React.useState<number>(1);
+  const [filteredPage, setFilteredPage] = React.useState<number>(1);
   const limit = 25;
   const playersStore = usePlayersStore();
   const { players: tablePlayers, pagination, loading: playersLoading, fetchPlayersPage } = usePlayers(page, limit);
@@ -58,12 +59,12 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  const fetchFilteredPlayers = React.useCallback(async () => {
+  const fetchFilteredPlayers = React.useCallback(async (pageNum: number = 1) => {
     const controller = new AbortController();
     try {
       playersStore.setLoading(true);
       const params = new URLSearchParams();
-      params.set("page", "1");
+      params.set("page", String(pageNum));
       params.set("limit", String(limit));
       if (search) params.set("search", search);
       if (positionFilter && positionFilter !== "ALL") params.set("position", positionFilter);
@@ -72,7 +73,6 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
       const data = await res.json();
       const timestamp = Date.now();
       playersStore.setError(null);
-      setPage(1);
       setFilteredData({ players: data.players, pagination: data.pagination, timestamp });
     } catch (e: unknown) {
       const err = e as { name?: string; message?: string } | undefined;
@@ -86,9 +86,19 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
 
   React.useEffect(() => {
     // When search or position changes, reset to page 1 and fetch with query
-    fetchFilteredPlayers();
+    setFilteredPage(1);
+    fetchFilteredPlayers(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, positionFilter]);
+
+  // Handle filtered page changes
+  React.useEffect(() => {
+    const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
+    if (hasActiveFilters) {
+      fetchFilteredPlayers(filteredPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredPage]);
 
   // Local filtered data fallback when using search/filters
   const [filteredData, setFilteredData] = React.useState<{ players: ReturnType<typeof usePlayers>["players"]; pagination: ReturnType<typeof usePlayers>["pagination"]; timestamp: number } | null>(null);
@@ -309,7 +319,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
       // Refresh player list view so the drafted player disappears from table immediately
       const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
       if (hasActiveFilters) {
-        await fetchFilteredPlayers();
+        await fetchFilteredPlayers(filteredPage);
       } else {
         await fetchPlayersPage();
       }
@@ -434,8 +444,38 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
                   Page {visiblePagination.currentPage} of {visiblePagination.totalPages}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" disabled={!visiblePagination.hasPreviousPage} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
-                  <Button variant="outline" size="sm" className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" disabled={!visiblePagination.hasNextPage} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
+                    disabled={!visiblePagination.hasPreviousPage} 
+                    onClick={() => {
+                      const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
+                      if (hasActiveFilters) {
+                        setFilteredPage((p) => Math.max(1, p - 1));
+                      } else {
+                        setPage((p) => Math.max(1, p - 1));
+                      }
+                    }}
+                  >
+                    Prev
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
+                    disabled={!visiblePagination.hasNextPage} 
+                    onClick={() => {
+                      const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
+                      if (hasActiveFilters) {
+                        setFilteredPage((p) => p + 1);
+                      } else {
+                        setPage((p) => p + 1);
+                      }
+                    }}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </div>
