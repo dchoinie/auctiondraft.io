@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useLeagueTeams, Team } from "@/stores/teamStore";
 import { useUser } from "@/stores/userStore";
 import { League, useLeagueMembership } from "@/stores/leagueStore";
-import { useDraftedPlayersStore } from "@/stores/draftedPlayersStore";
+import { useDraftedPlayersStore, useDraftedPlayers } from "@/stores/draftedPlayersStore";
 import { usePlayersStore } from "@/stores/playersStore";
 import { useOfflineTeamStore } from "@/stores/offlineTeamStore";
 import { Loader2 } from "lucide-react";
@@ -91,7 +91,15 @@ export default function DraftPage() {
   const isLoadingData = teamsLoading || leaguesLoading || userLoading;
 
   // Get drafted players for completion check
-  const draftedPlayers = useDraftedPlayersAuto(league_id as string);
+  const draftedPlayers = useDraftedPlayers(league_id as string);
+  const fetchDraftedPlayers = useDraftedPlayersStore((state) => state.fetchDraftedPlayers);
+
+  // Fetch drafted players when in offline mode
+  useEffect(() => {
+    if (isOfflineMode && league_id) {
+      fetchDraftedPlayers(league_id);
+    }
+  }, [isOfflineMode, league_id, fetchDraftedPlayers]);
 
   // Check if offline draft is complete (all teams have filled rosters)
   const isOfflineDraftComplete = React.useMemo(() => {
