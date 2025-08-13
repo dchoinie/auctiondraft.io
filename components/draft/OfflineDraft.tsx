@@ -30,7 +30,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
   // Local UI state
   const [search, setSearch] = React.useState("");
   const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = React.useState<string>("");
+  const [selectedTeamId, setSelectedTeamId] = React.useState<string | undefined>(undefined);
   const [bidAmount, setBidAmount] = React.useState<string>("");
   const [isSaving, setIsSaving] = React.useState(false);
   // Online teams and league admin team
@@ -136,7 +136,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
   // Ensure selected team remains valid
   React.useEffect(() => {
     if (selectedTeamId && !combinedTeams.some((t) => t.id === selectedTeamId)) {
-      setSelectedTeamId("");
+      setSelectedTeamId(undefined);
     }
   }, [combinedTeams, selectedTeamId]);
 
@@ -318,7 +318,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
       setSelectedPlayerId(null);
       setSelectedDetails(null);
       setBidAmount("");
-      setSelectedTeamId("");
+      setSelectedTeamId(undefined);
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error drafting player");
@@ -442,7 +442,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
 
             <div className="space-y-2">
               <Label className="text-emerald-300">Winning Team</Label>
-              <Select onValueChange={setSelectedTeamId} value={selectedTeamId || undefined}>
+              <Select onValueChange={setSelectedTeamId} value={selectedTeamId}>
                 <SelectTrigger className="w-full bg-emerald-950/40 text-emerald-100 border-emerald-800/50">
                   <SelectValue placeholder="Select team" className="text-emerald-100" />
                 </SelectTrigger>
@@ -454,7 +454,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
                   ))}
                 </SelectContent>
               </Select>
-              {selectedTeamId && selectedTeamId !== "" && (
+              {selectedTeamId && (
                 <div className="text-xs text-gray-400">
                   Max bid: ${maxBidByTeam[selectedTeamId] ?? 0} • Remaining spots: {remainingSpotsByTeam[selectedTeamId] ?? 0}
                 </div>
@@ -477,7 +477,7 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
               <div className="flex gap-2 pt-4">
                 <Button
                   onClick={handleDraft}
-                  disabled={isSaving || !selectedPlayerId || !selectedTeamId || selectedTeamId === "" || !bidAmount}
+                  disabled={isSaving || !selectedPlayerId || !selectedTeamId || !bidAmount}
                   className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white"
                 >
                   {isSaving ? (
