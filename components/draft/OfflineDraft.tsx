@@ -53,6 +53,11 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
   const playersStore = usePlayersStore();
   const { players: tablePlayers, pagination, loading: playersLoading, fetchPlayersPage } = usePlayers(page, limit);
 
+  // Helper function to check if filters are active
+  const hasActiveFilters = React.useMemo(() => {
+    return (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
+  }, [search, positionFilter]);
+
   React.useEffect(() => {
     // Fetch whenever page changes; position/search handled below via direct fetch
     fetchPlayersPage();
@@ -85,17 +90,24 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
   }, [search, positionFilter, limit, playersStore]);
 
   React.useEffect(() => {
-    // When search or position changes, reset to page 1 and fetch with query
-    setFilteredPage(1);
-    fetchFilteredPlayers(1);
+    if (hasActiveFilters) {
+      // When search or position changes, reset to page 1 and fetch with query
+      setFilteredPage(1);
+      fetchFilteredPlayers(1);
+    } else {
+      // Clear filtered data when no filters are active
+      setFilteredData(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, positionFilter]);
 
   // Handle filtered page changes
   React.useEffect(() => {
-    const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
     if (hasActiveFilters) {
       fetchFilteredPlayers(filteredPage);
+    } else {
+      // Clear filtered data when no filters are active
+      setFilteredData(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredPage]);
@@ -316,13 +328,12 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
         // Note: Regular teams are fetched via useLeagueTeams hook which should auto-refresh
       ]);
 
-      // Refresh player list view so the drafted player disappears from table immediately
-      const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
-      if (hasActiveFilters) {
-        await fetchFilteredPlayers(filteredPage);
-      } else {
-        await fetchPlayersPage();
-      }
+             // Refresh player list view so the drafted player disappears from table immediately
+       if (hasActiveFilters) {
+         await fetchFilteredPlayers(filteredPage);
+       } else {
+         await fetchPlayersPage();
+       }
 
       // Reset inputs
       setSelectedPlayerId(null);
@@ -444,38 +455,36 @@ export default function OfflineDraft({ leagueId }: OfflineDraftProps) {
                   Page {visiblePagination.currentPage} of {visiblePagination.totalPages}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
-                    disabled={!visiblePagination.hasPreviousPage} 
-                    onClick={() => {
-                      const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
-                      if (hasActiveFilters) {
-                        setFilteredPage((p) => Math.max(1, p - 1));
-                      } else {
-                        setPage((p) => Math.max(1, p - 1));
-                      }
-                    }}
-                  >
-                    Prev
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
-                    disabled={!visiblePagination.hasNextPage} 
-                    onClick={() => {
-                      const hasActiveFilters = (search?.trim().length ?? 0) > 0 || (positionFilter && positionFilter !== "ALL");
-                      if (hasActiveFilters) {
-                        setFilteredPage((p) => p + 1);
-                      } else {
-                        setPage((p) => p + 1);
-                      }
-                    }}
-                  >
-                    Next
-                  </Button>
+                                     <Button 
+                     variant="outline" 
+                     size="sm" 
+                     className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
+                     disabled={!visiblePagination.hasPreviousPage} 
+                     onClick={() => {
+                       if (hasActiveFilters) {
+                         setFilteredPage((p) => Math.max(1, p - 1));
+                       } else {
+                         setPage((p) => Math.max(1, p - 1));
+                       }
+                     }}
+                   >
+                     Prev
+                   </Button>
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     className="border-emerald-800 text-emerald-200 hover:bg-emerald-900/40" 
+                     disabled={!visiblePagination.hasNextPage} 
+                     onClick={() => {
+                       if (hasActiveFilters) {
+                         setFilteredPage((p) => p + 1);
+                       } else {
+                         setPage((p) => p + 1);
+                       }
+                     }}
+                   >
+                     Next
+                   </Button>
                 </div>
               </div>
             </div>
